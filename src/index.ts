@@ -2,6 +2,8 @@ import { Command } from 'commander'
 import { APP_NAME, APP_VERSION } from './config/constants.js'
 import { registerConfigCommand } from './commands/config.js'
 import { registerKeyCommand } from './commands/key.js'
+import { registerWalletCommand } from './commands/wallet.js'
+import { registerBalanceCommand } from './commands/balance.js'
 
 export function createProgram(): Command {
   const program = new Command()
@@ -17,6 +19,8 @@ export function createProgram(): Command {
 
   registerConfigCommand(program)
   registerKeyCommand(program)
+  registerWalletCommand(program)
+  registerBalanceCommand(program)
 
   return program
 }
