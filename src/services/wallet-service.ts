@@ -38,9 +38,6 @@ export async function walletCreate(chain: ChainName, index: number): Promise<Wal
   return walletRegistry.add({ chain, index, address })
 }
 
-export async function walletList(chain?: ChainName): Promise<WalletEntry[]> {
-  return walletRegistry.list(chain)
-}
 
 export async function walletInfo(
   chain: ChainName,
