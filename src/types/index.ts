@@ -1,14 +1,18 @@
 export type ChainName =
   | 'bitcoin'
   | 'bitcoin-testnet'
+  | 'bitcoin-signet'
   | 'ethereum'
   | 'sepolia'
   | 'polygon'
   | 'arbitrum'
   | 'bsc'
   | 'avalanche'
+  | 'solana'
+  | 'solana-testnet'
+  | 'solana-devnet'
 
-export type ChainType = 'evm' | 'btc'
+export type ChainType = 'evm' | 'btc' | 'solana'
 
 export interface ChainConfig {
   name: ChainName

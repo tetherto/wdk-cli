@@ -5,6 +5,7 @@ import { registerKeyCommand } from './commands/key.js'
 import { registerWalletCommand } from './commands/wallet.js'
 import { registerBalanceCommand } from './commands/balance.js'
 import { registerSendCommand } from './commands/send.js'
+import { registerNetworksCommand } from './commands/networks.js'
 
 export function createProgram(): Command {
   const program = new Command()
@@ -23,6 +24,7 @@ export function createProgram(): Command {
   registerWalletCommand(program)
   registerBalanceCommand(program)
   registerSendCommand(program)
+  registerNetworksCommand(program)
 
   return program
 }

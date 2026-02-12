@@ -48,7 +48,7 @@ export class WdkService {
     } else {
       ;(this.wdk as any).registerWallet(chain, WalletManagerBtc, {
         provider: providerUrl,
-        network: chain === 'bitcoin-testnet' ? 'testnet' : 'bitcoin',
+        network: chain === 'bitcoin' ? 'bitcoin' : 'testnet',
       })
     }
 

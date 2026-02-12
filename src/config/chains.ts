@@ -17,6 +17,14 @@ export const CHAINS: Record<ChainName, ChainConfig> = {
     nativeSymbol: 'tBTC',
     decimals: 8,
   },
+  'bitcoin-signet': {
+    name: 'bitcoin-signet',
+    displayName: 'Bitcoin Signet',
+    type: 'btc',
+    defaultProvider: 'https://mempool.space/signet/api',
+    nativeSymbol: 'sBTC',
+    decimals: 8,
+  },
   ethereum: {
     name: 'ethereum',
     displayName: 'Ethereum',
@@ -65,6 +73,30 @@ export const CHAINS: Record<ChainName, ChainConfig> = {
     nativeSymbol: 'AVAX',
     decimals: 18,
   },
+  solana: {
+    name: 'solana',
+    displayName: 'Solana',
+    type: 'solana',
+    defaultProvider: 'https://api.mainnet-beta.solana.com',
+    nativeSymbol: 'SOL',
+    decimals: 9,
+  },
+  'solana-testnet': {
+    name: 'solana-testnet',
+    displayName: 'Solana Testnet',
+    type: 'solana',
+    defaultProvider: 'https://api.testnet.solana.com',
+    nativeSymbol: 'SOL',
+    decimals: 9,
+  },
+  'solana-devnet': {
+    name: 'solana-devnet',
+    displayName: 'Solana Devnet',
+    type: 'solana',
+    defaultProvider: 'https://api.devnet.solana.com',
+    nativeSymbol: 'SOL',
+    decimals: 9,
+  },
 }
 
 export const CHAIN_NAMES = Object.keys(CHAINS) as ChainName[]
@@ -81,10 +113,14 @@ export function isBtcChain(name: ChainName): boolean {
   return CHAINS[name].type === 'btc'
 }
 
+export function isSolanaChain(name: ChainName): boolean {
+  return CHAINS[name].type === 'solana'
+}
+
 export function isValidChain(name: string): name is ChainName {
   return name in CHAINS
 }
 
 export function isTestnet(name: ChainName): boolean {
-  return name === 'bitcoin-testnet' || name === 'sepolia'
+  return name === 'bitcoin-testnet' || name === 'bitcoin-signet' || name === 'sepolia' || name === 'solana-testnet' || name === 'solana-devnet'
 }

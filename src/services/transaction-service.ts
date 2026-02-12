@@ -1,8 +1,9 @@
 import { wdkService } from './wdk-service.js'
+import { solanaService } from './solana-service.js'
 import { KeyService } from './key-service.js'
 import { Keyring } from '../security/keyring.js'
 import { configService } from './config-service.js'
-import { CHAINS, isEvmChain } from '../config/chains.js'
+import { CHAINS, isEvmChain, isSolanaChain } from '../config/chains.js'
 import { getKeyringPath } from '../config/constants.js'
 import { KeyNotFoundError, InsufficientBalanceError, TransactionFailedError } from '../errors/index.js'
 import { promptPassword } from '../ui/prompts.js'
@@ -16,7 +17,11 @@ async function ensureInitialized(chain: ChainName): Promise<void> {
   }
   const password = await promptPassword('Enter password to unlock wallet:')
   const seedPhrase = await keyService.unlock(password)
-  await wdkService.initialize(seedPhrase, chain)
+  if (isSolanaChain(chain)) {
+    solanaService.initialize(seedPhrase)
+  } else {
+    await wdkService.initialize(seedPhrase, chain)
+  }
 }
 
 export interface SendOptions {
@@ -35,13 +40,13 @@ export interface FeeQuote {
 
 export async function estimateFee(options: SendOptions): Promise<FeeQuote> {
   await ensureInitialized(options.chain)
-  const account = await wdkService.getAccount(options.chain, options.index)
   const chainConfig = CHAINS[options.chain]
-
   let fee: bigint
 
-  if (options.token && isEvmChain(options.chain)) {
-    // Token transfer fee estimation
+  if (isSolanaChain(options.chain)) {
+    fee = await solanaService.estimateFee(options.chain)
+  } else if (options.token && isEvmChain(options.chain)) {
+    const account = await wdkService.getAccount(options.chain, options.index)
     const quote = await account.quoteTransfer({
       token: options.token,
       recipient: options.to,
@@ -49,7 +54,7 @@ export async function estimateFee(options: SendOptions): Promise<FeeQuote> {
     })
     fee = quote.fee
   } else {
-    // Native send fee estimation
+    const account = await wdkService.getAccount(options.chain, options.index)
     const quote = await account.quoteSendTransaction({
       to: options.to,
       value: BigInt(options.amount),
@@ -68,16 +73,40 @@ export async function estimateFee(options: SendOptions): Promise<FeeQuote> {
 }
 
 export async function send(options: SendOptions): Promise<TxResult> {
-  // ensureInitialized already called during fee estimation, but re-init is cached
-  const account = await wdkService.getAccount(options.chain, options.index)
   const chainConfig = CHAINS[options.chain]
-
-  // Check balance before sending
-  const balance = await account.getBalance()
   const sendAmount = BigInt(options.amount)
 
+  if (isSolanaChain(options.chain)) {
+    const from = solanaService.getAddress(options.index)
+    const balance = await solanaService.getBalance(options.chain, options.index)
+    if (balance < sendAmount) {
+      throw new InsufficientBalanceError(
+        balance.toString(),
+        sendAmount.toString(),
+        chainConfig.nativeSymbol,
+      )
+    }
+    try {
+      const result = await solanaService.sendTransaction(options.chain, options.index, options.to, sendAmount)
+      return {
+        txHash: result.hash,
+        chain: options.chain,
+        from,
+        to: options.to,
+        amount: options.amount,
+        fee: result.fee.toString(),
+      }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error)
+      throw new TransactionFailedError(msg)
+    }
+  }
+
+  // ensureInitialized already called during fee estimation, but re-init is cached
+  const account = await wdkService.getAccount(options.chain, options.index)
+  const balance = await account.getBalance()
+
   if (options.token && isEvmChain(options.chain)) {
-    // Check token balance
     const tokenBalance = await account.getTokenBalance(options.token)
     if (tokenBalance < sendAmount) {
       throw new InsufficientBalanceError(
@@ -86,8 +115,6 @@ export async function send(options: SendOptions): Promise<TxResult> {
         'tokens',
       )
     }
-
-    // Execute token transfer
     try {
       const result = await account.transfer({
         token: options.token,
@@ -108,7 +135,6 @@ export async function send(options: SendOptions): Promise<TxResult> {
       throw new TransactionFailedError(msg)
     }
   } else {
-    // Native send — check native balance
     if (balance < sendAmount) {
       throw new InsufficientBalanceError(
         balance.toString(),
@@ -116,7 +142,6 @@ export async function send(options: SendOptions): Promise<TxResult> {
         chainConfig.nativeSymbol,
       )
     }
-
     try {
       const result = await account.sendTransaction({
         to: options.to,
