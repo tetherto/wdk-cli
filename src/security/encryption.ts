@@ -2,7 +2,8 @@ import { scryptSync, randomBytes, createCipheriv, createDecipheriv } from 'node:
 import type { EncryptedPayload } from '../types/index.js'
 
 const ALGORITHM = 'aes-256-gcm'
-const SCRYPT_N = 2 ** 17
+// Use lower scrypt params in test environment to avoid memory errors
+const SCRYPT_N = process.env.NODE_ENV === 'test' ? 2 ** 14 : 2 ** 17
 const SCRYPT_R = 8
 const SCRYPT_P = 1
 const KEY_LEN = 32
@@ -36,6 +37,7 @@ export function decrypt(payload: EncryptedPayload, password: string): string {
   const salt = Buffer.from(payload.salt, 'hex')
   const iv = Buffer.from(payload.iv, 'hex')
   const tag = Buffer.from(payload.tag, 'hex')
+  // Use same N value as encryption (may be lowered in test env)
   const key = scryptSync(password, salt, KEY_LEN, { N: SCRYPT_N, r: SCRYPT_R, p: SCRYPT_P })
 
   const decipher = createDecipheriv(ALGORITHM, key, iv)
