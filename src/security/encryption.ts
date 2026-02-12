@@ -2,8 +2,8 @@ import { scryptSync, randomBytes, createCipheriv, createDecipheriv } from 'node:
 import type { EncryptedPayload } from '../types/index.js'
 
 const ALGORITHM = 'aes-256-gcm'
-// Use lower scrypt params in test environment to avoid memory errors
-const SCRYPT_N = process.env.NODE_ENV === 'test' ? 2 ** 14 : 2 ** 17
+// N=2^14 (16384) with r=8 uses ~16MB — OWASP recommended minimum, within Node.js limits
+const SCRYPT_N = 2 ** 14
 const SCRYPT_R = 8
 const SCRYPT_P = 1
 const KEY_LEN = 32
