@@ -1,0 +1,36 @@
+{
+  "name": "wdk-cli",
+  "version": "0.1.0",
+  "description": "CLI tool for Tether's Wallet Development Kit (WDK)",
+  "type": "module",
+  "bin": { "wdk": "./dist/bin/wdk.js" },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "eslint src/",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "engines": { "node": ">=20.0.0" },
+  "dependencies": {
+    "@tetherto/wdk": "1.0.0-beta.5",
+    "@tetherto/wdk-wallet-btc": "1.0.0-beta.5",
+    "@tetherto/wdk-wallet-evm": "1.0.0-beta.6",
+    "commander": "^14.0.0",
+    "@inquirer/prompts": "^8.0.0",
+    "conf": "^15.0.0",
+    "chalk": "^5.0.0",
+    "cli-table3": "^0.6.5",
+    "ora": "^9.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "tsup": "^8.0.0",
+    "vitest": "^3.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^9.0.0",
+    "@types/node": "^22.0.0"
+  }
+}
