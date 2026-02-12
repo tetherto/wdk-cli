@@ -52,7 +52,7 @@ export class ChainNotSupportedError extends WdkCliError {
     super(
       `Chain '${chain}' is not supported.`,
       'CHAIN_NOT_SUPPORTED',
-      `Supported chains: bitcoin, ethereum, polygon, arbitrum, bsc, avalanche`,
+      `Supported chains: bitcoin, bitcoin-testnet, ethereum, sepolia, polygon, arbitrum, bsc, avalanche`,
     )
   }
 }

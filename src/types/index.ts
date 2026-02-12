@@ -1,4 +1,12 @@
-export type ChainName = 'bitcoin' | 'ethereum' | 'polygon' | 'arbitrum' | 'bsc' | 'avalanche'
+export type ChainName =
+  | 'bitcoin'
+  | 'bitcoin-testnet'
+  | 'ethereum'
+  | 'sepolia'
+  | 'polygon'
+  | 'arbitrum'
+  | 'bsc'
+  | 'avalanche'
 
 export type ChainType = 'evm' | 'btc'
 

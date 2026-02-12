@@ -9,11 +9,27 @@ export const CHAINS: Record<ChainName, ChainConfig> = {
     nativeSymbol: 'BTC',
     decimals: 8,
   },
+  'bitcoin-testnet': {
+    name: 'bitcoin-testnet',
+    displayName: 'Bitcoin Testnet',
+    type: 'btc',
+    defaultProvider: 'https://blockstream.info/testnet/api',
+    nativeSymbol: 'tBTC',
+    decimals: 8,
+  },
   ethereum: {
     name: 'ethereum',
     displayName: 'Ethereum',
     type: 'evm',
     defaultProvider: 'https://eth.drpc.org',
+    nativeSymbol: 'ETH',
+    decimals: 18,
+  },
+  sepolia: {
+    name: 'sepolia',
+    displayName: 'Sepolia Testnet',
+    type: 'evm',
+    defaultProvider: 'https://rpc.sepolia.org',
     nativeSymbol: 'ETH',
     decimals: 18,
   },
@@ -67,4 +83,8 @@ export function isBtcChain(name: ChainName): boolean {
 
 export function isValidChain(name: string): name is ChainName {
   return name in CHAINS
+}
+
+export function isTestnet(name: ChainName): boolean {
+  return name === 'bitcoin-testnet' || name === 'sepolia'
 }

@@ -1,6 +1,7 @@
 import { Command } from 'commander'
 import { APP_NAME, APP_VERSION } from './config/constants.js'
 import { registerConfigCommand } from './commands/config.js'
+import { registerKeyCommand } from './commands/key.js'
 
 export function createProgram(): Command {
   const program = new Command()
@@ -15,11 +16,12 @@ export function createProgram(): Command {
     .option('--verbose', 'Enable debug logging')
 
   registerConfigCommand(program)
+  registerKeyCommand(program)
 
   return program
 }
 
-export function run(argv: string[]): void {
+export async function run(argv: string[]): Promise<void> {
   const program = createProgram()
-  program.parse(argv)
+  await program.parseAsync(argv)
 }

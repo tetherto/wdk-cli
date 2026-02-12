@@ -38,7 +38,9 @@ export function formatDate(dateStr: string): string {
 export function chainColor(chain: ChainName): (text: string) => string {
   const colors: Record<ChainName, (text: string) => string> = {
     bitcoin: chalk.hex('#F7931A'),
+    'bitcoin-testnet': chalk.hex('#F7931A'),
     ethereum: chalk.hex('#627EEA'),
+    sepolia: chalk.hex('#627EEA'),
     polygon: chalk.hex('#8247E5'),
     arbitrum: chalk.hex('#28A0F0'),
     bsc: chalk.hex('#F0B90B'),
