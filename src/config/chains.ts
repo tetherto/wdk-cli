@@ -29,7 +29,7 @@ export const CHAINS: Record<ChainName, ChainConfig> = {
     name: 'sepolia',
     displayName: 'Sepolia Testnet',
     type: 'evm',
-    defaultProvider: 'https://rpc.sepolia.org',
+    defaultProvider: 'https://ethereum-sepolia-rpc.publicnode.com',
     nativeSymbol: 'ETH',
     decimals: 18,
   },
