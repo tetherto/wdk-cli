@@ -3,7 +3,7 @@ import { solanaService } from './solana-service.js'
 import { KeyService } from './key-service.js'
 import { Keyring } from '../security/keyring.js'
 import { sessionService } from './session-service.js'
-import { NETWORKS, isEvmNetwork, isSolanaNetwork } from '../config/networks.js'
+import { getNetworkConfig, isEvmNetwork, isSolanaNetwork } from '../config/networks.js'
 import { getKeyringPath } from '../config/constants.js'
 import { KeyNotFoundError, InsufficientBalanceError, TransactionFailedError } from '../errors/index.js'
 import { promptPassword } from '../ui/prompts.js'
@@ -48,7 +48,7 @@ export interface FeeQuote {
 
 export async function estimateFee(options: SendOptions): Promise<FeeQuote> {
   await ensureInitialized(options.network)
-  const networkConfig = NETWORKS[options.network]
+  const networkConfig = getNetworkConfig(options.network)
   let fee: bigint
 
   if (isSolanaNetwork(options.network)) {
@@ -81,7 +81,7 @@ export async function estimateFee(options: SendOptions): Promise<FeeQuote> {
 }
 
 export async function send(options: SendOptions): Promise<TxResult> {
-  const networkConfig = NETWORKS[options.network]
+  const networkConfig = getNetworkConfig(options.network)
   const sendAmount = BigInt(options.amount)
 
   if (isSolanaNetwork(options.network)) {

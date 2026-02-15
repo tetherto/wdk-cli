@@ -1,7 +1,7 @@
 import WDK from '@tetherto/wdk'
 import WalletManagerBtc from '@tetherto/wdk-wallet-btc'
 import WalletManagerEvm from '@tetherto/wdk-wallet-evm'
-import { NETWORKS, isEvmNetwork } from '../config/networks.js'
+import { isValidNetwork, isEvmNetwork, getNetworkConfig } from '../config/networks.js'
 import { configService } from './config-service.js'
 import { NetworkNotSupportedError, NetworkError } from '../errors/index.js'
 import type { NetworkName } from '../types/index.js'
@@ -18,7 +18,7 @@ export class WdkService {
   private accountCache = new Map<string, WdkAccount>()
 
   async initialize(seedPhrase: string, network: NetworkName): Promise<void> {
-    if (!(network in NETWORKS)) {
+    if (!isValidNetwork(network)) {
       throw new NetworkNotSupportedError(network)
     }
 

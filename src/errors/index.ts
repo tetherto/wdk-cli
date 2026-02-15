@@ -47,12 +47,22 @@ export class WrongPasswordError extends WdkCliError {
   }
 }
 
+export class MissingNetworkError extends WdkCliError {
+  constructor() {
+    super(
+      'Missing --network flag.',
+      'MISSING_NETWORK',
+      `Run \`wdk network list\` to see options.`,
+    )
+  }
+}
+
 export class NetworkNotSupportedError extends WdkCliError {
   constructor(network: string) {
     super(
       `Network '${network}' is not supported.`,
       'NETWORK_NOT_SUPPORTED',
-      `Run \`wdk networks\` to see supported networks.`,
+      `Run \`wdk network list\` to see supported networks.`,
     )
   }
 }
@@ -91,9 +101,31 @@ export function handleError(error: unknown, verbose: boolean = false): never {
     process.exit(1)
   }
 
-  console.error(chalk.red('Unexpected error occurred.'))
-  if (verbose && error instanceof Error) {
-    console.error(error.stack)
+  // Handle ethers.js and other coded errors
+  if (error instanceof Error) {
+    const coded = error as Error & { code?: string }
+    if (coded.code) {
+      const messages: Record<string, [string, string?]> = {
+        INSUFFICIENT_FUNDS: ['Insufficient funds for this transaction.', 'Top up your wallet and try again.'],
+        INVALID_ARGUMENT: ['Invalid argument.'],
+        NETWORK_ERROR: ['Cannot reach the RPC provider.', 'Check your network connection and provider URL.'],
+        SERVER_ERROR: ['RPC server error.', 'Try again later or switch to a different provider.'],
+        TIMEOUT: ['Request timed out.', 'Check your network connection and try again.'],
+      }
+      const match = messages[coded.code]
+      if (match) {
+        console.error(chalk.red(`Error: ${match[0]}`))
+        if (match[1]) console.error(chalk.yellow(`Hint: ${match[1]}`))
+        if (verbose) console.error(error.stack)
+        process.exit(1)
+      }
+    }
+
+    console.error(chalk.red(`Error: ${error.message}`))
+    if (verbose) console.error(error.stack)
+    process.exit(1)
   }
+
+  console.error(chalk.red('Unexpected error occurred.'))
   process.exit(2)
 }

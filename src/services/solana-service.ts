@@ -4,7 +4,6 @@ import * as bip39 from 'bip39'
 import { configService } from './config-service.js'
 import { NetworkError } from '../errors/index.js'
 import type { NetworkName } from '../types/index.js'
-import { NETWORKS } from '../config/networks.js'
 
 export class SolanaService {
   private connections = new Map<NetworkName, Connection>()

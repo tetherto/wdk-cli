@@ -12,15 +12,17 @@ export type NetworkName =
   | 'solana-testnet'
   | 'solana-devnet'
 
-export type NetworkType = 'evm' | 'btc' | 'solana'
+export type NetworkType = 'wdk-wallet-evm' | 'wdk-wallet-btc' | 'wdk-wallet-solana'
 
 export interface NetworkConfig {
-  name: NetworkName
+  name: string
   displayName: string
   type: NetworkType
-  defaultProvider: string
   nativeSymbol: string
   decimals: number
+  custom?: boolean
+  testnet?: boolean
+  providerUrl?: string
 }
 
 export interface EncryptedPayload {
@@ -59,7 +61,6 @@ export interface TxHistoryEntry {
 }
 
 export interface WdkCliConfig {
-  defaultNetwork: NetworkName
   defaultIndex: number
   indexer: {
     baseUrl: string

@@ -1,99 +1,88 @@
 import type { NetworkName, NetworkConfig } from '../types/index.js'
+import { configService } from '../services/config-service.js'
 
 export const NETWORKS: Record<NetworkName, NetworkConfig> = {
   bitcoin: {
     name: 'bitcoin',
     displayName: 'Bitcoin',
-    type: 'btc',
-    defaultProvider: 'https://blockstream.info/api',
+    type: 'wdk-wallet-btc',
     nativeSymbol: 'BTC',
     decimals: 8,
   },
   'bitcoin-testnet': {
     name: 'bitcoin-testnet',
     displayName: 'Bitcoin Testnet',
-    type: 'btc',
-    defaultProvider: 'https://blockstream.info/testnet/api',
+    type: 'wdk-wallet-btc',
     nativeSymbol: 'tBTC',
     decimals: 8,
   },
   'bitcoin-signet': {
     name: 'bitcoin-signet',
     displayName: 'Bitcoin Signet',
-    type: 'btc',
-    defaultProvider: 'https://mempool.space/signet/api',
+    type: 'wdk-wallet-btc',
     nativeSymbol: 'sBTC',
     decimals: 8,
   },
   ethereum: {
     name: 'ethereum',
     displayName: 'Ethereum',
-    type: 'evm',
-    defaultProvider: 'https://eth.drpc.org',
+    type: 'wdk-wallet-evm',
     nativeSymbol: 'ETH',
     decimals: 18,
   },
   sepolia: {
     name: 'sepolia',
     displayName: 'Sepolia Testnet',
-    type: 'evm',
-    defaultProvider: 'https://ethereum-sepolia-rpc.publicnode.com',
+    type: 'wdk-wallet-evm',
     nativeSymbol: 'ETH',
     decimals: 18,
   },
   polygon: {
     name: 'polygon',
     displayName: 'Polygon',
-    type: 'evm',
-    defaultProvider: 'https://polygon-rpc.com',
+    type: 'wdk-wallet-evm',
     nativeSymbol: 'POL',
     decimals: 18,
   },
   arbitrum: {
     name: 'arbitrum',
     displayName: 'Arbitrum One',
-    type: 'evm',
-    defaultProvider: 'https://arb1.arbitrum.io/rpc',
+    type: 'wdk-wallet-evm',
     nativeSymbol: 'ETH',
     decimals: 18,
   },
   bsc: {
     name: 'bsc',
     displayName: 'BNB Smart Chain',
-    type: 'evm',
-    defaultProvider: 'https://bsc-dataseed.binance.org',
+    type: 'wdk-wallet-evm',
     nativeSymbol: 'BNB',
     decimals: 18,
   },
   avalanche: {
     name: 'avalanche',
     displayName: 'Avalanche C-Chain',
-    type: 'evm',
-    defaultProvider: 'https://api.avax.network/ext/bc/C/rpc',
+    type: 'wdk-wallet-evm',
     nativeSymbol: 'AVAX',
     decimals: 18,
   },
   solana: {
     name: 'solana',
     displayName: 'Solana',
-    type: 'solana',
-    defaultProvider: 'https://api.mainnet-beta.solana.com',
+    type: 'wdk-wallet-solana',
     nativeSymbol: 'SOL',
     decimals: 9,
   },
   'solana-testnet': {
     name: 'solana-testnet',
     displayName: 'Solana Testnet',
-    type: 'solana',
-    defaultProvider: 'https://api.testnet.solana.com',
+    type: 'wdk-wallet-solana',
     nativeSymbol: 'SOL',
     decimals: 9,
   },
   'solana-devnet': {
     name: 'solana-devnet',
     displayName: 'Solana Devnet',
-    type: 'solana',
-    defaultProvider: 'https://api.devnet.solana.com',
+    type: 'wdk-wallet-solana',
     nativeSymbol: 'SOL',
     decimals: 9,
   },
@@ -101,26 +90,68 @@ export const NETWORKS: Record<NetworkName, NetworkConfig> = {
 
 export const NETWORK_NAMES = Object.keys(NETWORKS) as NetworkName[]
 
-export function getNetworkConfig(name: NetworkName): NetworkConfig {
-  return NETWORKS[name]
+const BUILTIN_TESTNETS: readonly string[] = ['bitcoin-testnet', 'bitcoin-signet', 'sepolia', 'solana-testnet', 'solana-devnet']
+
+export function getCustomNetworks(): Record<string, NetworkConfig> {
+  const custom = configService.get('customNetworks') as Record<string, NetworkConfig> | undefined
+  if (!custom || typeof custom !== 'object') return {}
+  const result: Record<string, NetworkConfig> = {}
+  for (const [name, config] of Object.entries(custom)) {
+    result[name] = { ...config, custom: true }
+  }
+  return result
 }
 
-export function isEvmNetwork(name: NetworkName): boolean {
-  return NETWORKS[name].type === 'evm'
+export function getAllNetworks(): Record<string, NetworkConfig> {
+  return { ...NETWORKS, ...getCustomNetworks() }
 }
 
-export function isBtcNetwork(name: NetworkName): boolean {
-  return NETWORKS[name].type === 'btc'
+export function getAllNetworkNames(): string[] {
+  return Object.keys(getAllNetworks())
 }
 
-export function isSolanaNetwork(name: NetworkName): boolean {
-  return NETWORKS[name].type === 'solana'
-}
-
-export function isValidNetwork(name: string): name is NetworkName {
+export function isBuiltinNetwork(name: string): name is NetworkName {
   return name in NETWORKS
 }
 
-export function isTestnet(name: NetworkName): boolean {
-  return name === 'bitcoin-testnet' || name === 'bitcoin-signet' || name === 'sepolia' || name === 'solana-testnet' || name === 'solana-devnet'
+export function getNetworkConfig(name: string): NetworkConfig {
+  const all = getAllNetworks()
+  return all[name]
+}
+
+export function isEvmNetwork(name: string): boolean {
+  const config = getNetworkConfig(name)
+  return config?.type === 'wdk-wallet-evm'
+}
+
+export function isBtcNetwork(name: string): boolean {
+  const config = getNetworkConfig(name)
+  return config?.type === 'wdk-wallet-btc'
+}
+
+export function isSolanaNetwork(name: string): boolean {
+  const config = getNetworkConfig(name)
+  return config?.type === 'wdk-wallet-solana'
+}
+
+export function isValidNetwork(name: string): name is NetworkName {
+  return name in NETWORKS || name in getCustomNetworks()
+}
+
+export function isTestnet(name: string): boolean {
+  if (BUILTIN_TESTNETS.includes(name)) return true
+  const config = getNetworkConfig(name)
+  return config?.testnet === true
+}
+
+export function isCustomNetwork(name: string): boolean {
+  return name in getCustomNetworks()
+}
+
+export function saveCustomNetwork(name: string, config: NetworkConfig): void {
+  configService.set(`customNetworks.${name}`, config)
+}
+
+export function deleteCustomNetwork(name: string): void {
+  configService.delete(`customNetworks.${name}`)
 }

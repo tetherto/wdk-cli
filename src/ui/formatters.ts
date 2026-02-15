@@ -1,9 +1,9 @@
 import chalk from 'chalk'
+import { getNetworkConfig, isBuiltinNetwork } from '../config/networks.js'
 import type { NetworkName } from '../types/index.js'
-import { NETWORKS } from '../config/networks.js'
 
-export function formatBalance(rawBalance: string | number, network: NetworkName): string {
-  const config = NETWORKS[network]
+export function formatBalance(rawBalance: string | number, network: string): string {
+  const config = getNetworkConfig(network)
   const raw = BigInt(rawBalance.toString())
   const divisor = BigInt(10 ** config.decimals)
   const whole = raw / divisor
@@ -25,8 +25,8 @@ export function formatTxHash(hash: string, truncate: boolean = true): string {
   return `${hash.slice(0, 10)}...${hash.slice(-8)}`
 }
 
-export function formatNetworkLabel(network: NetworkName): string {
-  const config = NETWORKS[network]
+export function formatNetworkLabel(network: string): string {
+  const config = getNetworkConfig(network)
   return `${config.displayName} (${config.nativeSymbol})`
 }
 
@@ -35,20 +35,30 @@ export function formatDate(dateStr: string): string {
   return date.toLocaleString()
 }
 
-export function networkColor(network: NetworkName): (text: string) => string {
-  const colors: Record<NetworkName, (text: string) => string> = {
-    bitcoin: chalk.hex('#F7931A'),
-    'bitcoin-testnet': chalk.hex('#F7931A'),
-    'bitcoin-signet': chalk.hex('#F7931A'),
-    ethereum: chalk.hex('#627EEA'),
-    sepolia: chalk.hex('#627EEA'),
-    polygon: chalk.hex('#8247E5'),
-    arbitrum: chalk.hex('#28A0F0'),
-    bsc: chalk.hex('#F0B90B'),
-    avalanche: chalk.hex('#E84142'),
-    solana: chalk.hex('#9945FF'),
-    'solana-testnet': chalk.hex('#9945FF'),
-    'solana-devnet': chalk.hex('#9945FF'),
+const BUILTIN_COLORS: Record<NetworkName, (text: string) => string> = {
+  bitcoin: chalk.hex('#F7931A'),
+  'bitcoin-testnet': chalk.hex('#F7931A'),
+  'bitcoin-signet': chalk.hex('#F7931A'),
+  ethereum: chalk.hex('#627EEA'),
+  sepolia: chalk.hex('#627EEA'),
+  polygon: chalk.hex('#8247E5'),
+  arbitrum: chalk.hex('#28A0F0'),
+  bsc: chalk.hex('#F0B90B'),
+  avalanche: chalk.hex('#E84142'),
+  solana: chalk.hex('#9945FF'),
+  'solana-testnet': chalk.hex('#9945FF'),
+  'solana-devnet': chalk.hex('#9945FF'),
+}
+
+export function networkColor(network: string): (text: string) => string {
+  if (isBuiltinNetwork(network)) {
+    return BUILTIN_COLORS[network] || chalk.white
   }
-  return colors[network] || chalk.white
+  // For custom networks, pick a color based on wallet type
+  const config = getNetworkConfig(network)
+  if (!config) return chalk.white
+  if (config.type === 'wdk-wallet-evm') return chalk.cyan
+  if (config.type === 'wdk-wallet-btc') return chalk.yellow
+  if (config.type === 'wdk-wallet-solana') return chalk.magenta
+  return chalk.white
 }

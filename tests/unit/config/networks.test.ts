@@ -1,8 +1,9 @@
-import { describe, it, expect } from 'vitest'
-import { NETWORKS, NETWORK_NAMES, isEvmNetwork, isBtcNetwork, isSolanaNetwork, isValidNetwork, isTestnet, getNetworkConfig } from '../../../src/config/networks.js'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { NETWORKS, NETWORK_NAMES, isEvmNetwork, isBtcNetwork, isSolanaNetwork, isValidNetwork, isTestnet, getNetworkConfig, getAllNetworks, getAllNetworkNames, isCustomNetwork, isBuiltinNetwork, getCustomNetworks, saveCustomNetwork, deleteCustomNetwork } from '../../../src/config/networks.js'
+import { configService } from '../../../src/services/config-service.js'
 
 describe('networks', () => {
-  it('has all expected networks', () => {
+  it('has all expected built-in networks', () => {
     expect(NETWORK_NAMES).toContain('bitcoin')
     expect(NETWORK_NAMES).toContain('bitcoin-testnet')
     expect(NETWORK_NAMES).toContain('bitcoin-signet')
@@ -65,18 +66,122 @@ describe('networks', () => {
     expect(eth.displayName).toBe('Ethereum')
     expect(eth.nativeSymbol).toBe('ETH')
     expect(eth.decimals).toBe(18)
-    expect(eth.type).toBe('evm')
+    expect(eth.type).toBe('wdk-wallet-evm')
   })
 
-  it('all networks have required fields', () => {
+  it('all built-in networks have required fields', () => {
     for (const network of NETWORK_NAMES) {
       const config = NETWORKS[network]
       expect(config.name).toBe(network)
       expect(config.displayName).toBeTruthy()
-      expect(config.type).toMatch(/^(evm|btc|solana)$/)
-      expect(config.defaultProvider).toMatch(/^https:\/\//)
+      expect(config.type).toMatch(/^wdk-wallet-(evm|btc|solana)$/)
       expect(config.nativeSymbol).toBeTruthy()
       expect(config.decimals).toBeGreaterThan(0)
     }
+  })
+
+  it('identifies built-in networks', () => {
+    expect(isBuiltinNetwork('ethereum')).toBe(true)
+    expect(isBuiltinNetwork('bitcoin')).toBe(true)
+    expect(isBuiltinNetwork('nonexistent')).toBe(false)
+  })
+})
+
+describe('custom networks', () => {
+  const mockCustomNetwork = {
+    name: 'base',
+    displayName: 'Base Mainnet',
+    type: 'wdk-wallet-evm' as const,
+    nativeSymbol: 'ETH',
+    decimals: 18,
+    custom: true,
+    testnet: false,
+    providerUrl: 'https://mainnet.base.org',
+  }
+
+  beforeEach(() => {
+    vi.spyOn(configService, 'get').mockImplementation((key: string) => {
+      if (key === 'customNetworks') {
+        return { base: mockCustomNetwork }
+      }
+      return undefined
+    })
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('returns custom networks from config', () => {
+    const custom = getCustomNetworks()
+    expect(custom).toHaveProperty('base')
+    expect(custom.base.displayName).toBe('Base Mainnet')
+    expect(custom.base.custom).toBe(true)
+  })
+
+  it('getAllNetworks merges built-in and custom', () => {
+    const all = getAllNetworks()
+    expect(all).toHaveProperty('ethereum')
+    expect(all).toHaveProperty('base')
+  })
+
+  it('getAllNetworkNames includes custom networks', () => {
+    const names = getAllNetworkNames()
+    expect(names).toContain('ethereum')
+    expect(names).toContain('base')
+  })
+
+  it('isValidNetwork accepts custom networks', () => {
+    expect(isValidNetwork('base')).toBe(true)
+    expect(isValidNetwork('nonexistent')).toBe(false)
+  })
+
+  it('isCustomNetwork identifies custom networks', () => {
+    expect(isCustomNetwork('base')).toBe(true)
+    expect(isCustomNetwork('ethereum')).toBe(false)
+  })
+
+  it('getNetworkConfig returns custom network config', () => {
+    const config = getNetworkConfig('base')
+    expect(config.displayName).toBe('Base Mainnet')
+    expect(config.type).toBe('wdk-wallet-evm')
+    expect(config.custom).toBe(true)
+  })
+
+  it('isEvmNetwork works with custom networks', () => {
+    expect(isEvmNetwork('base')).toBe(true)
+  })
+
+  it('isTestnet works with custom networks', () => {
+    expect(isTestnet('base')).toBe(false)
+
+    vi.restoreAllMocks()
+    vi.spyOn(configService, 'get').mockImplementation((key: string) => {
+      if (key === 'customNetworks') {
+        return { 'base-testnet': { ...mockCustomNetwork, name: 'base-testnet', testnet: true } }
+      }
+      return undefined
+    })
+
+    expect(isTestnet('base-testnet')).toBe(true)
+  })
+
+  it('saveCustomNetwork stores to config', () => {
+    const setSpy = vi.spyOn(configService, 'set').mockImplementation(() => {})
+    saveCustomNetwork('optimism', mockCustomNetwork)
+    expect(setSpy).toHaveBeenCalledWith('customNetworks.optimism', mockCustomNetwork)
+  })
+
+  it('deleteCustomNetwork removes from config', () => {
+    const deleteSpy = vi.spyOn(configService, 'delete').mockImplementation(() => {})
+    deleteCustomNetwork('base')
+    expect(deleteSpy).toHaveBeenCalledWith('customNetworks.base')
+  })
+
+  it('returns empty object when no custom networks exist', () => {
+    vi.restoreAllMocks()
+    vi.spyOn(configService, 'get').mockReturnValue(undefined)
+    const custom = getCustomNetworks()
+    expect(custom).toEqual({})
   })
 })

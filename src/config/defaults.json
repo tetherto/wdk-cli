@@ -1,0 +1,55 @@
+{
+  "defaultIndex": 0,
+  "indexer": {
+    "baseUrl": "https://wdk-api.tether.io",
+    "apiKey": ""
+  },
+  "output": {
+    "json": false,
+    "noColor": false
+  },
+  "networks": {
+    "bitcoin": {
+      "provider": "https://blockstream.info/api"
+    },
+    "bitcoin-testnet": {
+      "provider": "https://blockstream.info/testnet/api"
+    },
+    "bitcoin-signet": {
+      "provider": "https://mempool.space/signet/api"
+    },
+    "ethereum": {
+      "provider": "https://eth.drpc.org",
+      "transferMaxFee": ""
+    },
+    "sepolia": {
+      "provider": "https://ethereum-sepolia-rpc.publicnode.com",
+      "transferMaxFee": ""
+    },
+    "polygon": {
+      "provider": "https://polygon-rpc.com",
+      "transferMaxFee": ""
+    },
+    "arbitrum": {
+      "provider": "https://arb1.arbitrum.io/rpc",
+      "transferMaxFee": ""
+    },
+    "bsc": {
+      "provider": "https://bsc-dataseed.binance.org",
+      "transferMaxFee": ""
+    },
+    "avalanche": {
+      "provider": "https://api.avax.network/ext/bc/C/rpc",
+      "transferMaxFee": ""
+    },
+    "solana": {
+      "provider": "https://api.mainnet-beta.solana.com"
+    },
+    "solana-testnet": {
+      "provider": "https://api.testnet.solana.com"
+    },
+    "solana-devnet": {
+      "provider": "https://api.devnet.solana.com"
+    }
+  }
+}

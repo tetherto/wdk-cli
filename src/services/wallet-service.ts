@@ -4,9 +4,9 @@ import { KeyService } from './key-service.js'
 import { Keyring } from '../security/keyring.js'
 import { sessionService } from './session-service.js'
 import { configService } from './config-service.js'
-import { NETWORKS, isSolanaNetwork } from '../config/networks.js'
+import { getNetworkConfig, isSolanaNetwork } from '../config/networks.js'
 import { getKeyringPath } from '../config/constants.js'
-import { KeyNotFoundError } from '../errors/index.js'
+import { KeyNotFoundError, MissingNetworkError } from '../errors/index.js'
 import { promptPassword } from '../ui/prompts.js'
 import type { NetworkName } from '../types/index.js'
 
@@ -66,7 +66,7 @@ export async function walletInfo(
     address = await account.getAddress()
     balance = await account.getBalance()
   }
-  const networkConfig = NETWORKS[network]
+  const networkConfig = getNetworkConfig(network)
 
   return {
     network,
@@ -84,7 +84,7 @@ export async function getBalance(
   token?: string,
 ): Promise<{ balance: bigint; symbol: string; decimals: number }> {
   await ensureInitialized(network)
-  const networkConfig = NETWORKS[network]
+  const networkConfig = getNetworkConfig(network)
 
   if (isSolanaNetwork(network)) {
     const balance = await solanaService.getBalance(network, index)
@@ -112,7 +112,7 @@ export async function getBalance(
 
 export function resolveNetwork(optionNetwork?: string): NetworkName {
   if (optionNetwork) return optionNetwork as NetworkName
-  return (configService.get('defaultNetwork') as NetworkName) || 'ethereum'
+  throw new MissingNetworkError()
 }
 
 export function resolveIndex(optionIndex?: string): number {

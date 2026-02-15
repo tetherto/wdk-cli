@@ -44,7 +44,7 @@ wdk balance --network ethereum
 wdk send --to 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0 --amount 1000000000000000000 --network ethereum
 
 # List supported networks
-wdk networks
+wdk network list
 
 # Use testnet for development
 wdk wallet address --network sepolia
@@ -69,10 +69,13 @@ Seed phrases are encrypted with AES-256-GCM (scrypt KDF) and stored in `~/.confi
 ### Networks
 
 ```bash
-wdk networks                  # List all supported networks
-wdk networks --testnet        # Show only testnets
-wdk networks --mainnet        # Show only mainnets
-wdk networks --json           # Machine-readable output
+wdk network list                  # List all supported networks
+wdk network list --testnet        # Show only testnets
+wdk network list --mainnet        # Show only mainnets
+wdk network list --json           # Machine-readable output
+wdk network create --name base --display-name "Base Mainnet" --wallet-type wdk-wallet-evm --symbol ETH --provider https://mainnet.base.org
+wdk network create --name base-testnet --display-name "Base Testnet" --wallet-type wdk-wallet-evm --symbol ETH --provider https://sepolia.base.org --testnet
+wdk network delete <name>         # Delete a custom network
 ```
 
 ### Wallet Operations
@@ -109,11 +112,13 @@ Amounts are in base units (wei for EVM, satoshis for BTC, lamports for Solana). 
 ### Configuration
 
 ```bash
-wdk config set defaultNetwork polygon          # Set default network
-wdk config set providers.ethereum <rpc-url>    # Custom RPC provider
-wdk config get defaultNetwork                  # Read a config value
-wdk config list                                # Show all config
-wdk config path                                # Show config file location
+wdk config list                                                     # Show all config
+wdk config get                                                      # Show global settings
+wdk config get --network ethereum                                   # Show Ethereum config
+wdk config set provider <rpc-url> --network ethereum                # Custom RPC for Ethereum
+wdk config set transferMaxFee 50000000000 --network ethereum        # Max fee for Ethereum
+wdk config reset provider --network ethereum                        # Reset to default
+wdk config path                                                     # Config file location
 ```
 
 ### Global Flags
@@ -148,7 +153,6 @@ wdk config path                                # Show config file location
 | Variable | Description |
 |----------|-------------|
 | `WDK_PASSWORD` | Wallet unlock password (skip interactive prompt) |
-| `WDK_DEFAULT_NETWORK` | Override default network |
 | `WDK_PROVIDER_ETHEREUM` | Ethereum RPC URL |
 | `WDK_PROVIDER_BITCOIN` | Bitcoin API URL |
 | `WDK_PROVIDER_<NETWORK>` | Any network provider URL |

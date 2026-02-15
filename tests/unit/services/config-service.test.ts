@@ -14,13 +14,14 @@ describe('ConfigService', () => {
   })
 
   it('gets config values', () => {
-    const value = configService.get('defaultNetwork')
+    const value = configService.get('defaultIndex')
     expect(value).toBeDefined()
   })
 
   it('sets and gets config values', () => {
-    configService.set('defaultNetwork', 'polygon')
-    expect(configService.get('defaultNetwork')).toBe('polygon')
+    configService.set('defaultIndex', 1)
+    expect(configService.get('defaultIndex')).toBe(1)
+    configService.set('defaultIndex', 0)
   })
 
   it('lists all config', () => {
@@ -46,10 +47,10 @@ describe('ConfigService', () => {
     expect(typeof path).toBe('string')
   })
 
-  it('prefers env var for defaultNetwork', () => {
-    process.env.WDK_DEFAULT_NETWORK = 'polygon'
-    const value = configService.get('defaultNetwork')
-    expect(value).toBe('polygon')
+  it('prefers env var for indexer baseUrl', () => {
+    process.env.WDK_INDEXER_BASE_URL = 'https://custom-indexer.example.com'
+    const value = configService.get('indexer.baseUrl')
+    expect(value).toBe('https://custom-indexer.example.com')
   })
 
   it('deletes config values', () => {
