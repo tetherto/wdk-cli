@@ -1,10 +1,9 @@
 import { Command } from 'commander'
 import chalk from 'chalk'
-import { walletCreate, walletInfo, walletList, resolveChain, resolveIndex } from '../services/wallet-service.js'
-import { isValidChain, CHAIN_NAMES } from '../config/chains.js'
+import { getAddress, walletInfo, resolveChain, resolveIndex } from '../services/wallet-service.js'
+import { isValidChain } from '../config/chains.js'
 import { ChainNotSupportedError, handleError } from '../errors/index.js'
-import { formatBalance, formatAddress, chainColor, formatChainLabel } from '../ui/formatters.js'
-import { createTable } from '../ui/tables.js'
+import { formatBalance, chainColor, formatChainLabel } from '../ui/formatters.js'
 
 export function registerWalletCommand(program: Command): void {
   const wallet = program
@@ -22,57 +21,18 @@ export function registerWalletCommand(program: Command): void {
         if (!isValidChain(chain)) throw new ChainNotSupportedError(chain)
         const index = resolveIndex(options.index ?? program.opts().index)
 
-        const entry = await walletCreate(chain, index)
+        const address = await getAddress(chain, index)
 
         if (program.opts().json) {
-          console.log(JSON.stringify({ chain, index, address: entry.address }))
+          console.log(JSON.stringify({ chain, index, address }))
         } else {
           const color = chainColor(chain)
           console.log()
           console.log(`  Chain:   ${color(formatChainLabel(chain))}`)
           console.log(`  Index:   ${index}`)
-          console.log(`  Address: ${entry.address}`)
+          console.log(`  Address: ${address}`)
           console.log()
         }
-      } catch (error) {
-        handleError(error, program.opts().verbose)
-      }
-    })
-
-  wallet
-    .command('list')
-    .description('List previously derived wallets (no password required)')
-    .option('--chain <chain>', 'Filter by chain')
-    .action(async (options) => {
-      try {
-        const chain = options.chain ?? program.opts().chain
-        if (chain && !isValidChain(chain)) throw new ChainNotSupportedError(chain)
-
-        const entries = await walletList(chain)
-
-        if (program.opts().json) {
-          console.log(JSON.stringify(entries))
-          return
-        }
-
-        if (entries.length === 0) {
-          console.log(chalk.yellow('No wallets found.'))
-          console.log(chalk.dim('Run `wdk wallet address --chain <chain>` to derive one.'))
-          console.log(chalk.dim(`Supported chains: ${CHAIN_NAMES.join(', ')}`))
-          return
-        }
-
-        const table = createTable(['Chain', 'Index', 'Address', 'Created'])
-        for (const entry of entries) {
-          const color = chainColor(entry.chain)
-          table.push([
-            color(formatChainLabel(entry.chain)),
-            String(entry.index),
-            formatAddress(entry.address, true),
-            new Date(entry.createdAt).toLocaleDateString(),
-          ])
-        }
-        console.log(table.toString())
       } catch (error) {
         handleError(error, program.opts().verbose)
       }

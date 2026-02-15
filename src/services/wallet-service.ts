@@ -1,17 +1,15 @@
 import { wdkService } from './wdk-service.js'
 import { solanaService } from './solana-service.js'
 import { KeyService } from './key-service.js'
-import { WalletRegistry, type WalletEntry } from './wallet-registry.js'
 import { Keyring } from '../security/keyring.js'
 import { configService } from './config-service.js'
 import { CHAINS, isSolanaChain } from '../config/chains.js'
-import { getKeyringPath, getWalletRegistryPath } from '../config/constants.js'
+import { getKeyringPath } from '../config/constants.js'
 import { KeyNotFoundError } from '../errors/index.js'
 import { promptPassword } from '../ui/prompts.js'
 import type { ChainName } from '../types/index.js'
 
 const keyService = new KeyService(new Keyring(getKeyringPath()))
-const walletRegistry = new WalletRegistry(getWalletRegistryPath())
 
 async function ensureInitialized(chain: ChainName): Promise<void> {
   if (!(await keyService.hasKey())) {
@@ -26,20 +24,13 @@ async function ensureInitialized(chain: ChainName): Promise<void> {
   }
 }
 
-export async function walletCreate(chain: ChainName, index: number): Promise<WalletEntry> {
+export async function getAddress(chain: ChainName, index: number): Promise<string> {
   await ensureInitialized(chain)
-  let address: string
   if (isSolanaChain(chain)) {
-    address = solanaService.getAddress(index)
-  } else {
-    const account = await wdkService.getAccount(chain, index)
-    address = await account.getAddress()
+    return solanaService.getAddress(index)
   }
-  return walletRegistry.add({ chain, index, address })
-}
-
-export async function walletList(chain?: ChainName): Promise<WalletEntry[]> {
-  return walletRegistry.list(chain)
+  const account = await wdkService.getAccount(chain, index)
+  return account.getAddress()
 }
 
 export async function walletInfo(
@@ -65,8 +56,6 @@ export async function walletInfo(
     balance = await account.getBalance()
   }
   const chainConfig = CHAINS[chain]
-
-  await walletRegistry.add({ chain, index, address })
 
   return {
     chain,
