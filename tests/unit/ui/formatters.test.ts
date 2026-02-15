@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatBalance, formatAddress, formatTxHash, formatChainLabel } from '../../../src/ui/formatters.js'
+import { formatBalance, formatAddress, formatTxHash, formatNetworkLabel } from '../../../src/ui/formatters.js'
 
 describe('formatters', () => {
   describe('formatBalance', () => {
@@ -62,11 +62,11 @@ describe('formatters', () => {
     })
   })
 
-  describe('formatChainLabel', () => {
-    it('formats chain labels', () => {
-      expect(formatChainLabel('ethereum')).toBe('Ethereum (ETH)')
-      expect(formatChainLabel('bitcoin')).toBe('Bitcoin (BTC)')
-      expect(formatChainLabel('polygon')).toBe('Polygon (POL)')
+  describe('formatNetworkLabel', () => {
+    it('formats network labels', () => {
+      expect(formatNetworkLabel('ethereum')).toBe('Ethereum (ETH)')
+      expect(formatNetworkLabel('bitcoin')).toBe('Bitcoin (BTC)')
+      expect(formatNetworkLabel('polygon')).toBe('Polygon (POL)')
     })
   })
 })

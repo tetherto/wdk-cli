@@ -3,11 +3,11 @@ import { solanaService } from './solana-service.js'
 import { KeyService } from './key-service.js'
 import { Keyring } from '../security/keyring.js'
 import { sessionService } from './session-service.js'
-import { CHAINS, isEvmChain, isSolanaChain } from '../config/chains.js'
+import { NETWORKS, isEvmNetwork, isSolanaNetwork } from '../config/networks.js'
 import { getKeyringPath } from '../config/constants.js'
 import { KeyNotFoundError, InsufficientBalanceError, TransactionFailedError } from '../errors/index.js'
 import { promptPassword } from '../ui/prompts.js'
-import type { ChainName, TxResult } from '../types/index.js'
+import type { NetworkName, TxResult } from '../types/index.js'
 
 const keyService = new KeyService(new Keyring(getKeyringPath()))
 
@@ -23,17 +23,17 @@ async function getSeedPhrase(): Promise<string> {
   return keyService.unlock(password)
 }
 
-async function ensureInitialized(chain: ChainName): Promise<void> {
+async function ensureInitialized(network: NetworkName): Promise<void> {
   const seedPhrase = await getSeedPhrase()
-  if (isSolanaChain(chain)) {
+  if (isSolanaNetwork(network)) {
     solanaService.initialize(seedPhrase)
   } else {
-    await wdkService.initialize(seedPhrase, chain)
+    await wdkService.initialize(seedPhrase, network)
   }
 }
 
 export interface SendOptions {
-  chain: ChainName
+  network: NetworkName
   index: number
   to: string
   amount: string
@@ -47,14 +47,14 @@ export interface FeeQuote {
 }
 
 export async function estimateFee(options: SendOptions): Promise<FeeQuote> {
-  await ensureInitialized(options.chain)
-  const chainConfig = CHAINS[options.chain]
+  await ensureInitialized(options.network)
+  const networkConfig = NETWORKS[options.network]
   let fee: bigint
 
-  if (isSolanaChain(options.chain)) {
-    fee = await solanaService.estimateFee(options.chain)
-  } else if (options.token && isEvmChain(options.chain)) {
-    const account = await wdkService.getAccount(options.chain, options.index)
+  if (isSolanaNetwork(options.network)) {
+    fee = await solanaService.estimateFee(options.network)
+  } else if (options.token && isEvmNetwork(options.network)) {
+    const account = await wdkService.getAccount(options.network, options.index)
     const quote = await account.quoteTransfer({
       token: options.token,
       recipient: options.to,
@@ -62,7 +62,7 @@ export async function estimateFee(options: SendOptions): Promise<FeeQuote> {
     })
     fee = quote.fee
   } else {
-    const account = await wdkService.getAccount(options.chain, options.index)
+    const account = await wdkService.getAccount(options.network, options.index)
     const quote = await account.quoteSendTransaction({
       to: options.to,
       value: BigInt(options.amount),
@@ -70,35 +70,35 @@ export async function estimateFee(options: SendOptions): Promise<FeeQuote> {
     fee = quote.fee
   }
 
-  const decimals = chainConfig.decimals
+  const decimals = networkConfig.decimals
   const divisor = BigInt(10 ** decimals)
   const whole = fee / divisor
   const remainder = fee % divisor
   const decimal = remainder.toString().padStart(decimals, '0').replace(/0+$/, '') || '0'
-  const feeFormatted = `${whole}.${decimal.slice(0, 8)} ${chainConfig.nativeSymbol}`
+  const feeFormatted = `${whole}.${decimal.slice(0, 8)} ${networkConfig.nativeSymbol}`
 
   return { fee, feeFormatted }
 }
 
 export async function send(options: SendOptions): Promise<TxResult> {
-  const chainConfig = CHAINS[options.chain]
+  const networkConfig = NETWORKS[options.network]
   const sendAmount = BigInt(options.amount)
 
-  if (isSolanaChain(options.chain)) {
+  if (isSolanaNetwork(options.network)) {
     const from = solanaService.getAddress(options.index)
-    const balance = await solanaService.getBalance(options.chain, options.index)
+    const balance = await solanaService.getBalance(options.network, options.index)
     if (balance < sendAmount) {
       throw new InsufficientBalanceError(
         balance.toString(),
         sendAmount.toString(),
-        chainConfig.nativeSymbol,
+        networkConfig.nativeSymbol,
       )
     }
     try {
-      const result = await solanaService.sendTransaction(options.chain, options.index, options.to, sendAmount)
+      const result = await solanaService.sendTransaction(options.network, options.index, options.to, sendAmount)
       return {
         txHash: result.hash,
-        chain: options.chain,
+        network: options.network,
         from,
         to: options.to,
         amount: options.amount,
@@ -111,10 +111,10 @@ export async function send(options: SendOptions): Promise<TxResult> {
   }
 
   // ensureInitialized already called during fee estimation, but re-init is cached
-  const account = await wdkService.getAccount(options.chain, options.index)
+  const account = await wdkService.getAccount(options.network, options.index)
   const balance = await account.getBalance()
 
-  if (options.token && isEvmChain(options.chain)) {
+  if (options.token && isEvmNetwork(options.network)) {
     const tokenBalance = await account.getTokenBalance(options.token)
     if (tokenBalance < sendAmount) {
       throw new InsufficientBalanceError(
@@ -132,7 +132,7 @@ export async function send(options: SendOptions): Promise<TxResult> {
       const from = await account.getAddress()
       return {
         txHash: result.hash,
-        chain: options.chain,
+        network: options.network,
         from,
         to: options.to,
         amount: options.amount,
@@ -147,7 +147,7 @@ export async function send(options: SendOptions): Promise<TxResult> {
       throw new InsufficientBalanceError(
         balance.toString(),
         sendAmount.toString(),
-        chainConfig.nativeSymbol,
+        networkConfig.nativeSymbol,
       )
     }
     try {
@@ -158,7 +158,7 @@ export async function send(options: SendOptions): Promise<TxResult> {
       const from = await account.getAddress()
       return {
         txHash: result.hash,
-        chain: options.chain,
+        network: options.network,
         from,
         to: options.to,
         amount: options.amount,
@@ -170,7 +170,7 @@ export async function send(options: SendOptions): Promise<TxResult> {
         throw new InsufficientBalanceError(
           balance.toString(),
           sendAmount.toString(),
-          chainConfig.nativeSymbol,
+          networkConfig.nativeSymbol,
         )
       }
       throw new TransactionFailedError(msg)

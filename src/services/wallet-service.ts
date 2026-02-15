@@ -4,11 +4,11 @@ import { KeyService } from './key-service.js'
 import { Keyring } from '../security/keyring.js'
 import { sessionService } from './session-service.js'
 import { configService } from './config-service.js'
-import { CHAINS, isSolanaChain } from '../config/chains.js'
+import { NETWORKS, isSolanaNetwork } from '../config/networks.js'
 import { getKeyringPath } from '../config/constants.js'
 import { KeyNotFoundError } from '../errors/index.js'
 import { promptPassword } from '../ui/prompts.js'
-import type { ChainName } from '../types/index.js'
+import type { NetworkName } from '../types/index.js'
 
 const keyService = new KeyService(new Keyring(getKeyringPath()))
 
@@ -26,76 +26,76 @@ async function getSeedPhrase(): Promise<string> {
   return keyService.unlock(password)
 }
 
-async function ensureInitialized(chain: ChainName): Promise<void> {
+async function ensureInitialized(network: NetworkName): Promise<void> {
   const seedPhrase = await getSeedPhrase()
-  if (isSolanaChain(chain)) {
+  if (isSolanaNetwork(network)) {
     solanaService.initialize(seedPhrase)
   } else {
-    await wdkService.initialize(seedPhrase, chain)
+    await wdkService.initialize(seedPhrase, network)
   }
 }
 
-export async function getAddress(chain: ChainName, index: number): Promise<string> {
-  await ensureInitialized(chain)
-  if (isSolanaChain(chain)) {
+export async function getAddress(network: NetworkName, index: number): Promise<string> {
+  await ensureInitialized(network)
+  if (isSolanaNetwork(network)) {
     return solanaService.getAddress(index)
   }
-  const account = await wdkService.getAccount(chain, index)
+  const account = await wdkService.getAccount(network, index)
   return account.getAddress()
 }
 
 export async function walletInfo(
-  chain: ChainName,
+  network: NetworkName,
   index: number,
 ): Promise<{
-  chain: ChainName
+  network: NetworkName
   index: number
   address: string
   balance: bigint
   displayName: string
   nativeSymbol: string
 }> {
-  await ensureInitialized(chain)
+  await ensureInitialized(network)
   let address: string
   let balance: bigint
-  if (isSolanaChain(chain)) {
+  if (isSolanaNetwork(network)) {
     address = solanaService.getAddress(index)
-    balance = await solanaService.getBalance(chain, index)
+    balance = await solanaService.getBalance(network, index)
   } else {
-    const account = await wdkService.getAccount(chain, index)
+    const account = await wdkService.getAccount(network, index)
     address = await account.getAddress()
     balance = await account.getBalance()
   }
-  const chainConfig = CHAINS[chain]
+  const networkConfig = NETWORKS[network]
 
   return {
-    chain,
+    network,
     index,
     address,
     balance,
-    displayName: chainConfig.displayName,
-    nativeSymbol: chainConfig.nativeSymbol,
+    displayName: networkConfig.displayName,
+    nativeSymbol: networkConfig.nativeSymbol,
   }
 }
 
 export async function getBalance(
-  chain: ChainName,
+  network: NetworkName,
   index: number,
   token?: string,
 ): Promise<{ balance: bigint; symbol: string; decimals: number }> {
-  await ensureInitialized(chain)
-  const chainConfig = CHAINS[chain]
+  await ensureInitialized(network)
+  const networkConfig = NETWORKS[network]
 
-  if (isSolanaChain(chain)) {
-    const balance = await solanaService.getBalance(chain, index)
+  if (isSolanaNetwork(network)) {
+    const balance = await solanaService.getBalance(network, index)
     return {
       balance,
-      symbol: chainConfig.nativeSymbol,
-      decimals: chainConfig.decimals,
+      symbol: networkConfig.nativeSymbol,
+      decimals: networkConfig.decimals,
     }
   }
 
-  const account = await wdkService.getAccount(chain, index)
+  const account = await wdkService.getAccount(network, index)
 
   if (token) {
     const balance: bigint = await account.getTokenBalance(token)
@@ -105,14 +105,14 @@ export async function getBalance(
   const balance: bigint = await account.getBalance()
   return {
     balance,
-    symbol: chainConfig.nativeSymbol,
-    decimals: chainConfig.decimals,
+    symbol: networkConfig.nativeSymbol,
+    decimals: networkConfig.decimals,
   }
 }
 
-export function resolveChain(optionChain?: string): ChainName {
-  if (optionChain) return optionChain as ChainName
-  return (configService.get('defaultChain') as ChainName) || 'ethereum'
+export function resolveNetwork(optionNetwork?: string): NetworkName {
+  if (optionNetwork) return optionNetwork as NetworkName
+  return (configService.get('defaultNetwork') as NetworkName) || 'ethereum'
 }
 
 export function resolveIndex(optionIndex?: string): number {

@@ -47,12 +47,12 @@ export class WrongPasswordError extends WdkCliError {
   }
 }
 
-export class ChainNotSupportedError extends WdkCliError {
-  constructor(chain: string) {
+export class NetworkNotSupportedError extends WdkCliError {
+  constructor(network: string) {
     super(
-      `Chain '${chain}' is not supported.`,
-      'CHAIN_NOT_SUPPORTED',
-      `Supported chains: bitcoin, bitcoin-testnet, ethereum, sepolia, polygon, arbitrum, bsc, avalanche`,
+      `Network '${network}' is not supported.`,
+      'NETWORK_NOT_SUPPORTED',
+      `Run \`wdk networks\` to see supported networks.`,
     )
   }
 }

@@ -3,23 +3,23 @@ import { derivePath } from 'ed25519-hd-key'
 import * as bip39 from 'bip39'
 import { configService } from './config-service.js'
 import { NetworkError } from '../errors/index.js'
-import type { ChainName } from '../types/index.js'
-import { CHAINS } from '../config/chains.js'
+import type { NetworkName } from '../types/index.js'
+import { NETWORKS } from '../config/networks.js'
 
 export class SolanaService {
-  private connections = new Map<ChainName, Connection>()
+  private connections = new Map<NetworkName, Connection>()
   private seedPhrase: string | null = null
 
   initialize(seedPhrase: string): void {
     this.seedPhrase = seedPhrase
   }
 
-  private getConnection(chain: ChainName): Connection {
-    if (!this.connections.has(chain)) {
-      const providerUrl = configService.getProviderUrl(chain)
-      this.connections.set(chain, new Connection(providerUrl, 'confirmed'))
+  private getConnection(network: NetworkName): Connection {
+    if (!this.connections.has(network)) {
+      const providerUrl = configService.getProviderUrl(network)
+      this.connections.set(network, new Connection(providerUrl, 'confirmed'))
     }
-    return this.connections.get(chain)!
+    return this.connections.get(network)!
   }
 
   getKeypair(index: number = 0): Keypair {
@@ -36,8 +36,8 @@ export class SolanaService {
     return this.getKeypair(index).publicKey.toBase58()
   }
 
-  async getBalance(chain: ChainName, index: number = 0): Promise<bigint> {
-    const connection = this.getConnection(chain)
+  async getBalance(network: NetworkName, index: number = 0): Promise<bigint> {
+    const connection = this.getConnection(network)
     const keypair = this.getKeypair(index)
     try {
       const balance = await connection.getBalance(keypair.publicKey)
@@ -45,19 +45,19 @@ export class SolanaService {
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error)
       if (msg.includes('ECONNREFUSED') || msg.includes('ETIMEDOUT') || msg.includes('fetch failed')) {
-        throw new NetworkError(configService.getProviderUrl(chain))
+        throw new NetworkError(configService.getProviderUrl(network))
       }
       throw error
     }
   }
 
   async sendTransaction(
-    chain: ChainName,
+    network: NetworkName,
     index: number,
     to: string,
     amountLamports: bigint,
   ): Promise<{ hash: string; fee: bigint }> {
-    const connection = this.getConnection(chain)
+    const connection = this.getConnection(network)
     const fromKeypair = this.getKeypair(index)
     const toPublicKey = new PublicKey(to)
 
@@ -78,8 +78,8 @@ export class SolanaService {
     return { hash: signature, fee }
   }
 
-  async estimateFee(chain: ChainName, index: number = 0): Promise<bigint> {
-    const connection = this.getConnection(chain)
+  async estimateFee(network: NetworkName, index: number = 0): Promise<bigint> {
+    const connection = this.getConnection(network)
     const keypair = this.getKeypair(index)
     // Build a dummy transfer to estimate fee via getFeeForMessage
     const { blockhash } = await connection.getLatestBlockhash()
@@ -98,8 +98,8 @@ export class SolanaService {
     return BigInt(feeResult.value ?? 5000)
   }
 
-  async requestAirdrop(chain: ChainName, index: number = 0, amount: number = 1): Promise<string> {
-    const connection = this.getConnection(chain)
+  async requestAirdrop(network: NetworkName, index: number = 0, amount: number = 1): Promise<string> {
+    const connection = this.getConnection(network)
     const keypair = this.getKeypair(index)
     const signature = await connection.requestAirdrop(keypair.publicKey, amount * LAMPORTS_PER_SOL)
     await connection.confirmTransaction(signature)

@@ -1,4 +1,4 @@
-export type ChainName =
+export type NetworkName =
   | 'bitcoin'
   | 'bitcoin-testnet'
   | 'bitcoin-signet'
@@ -12,12 +12,12 @@ export type ChainName =
   | 'solana-testnet'
   | 'solana-devnet'
 
-export type ChainType = 'evm' | 'btc' | 'solana'
+export type NetworkType = 'evm' | 'btc' | 'solana'
 
-export interface ChainConfig {
-  name: ChainName
+export interface NetworkConfig {
+  name: NetworkName
   displayName: string
-  type: ChainType
+  type: NetworkType
   defaultProvider: string
   nativeSymbol: string
   decimals: number
@@ -32,7 +32,7 @@ export interface EncryptedPayload {
 }
 
 export interface SendParams {
-  chain: ChainName
+  network: NetworkName
   index: number
   to: string
   amount: string
@@ -42,7 +42,7 @@ export interface SendParams {
 
 export interface TxResult {
   txHash: string
-  chain: ChainName
+  network: NetworkName
   from: string
   to: string
   amount: string
@@ -55,17 +55,17 @@ export interface TxHistoryEntry {
   direction: 'in' | 'out'
   amount: string
   counterparty: string
-  chain: ChainName
+  network: NetworkName
 }
 
 export interface WdkCliConfig {
-  defaultChain: ChainName
+  defaultNetwork: NetworkName
   defaultIndex: number
   indexer: {
     baseUrl: string
     apiKey: string
   }
-  providers: Partial<Record<ChainName, string>>
+  providers: Partial<Record<NetworkName, string>>
   evm: {
     transferMaxFee?: string
   }

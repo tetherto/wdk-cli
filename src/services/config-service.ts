@@ -1,10 +1,10 @@
 import Conf from 'conf'
-import { CHAINS } from '../config/chains.js'
+import { NETWORKS } from '../config/networks.js'
 import { CONFIG_DEFAULTS } from '../config/schema.js'
-import type { ChainName, WdkCliConfig } from '../types/index.js'
+import type { NetworkName, WdkCliConfig } from '../types/index.js'
 
 const ENV_MAP: Record<string, string> = {
-  defaultChain: 'WDK_DEFAULT_CHAIN',
+  defaultNetwork: 'WDK_DEFAULT_NETWORK',
   'indexer.baseUrl': 'WDK_INDEXER_BASE_URL',
   'indexer.apiKey': 'WDK_INDEXER_API_KEY',
 }
@@ -47,12 +47,12 @@ class ConfigService {
     return store
   }
 
-  getProviderUrl(chain: ChainName): string {
-    const envKey = `WDK_PROVIDER_${chain.toUpperCase()}`
+  getProviderUrl(network: NetworkName): string {
+    const envKey = `WDK_PROVIDER_${network.toUpperCase()}`
     if (process.env[envKey]) return process.env[envKey]!
-    const configured = this.conf.get(`providers.${chain}` as any) as string | undefined
+    const configured = this.conf.get(`providers.${network}` as any) as string | undefined
     if (configured) return configured
-    return CHAINS[chain].defaultProvider
+    return NETWORKS[network].defaultProvider
   }
 
   get configPath(): string {

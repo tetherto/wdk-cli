@@ -1,7 +1,7 @@
 import type { WdkCliConfig } from '../types/index.js'
 
 export const CONFIG_DEFAULTS: WdkCliConfig = {
-  defaultChain: 'ethereum',
+  defaultNetwork: 'ethereum',
   defaultIndex: 0,
   indexer: {
     baseUrl: 'https://wdk-api.tether.io',
@@ -16,9 +16,9 @@ export const CONFIG_DEFAULTS: WdkCliConfig = {
 }
 
 export const CONFIG_SCHEMA = {
-  defaultChain: {
+  defaultNetwork: {
     type: 'string' as const,
-    default: CONFIG_DEFAULTS.defaultChain,
+    default: CONFIG_DEFAULTS.defaultNetwork,
   },
   defaultIndex: {
     type: 'number' as const,

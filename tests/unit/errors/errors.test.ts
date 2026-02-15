@@ -4,7 +4,7 @@ import {
   KeyNotFoundError,
   InvalidSeedPhraseError,
   WrongPasswordError,
-  ChainNotSupportedError,
+  NetworkNotSupportedError,
   InsufficientBalanceError,
   TransactionFailedError,
   NetworkError,
@@ -35,10 +35,10 @@ describe('error classes', () => {
     expect(err.code).toBe('WRONG_PASSWORD')
   })
 
-  it('ChainNotSupportedError includes chain name', () => {
-    const err = new ChainNotSupportedError('solana')
+  it('NetworkNotSupportedError includes network name', () => {
+    const err = new NetworkNotSupportedError('solana')
     expect(err.message).toContain('solana')
-    expect(err.code).toBe('CHAIN_NOT_SUPPORTED')
+    expect(err.code).toBe('NETWORK_NOT_SUPPORTED')
   })
 
   it('InsufficientBalanceError shows amounts', () => {

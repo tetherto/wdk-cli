@@ -1,14 +1,14 @@
 import { Command } from 'commander'
 import chalk from 'chalk'
-import { getAddress, walletInfo, resolveChain, resolveIndex } from '../services/wallet-service.js'
+import { getAddress, walletInfo, resolveNetwork, resolveIndex } from '../services/wallet-service.js'
 import { KeyService } from '../services/key-service.js'
 import { Keyring } from '../security/keyring.js'
 import { sessionService } from '../services/session-service.js'
-import { isValidChain } from '../config/chains.js'
+import { isValidNetwork } from '../config/networks.js'
 import { getKeyringPath, SESSION_TTL_MINUTES } from '../config/constants.js'
-import { ChainNotSupportedError, KeyNotFoundError, handleError } from '../errors/index.js'
+import { NetworkNotSupportedError, KeyNotFoundError, handleError } from '../errors/index.js'
 import { promptPassword } from '../ui/prompts.js'
-import { formatBalance, chainColor, formatChainLabel } from '../ui/formatters.js'
+import { formatBalance, networkColor, formatNetworkLabel } from '../ui/formatters.js'
 
 export function registerWalletCommand(program: Command): void {
   const wallet = program
@@ -17,23 +17,23 @@ export function registerWalletCommand(program: Command): void {
 
   wallet
     .command('address')
-    .description('Derive wallet address for a chain and index')
-    .option('--chain <chain>', 'Blockchain')
+    .description('Derive wallet address for a network and index')
+    .option('--network <network>', 'Blockchain network')
     .option('--index <n>', 'Account index')
     .action(async (options) => {
       try {
-        const chain = resolveChain(options.chain ?? program.opts().chain)
-        if (!isValidChain(chain)) throw new ChainNotSupportedError(chain)
+        const network = resolveNetwork(options.network ?? program.opts().network)
+        if (!isValidNetwork(network)) throw new NetworkNotSupportedError(network)
         const index = resolveIndex(options.index ?? program.opts().index)
 
-        const address = await getAddress(chain, index)
+        const address = await getAddress(network, index)
 
         if (program.opts().json) {
-          console.log(JSON.stringify({ chain, index, address }))
+          console.log(JSON.stringify({ network, index, address }))
         } else {
-          const color = chainColor(chain)
+          const color = networkColor(network)
           console.log()
-          console.log(`  Chain:   ${color(formatChainLabel(chain))}`)
+          console.log(`  Network: ${color(formatNetworkLabel(network))}`)
           console.log(`  Index:   ${index}`)
           console.log(`  Address: ${address}`)
           console.log()
@@ -46,15 +46,15 @@ export function registerWalletCommand(program: Command): void {
   wallet
     .command('info')
     .description('Show wallet address and balance')
-    .option('--chain <chain>', 'Blockchain')
+    .option('--network <network>', 'Blockchain network')
     .option('--index <n>', 'Account index')
     .action(async (options) => {
       try {
-        const chain = resolveChain(options.chain ?? program.opts().chain)
-        if (!isValidChain(chain)) throw new ChainNotSupportedError(chain)
+        const network = resolveNetwork(options.network ?? program.opts().network)
+        if (!isValidNetwork(network)) throw new NetworkNotSupportedError(network)
         const index = resolveIndex(options.index ?? program.opts().index)
 
-        const info = await walletInfo(chain, index)
+        const info = await walletInfo(network, index)
 
         if (program.opts().json) {
           console.log(JSON.stringify({
@@ -64,12 +64,12 @@ export function registerWalletCommand(program: Command): void {
           return
         }
 
-        const color = chainColor(chain)
+        const color = networkColor(network)
         console.log()
-        console.log(`  Chain:   ${color(formatChainLabel(chain))}`)
+        console.log(`  Network: ${color(formatNetworkLabel(network))}`)
         console.log(`  Index:   ${index}`)
         console.log(`  Address: ${info.address}`)
-        console.log(`  Balance: ${formatBalance(info.balance.toString(), chain)}`)
+        console.log(`  Balance: ${formatBalance(info.balance.toString(), network)}`)
         console.log()
       } catch (error) {
         handleError(error, program.opts().verbose)

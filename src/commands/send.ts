@@ -2,39 +2,39 @@ import { Command } from 'commander'
 import chalk from 'chalk'
 import ora from 'ora'
 import { estimateFee, send, type SendOptions } from '../services/transaction-service.js'
-import { resolveChain, resolveIndex } from '../services/wallet-service.js'
-import { isValidChain, isEvmChain, CHAINS } from '../config/chains.js'
-import { ChainNotSupportedError, WdkCliError, handleError } from '../errors/index.js'
+import { resolveNetwork, resolveIndex } from '../services/wallet-service.js'
+import { isValidNetwork, isEvmNetwork, NETWORKS } from '../config/networks.js'
+import { NetworkNotSupportedError, WdkCliError, handleError } from '../errors/index.js'
 import { promptConfirm } from '../ui/prompts.js'
-import { formatAddress, chainColor, formatChainLabel, formatTxHash } from '../ui/formatters.js'
+import { formatAddress, networkColor, formatNetworkLabel, formatTxHash } from '../ui/formatters.js'
 
 export function registerSendCommand(program: Command): void {
   program
     .command('send')
     .description('Send native tokens or ERC-20 tokens')
     .requiredOption('--to <address>', 'Recipient address')
-    .requiredOption('--amount <value>', 'Amount in base units (wei/satoshis)')
-    .option('--chain <chain>', 'Blockchain')
+    .requiredOption('--amount <value>', 'Amount in base units (wei/satoshis/lamports)')
+    .option('--network <network>', 'Blockchain network')
     .option('--index <n>', 'Account index')
     .option('--token <address>', 'ERC-20 token contract (EVM only)')
     .option('--max-fee <value>', 'Max fee in base units (EVM only)')
     .option('--yes', 'Skip confirmation prompt')
     .action(async (options) => {
       try {
-        const chain = resolveChain(options.chain ?? program.opts().chain)
-        if (!isValidChain(chain)) throw new ChainNotSupportedError(chain)
+        const network = resolveNetwork(options.network ?? program.opts().network)
+        if (!isValidNetwork(network)) throw new NetworkNotSupportedError(network)
         const index = resolveIndex(options.index ?? program.opts().index)
 
-        if (options.token && !isEvmChain(chain)) {
+        if (options.token && !isEvmNetwork(network)) {
           throw new WdkCliError(
-            'Token transfers are only supported on EVM chains.',
+            'Token transfers are only supported on EVM networks.',
             'TOKEN_NOT_SUPPORTED',
-            'Use an EVM chain like ethereum, polygon, etc.',
+            'Use an EVM network like ethereum, polygon, etc.',
           )
         }
 
         const sendOptions: SendOptions = {
-          chain,
+          network,
           index,
           to: options.to,
           amount: options.amount,
@@ -53,16 +53,16 @@ export function registerSendCommand(program: Command): void {
           throw error
         }
 
-        const chainConfig = CHAINS[chain]
-        const color = chainColor(chain)
+        const networkConfig = NETWORKS[network]
+        const color = networkColor(network)
 
         // Display transaction summary
         if (!program.opts().json) {
           console.log()
           console.log(chalk.bold('Transaction Summary:'))
-          console.log(`  Chain:     ${color(formatChainLabel(chain))}`)
+          console.log(`  Network:   ${color(formatNetworkLabel(network))}`)
           console.log(`  To:        ${formatAddress(options.to)}`)
-          console.log(`  Amount:    ${options.amount} ${options.token ? 'tokens' : chainConfig.nativeSymbol} (base units)`)
+          console.log(`  Amount:    ${options.amount} ${options.token ? 'tokens' : networkConfig.nativeSymbol} (base units)`)
           if (options.token) {
             console.log(`  Token:     ${options.token}`)
           }

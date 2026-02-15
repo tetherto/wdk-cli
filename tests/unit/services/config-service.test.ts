@@ -14,13 +14,13 @@ describe('ConfigService', () => {
   })
 
   it('gets config values', () => {
-    const value = configService.get('defaultChain')
+    const value = configService.get('defaultNetwork')
     expect(value).toBeDefined()
   })
 
   it('sets and gets config values', () => {
-    configService.set('defaultChain', 'polygon')
-    expect(configService.get('defaultChain')).toBe('polygon')
+    configService.set('defaultNetwork', 'polygon')
+    expect(configService.get('defaultNetwork')).toBe('polygon')
   })
 
   it('lists all config', () => {
@@ -29,7 +29,7 @@ describe('ConfigService', () => {
     expect(typeof config).toBe('object')
   })
 
-  it('returns provider URL from chain config', () => {
+  it('returns provider URL from network config', () => {
     const url = configService.getProviderUrl('ethereum')
     expect(url).toContain('https://')
   })
@@ -46,9 +46,9 @@ describe('ConfigService', () => {
     expect(typeof path).toBe('string')
   })
 
-  it('prefers env var for defaultChain', () => {
-    process.env.WDK_DEFAULT_CHAIN = 'polygon'
-    const value = configService.get('defaultChain')
+  it('prefers env var for defaultNetwork', () => {
+    process.env.WDK_DEFAULT_NETWORK = 'polygon'
+    const value = configService.get('defaultNetwork')
     expect(value).toBe('polygon')
   })
 

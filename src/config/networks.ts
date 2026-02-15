@@ -1,6 +1,6 @@
-import type { ChainName, ChainConfig } from '../types/index.js'
+import type { NetworkName, NetworkConfig } from '../types/index.js'
 
-export const CHAINS: Record<ChainName, ChainConfig> = {
+export const NETWORKS: Record<NetworkName, NetworkConfig> = {
   bitcoin: {
     name: 'bitcoin',
     displayName: 'Bitcoin',
@@ -99,28 +99,28 @@ export const CHAINS: Record<ChainName, ChainConfig> = {
   },
 }
 
-export const CHAIN_NAMES = Object.keys(CHAINS) as ChainName[]
+export const NETWORK_NAMES = Object.keys(NETWORKS) as NetworkName[]
 
-export function getChainConfig(name: ChainName): ChainConfig {
-  return CHAINS[name]
+export function getNetworkConfig(name: NetworkName): NetworkConfig {
+  return NETWORKS[name]
 }
 
-export function isEvmChain(name: ChainName): boolean {
-  return CHAINS[name].type === 'evm'
+export function isEvmNetwork(name: NetworkName): boolean {
+  return NETWORKS[name].type === 'evm'
 }
 
-export function isBtcChain(name: ChainName): boolean {
-  return CHAINS[name].type === 'btc'
+export function isBtcNetwork(name: NetworkName): boolean {
+  return NETWORKS[name].type === 'btc'
 }
 
-export function isSolanaChain(name: ChainName): boolean {
-  return CHAINS[name].type === 'solana'
+export function isSolanaNetwork(name: NetworkName): boolean {
+  return NETWORKS[name].type === 'solana'
 }
 
-export function isValidChain(name: string): name is ChainName {
-  return name in CHAINS
+export function isValidNetwork(name: string): name is NetworkName {
+  return name in NETWORKS
 }
 
-export function isTestnet(name: ChainName): boolean {
+export function isTestnet(name: NetworkName): boolean {
   return name === 'bitcoin-testnet' || name === 'bitcoin-signet' || name === 'sepolia' || name === 'solana-testnet' || name === 'solana-devnet'
 }

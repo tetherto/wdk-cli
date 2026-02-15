@@ -13,7 +13,7 @@ export function createProgram(): Command {
     .name(APP_NAME)
     .description('CLI tool for Tether\'s Wallet Development Kit (WDK)')
     .version(APP_VERSION)
-    .option('--chain <chain>', 'Override default chain')
+    .option('--network <network>', 'Override default network')
     .option('--index <n>', 'Account index (default: 0)', '0')
     .option('--json', 'Output as JSON')
     .option('--no-color', 'Disable colored output')

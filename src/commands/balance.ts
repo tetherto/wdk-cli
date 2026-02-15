@@ -1,36 +1,36 @@
 import { Command } from 'commander'
 import chalk from 'chalk'
-import { getBalance, resolveChain, resolveIndex } from '../services/wallet-service.js'
-import { isValidChain, isEvmChain } from '../config/chains.js'
-import { ChainNotSupportedError, WdkCliError, handleError } from '../errors/index.js'
-import { formatBalance, chainColor, formatChainLabel } from '../ui/formatters.js'
+import { getBalance, resolveNetwork, resolveIndex } from '../services/wallet-service.js'
+import { isValidNetwork, isEvmNetwork } from '../config/networks.js'
+import { NetworkNotSupportedError, WdkCliError, handleError } from '../errors/index.js'
+import { formatBalance, networkColor, formatNetworkLabel } from '../ui/formatters.js'
 
 export function registerBalanceCommand(program: Command): void {
   program
     .command('balance')
     .description('Check wallet balance (native or ERC-20 token)')
-    .option('--chain <chain>', 'Blockchain')
+    .option('--network <network>', 'Blockchain network')
     .option('--index <n>', 'Account index')
     .option('--token <address>', 'ERC-20 token contract address (EVM only)')
     .action(async (options) => {
       try {
-        const chain = resolveChain(options.chain ?? program.opts().chain)
-        if (!isValidChain(chain)) throw new ChainNotSupportedError(chain)
+        const network = resolveNetwork(options.network ?? program.opts().network)
+        if (!isValidNetwork(network)) throw new NetworkNotSupportedError(network)
         const index = resolveIndex(options.index ?? program.opts().index)
 
-        if (options.token && !isEvmChain(chain)) {
+        if (options.token && !isEvmNetwork(network)) {
           throw new WdkCliError(
-            `Token balances are only supported on EVM chains.`,
+            `Token balances are only supported on EVM networks.`,
             'TOKEN_NOT_SUPPORTED',
-            `Use an EVM chain like ethereum, polygon, etc.`,
+            `Use an EVM network like ethereum, polygon, etc.`,
           )
         }
 
-        const result = await getBalance(chain, index, options.token)
+        const result = await getBalance(network, index, options.token)
 
         if (program.opts().json) {
           console.log(JSON.stringify({
-            chain,
+            network,
             index,
             balance: result.balance.toString(),
             symbol: result.symbol,
@@ -40,11 +40,11 @@ export function registerBalanceCommand(program: Command): void {
           return
         }
 
-        const color = chainColor(chain)
+        const color = networkColor(network)
         const formatted = formatBalanceDisplay(result.balance, result.decimals, result.symbol)
 
         console.log()
-        console.log(`  ${color(formatChainLabel(chain))} ${chalk.dim(`(index: ${index})`)}`)
+        console.log(`  ${color(formatNetworkLabel(network))} ${chalk.dim(`(index: ${index})`)}`)
         console.log(`  Balance: ${chalk.bold(formatted)}`)
         if (options.token) {
           console.log(`  Token:   ${chalk.dim(options.token)}`)
