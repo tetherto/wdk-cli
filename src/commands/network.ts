@@ -73,15 +73,29 @@ export function registerNetworkCommand(program: Command): void {
   network
     .command('create')
     .description('Create a custom network')
-    .requiredOption('--name <name>', 'Network identifier (e.g. base, optimism)')
-    .requiredOption('--display-name <name>', 'Display name (e.g. "Base Mainnet")')
-    .requiredOption('--wallet-type <type>', `Wallet type: ${VALID_WALLET_TYPES.join(', ')}`)
-    .requiredOption('--symbol <symbol>', 'Native token symbol (e.g. ETH)')
-    .requiredOption('--provider <url>', 'Provider/RPC URL')
+    .option('--name <name>', 'Network identifier (e.g. base, optimism)')
+    .option('--display-name <name>', 'Display name (e.g. "Base Mainnet")')
+    .option('--wallet-type <type>', `Wallet type: ${VALID_WALLET_TYPES.join(', ')}`)
+    .option('--symbol <symbol>', 'Native token symbol (e.g. ETH)')
+    .option('--provider <url>', 'Provider/RPC URL')
     .option('--decimals <n>', 'Token decimals (default: based on type)')
     .option('--testnet', 'Mark as testnet')
-    .action((options) => {
+    .action((options, cmd) => {
       const { name, displayName, walletType: type, symbol, provider, testnet } = options
+
+      // Check all required options at once
+      const missing: string[] = []
+      if (!name) missing.push('--name <name>')
+      if (!displayName) missing.push('--display-name <name>')
+      if (!type) missing.push('--wallet-type <type>')
+      if (!symbol) missing.push('--symbol <symbol>')
+      if (!provider) missing.push('--provider <url>')
+      if (missing.length > 0) {
+        console.error(chalk.red(`Error: missing required options: ${missing.join(', ')}`))
+        console.error()
+        cmd.outputHelp()
+        process.exit(1)
+      }
 
       // Validate name
       if (!/^[a-z0-9][a-z0-9-]*$/.test(name)) {

@@ -18,6 +18,7 @@ export function createProgram(): Command {
     .option('--json', 'Output as JSON')
     .option('--no-color', 'Disable colored output')
     .option('--verbose', 'Enable debug logging')
+    .showHelpAfterError()
 
   registerConfigCommand(program)
   registerKeyCommand(program)
