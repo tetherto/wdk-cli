@@ -2,6 +2,7 @@ import { wdkService } from './wdk-service.js'
 import { solanaService } from './solana-service.js'
 import { KeyService } from './key-service.js'
 import { Keyring } from '../security/keyring.js'
+import { sessionService } from './session-service.js'
 import { configService } from './config-service.js'
 import { CHAINS, isSolanaChain } from '../config/chains.js'
 import { getKeyringPath } from '../config/constants.js'
@@ -11,12 +12,22 @@ import type { ChainName } from '../types/index.js'
 
 const keyService = new KeyService(new Keyring(getKeyringPath()))
 
-async function ensureInitialized(chain: ChainName): Promise<void> {
+async function getSeedPhrase(): Promise<string> {
   if (!(await keyService.hasKey())) {
     throw new KeyNotFoundError()
   }
+
+  // Check active session first
+  const cached = await sessionService.get()
+  if (cached) return cached
+
+  // No session — prompt for password
   const password = await promptPassword('Enter password to unlock wallet:')
-  const seedPhrase = await keyService.unlock(password)
+  return keyService.unlock(password)
+}
+
+async function ensureInitialized(chain: ChainName): Promise<void> {
+  const seedPhrase = await getSeedPhrase()
   if (isSolanaChain(chain)) {
     solanaService.initialize(seedPhrase)
   } else {

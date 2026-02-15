@@ -5,7 +5,7 @@ A TypeScript CLI tool that wraps [Tether's Wallet Development Kit (WDK)](https:/
 ## Features
 
 - **Key Management** — Generate or import BIP-39 seed phrases, encrypted at rest with AES-256-GCM
-- **Multi-Chain Wallets** — Bitcoin, Ethereum, Polygon, Arbitrum, BSC, Avalanche + testnets
+- **Multi-Chain Wallets** — Bitcoin, Ethereum, Polygon, Arbitrum, BSC, Avalanche, Solana + testnets
 - **Balance Checking** — Native tokens and ERC-20 token balances
 - **Send Transactions** — Native and token transfers with fee estimation and confirmation
 - **Configuration** — Per-chain RPC providers, env var overrides, XDG-compliant config
@@ -30,8 +30,8 @@ npm link  # makes `wdk` available globally
 # Generate a new wallet
 wdk key generate --words 24
 
-# Create a wallet on Ethereum
-wdk wallet create --chain ethereum
+# Derive wallet address on Ethereum
+wdk wallet address --chain ethereum
 
 # Check balance
 wdk balance --chain ethereum
@@ -39,8 +39,11 @@ wdk balance --chain ethereum
 # Send ETH (amount in wei)
 wdk send --to 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0 --amount 1000000000000000000 --chain ethereum
 
+# List supported networks
+wdk networks
+
 # Use testnet for development
-wdk wallet create --chain sepolia
+wdk wallet address --chain sepolia
 wdk balance --chain sepolia
 ```
 
@@ -56,13 +59,27 @@ wdk key status                     # Check if a key is stored
 
 Seed phrases are encrypted with AES-256-GCM (scrypt KDF) and stored in `~/.config/wdk-cli/keyring.enc`. The password is prompted interactively and never stored.
 
+### Networks
+
+```bash
+wdk networks                  # List all supported chains
+wdk networks --testnet        # Show only testnets
+wdk networks --mainnet        # Show only mainnets
+wdk networks --json           # Machine-readable output
+```
+
 ### Wallet Operations
 
 ```bash
-wdk wallet create --chain <chain> [--index <n>]   # Derive wallet
-wdk wallet list [--chain <chain>]                  # List all wallets
-wdk wallet info --chain <chain> [--index <n>]      # Show address + balance
+wdk wallet unlock [--ttl <minutes>]                 # Unlock wallet session (default: 30 min)
+wdk wallet lock                                     # Lock wallet and end session
+wdk wallet address --chain <chain> [--index <n>]    # Derive wallet address
+wdk wallet info --chain <chain> [--index <n>]        # Show address + balance
 ```
+
+Wallets are derived deterministically from your seed phrase using BIP-44 HD paths — no local state is stored.
+
+Unlock your wallet once with `wdk wallet unlock` to skip the password prompt on subsequent commands. The session auto-expires after 30 minutes (configurable with `--ttl`).
 
 ### Balance
 
@@ -80,7 +97,7 @@ wdk send --to <address> --amount <base-units> --chain ethereum --token <contract
 wdk send --to <address> --amount <base-units> --chain ethereum --yes  # skip confirmation
 ```
 
-Amounts are in base units (wei for EVM, satoshis for BTC). Fee estimation runs before confirmation.
+Amounts are in base units (wei for EVM, satoshis for BTC, lamports for Solana). Fee estimation runs before confirmation.
 
 ### Configuration
 
@@ -108,17 +125,22 @@ wdk config path                              # Show config file location
 |-------|------|------|---------------|
 | `bitcoin` | Bitcoin | BTC | BTC |
 | `bitcoin-testnet` | Bitcoin Testnet | BTC | tBTC |
+| `bitcoin-signet` | Bitcoin Signet | BTC | sBTC |
 | `ethereum` | Ethereum | EVM | ETH |
 | `sepolia` | Sepolia Testnet | EVM | ETH |
 | `polygon` | Polygon | EVM | POL |
 | `arbitrum` | Arbitrum One | EVM | ETH |
 | `bsc` | BNB Smart Chain | EVM | BNB |
 | `avalanche` | Avalanche C-Chain | EVM | AVAX |
+| `solana` | Solana | Solana | SOL |
+| `solana-testnet` | Solana Testnet | Solana | SOL |
+| `solana-devnet` | Solana Devnet | Solana | SOL |
 
 ## Environment Variables
 
 | Variable | Description |
 |----------|-------------|
+| `WDK_PASSWORD` | Wallet unlock password (skip interactive prompt) |
 | `WDK_DEFAULT_CHAIN` | Override default chain |
 | `WDK_PROVIDER_ETHEREUM` | Ethereum RPC URL |
 | `WDK_PROVIDER_BITCOIN` | Bitcoin API URL |

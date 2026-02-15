@@ -11,7 +11,14 @@ function getConfigDir(): string {
   return join(base, CONFIG_DIR)
 }
 
+export const SESSION_FILENAME = 'session.json'
+export const SESSION_TTL_MINUTES = 30
+
 export function getKeyringPath(): string {
   return join(getConfigDir(), KEYRING_FILENAME)
+}
+
+export function getSessionPath(): string {
+  return join(getConfigDir(), SESSION_FILENAME)
 }
 
