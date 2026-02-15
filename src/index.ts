@@ -1,8 +1,8 @@
 import { Command } from 'commander'
 import { APP_NAME, APP_VERSION } from './config/constants.js'
 import { registerConfigCommand } from './commands/config.js'
-import { registerKeyCommand } from './commands/key.js'
 import { registerWalletCommand } from './commands/wallet.js'
+import { registerAddressCommand } from './commands/address.js'
 import { registerBalanceCommand } from './commands/balance.js'
 import { registerSendCommand } from './commands/send.js'
 import { registerNetworkCommand } from './commands/network.js'
@@ -21,8 +21,8 @@ export function createProgram(): Command {
     .showHelpAfterError()
 
   registerConfigCommand(program)
-  registerKeyCommand(program)
   registerWalletCommand(program)
+  registerAddressCommand(program)
   registerBalanceCommand(program)
   registerSendCommand(program)
   registerNetworkCommand(program)

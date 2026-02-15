@@ -77,11 +77,10 @@ export function registerNetworkCommand(program: Command): void {
     .option('--display-name <name>', 'Display name (e.g. "Base Mainnet")')
     .option('--wallet-type <type>', `Wallet type: ${VALID_WALLET_TYPES.join(', ')}`)
     .option('--symbol <symbol>', 'Native token symbol (e.g. ETH)')
-    .option('--provider <url>', 'Provider/RPC URL')
     .option('--decimals <n>', 'Token decimals (default: based on type)')
     .option('--testnet', 'Mark as testnet')
     .action((options, cmd) => {
-      const { name, displayName, walletType: type, symbol, provider, testnet } = options
+      const { name, displayName, walletType: type, symbol, testnet } = options
 
       // Check all required options at once
       const missing: string[] = []
@@ -89,7 +88,6 @@ export function registerNetworkCommand(program: Command): void {
       if (!displayName) missing.push('--display-name <name>')
       if (!type) missing.push('--wallet-type <type>')
       if (!symbol) missing.push('--symbol <symbol>')
-      if (!provider) missing.push('--provider <url>')
       if (missing.length > 0) {
         console.error(chalk.red(`Error: missing required options: ${missing.join(', ')}`))
         console.error()
@@ -115,14 +113,6 @@ export function registerNetworkCommand(program: Command): void {
 
       const walletType = type as NetworkType
 
-      // Validate provider URL
-      try {
-        new URL(provider)
-      } catch {
-        console.error(chalk.red('Error: Provider must be a valid URL.'))
-        process.exit(1)
-      }
-
       // Parse decimals
       const decimals = options.decimals ? parseInt(options.decimals, 10) : DEFAULT_DECIMALS[walletType]
       if (isNaN(decimals) || decimals < 0 || decimals > 24) {
@@ -138,14 +128,13 @@ export function registerNetworkCommand(program: Command): void {
         decimals,
         custom: true,
         testnet: !!testnet,
-        providerUrl: provider,
       }
 
-      // Save custom network
+      // Save custom network identity
       saveCustomNetwork(name, config)
 
-      // Also register per-network config (matches built-in structure)
-      const networkConf: Record<string, string> = { provider }
+      // Create empty per-network config entries (user fills via `wdk config set`)
+      const networkConf: Record<string, string> = { provider: '' }
       if (walletType === 'wdk-wallet-evm') {
         networkConf.transferMaxFee = ''
       }
@@ -164,10 +153,9 @@ export function registerNetworkCommand(program: Command): void {
       console.log(`  Wallet:     ${walletType}`)
       console.log(`  Symbol:     ${symbol}`)
       console.log(`  Decimals:   ${decimals}`)
-      console.log(`  Provider:   ${provider}`)
       console.log(`  Testnet:    ${testnet ? 'yes' : 'no'}`)
       console.log()
-      console.log(chalk.dim(`Use it with --network ${name}`))
+      console.log(chalk.dim(`Use wdk config set <key> <value> --network ${name} to configure network settings.`))
     })
 
   network

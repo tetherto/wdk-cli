@@ -96,7 +96,6 @@ describe('custom networks', () => {
     decimals: 18,
     custom: true,
     testnet: false,
-    providerUrl: 'https://mainnet.base.org',
   }
 
   beforeEach(() => {

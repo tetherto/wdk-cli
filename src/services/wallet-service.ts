@@ -44,40 +44,6 @@ export async function getAddress(network: NetworkName, index: number): Promise<s
   return account.getAddress()
 }
 
-export async function walletInfo(
-  network: NetworkName,
-  index: number,
-): Promise<{
-  network: NetworkName
-  index: number
-  address: string
-  balance: bigint
-  displayName: string
-  nativeSymbol: string
-}> {
-  await ensureInitialized(network)
-  let address: string
-  let balance: bigint
-  if (isSolanaNetwork(network)) {
-    address = solanaService.getAddress(index)
-    balance = await solanaService.getBalance(network, index)
-  } else {
-    const account = await wdkService.getAccount(network, index)
-    address = await account.getAddress()
-    balance = await account.getBalance()
-  }
-  const networkConfig = getNetworkConfig(network)
-
-  return {
-    network,
-    index,
-    address,
-    balance,
-    displayName: networkConfig.displayName,
-    nativeSymbol: networkConfig.nativeSymbol,
-  }
-}
-
 export async function getBalance(
   network: NetworkName,
   index: number,

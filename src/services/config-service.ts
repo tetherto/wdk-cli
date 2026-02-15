@@ -50,10 +50,7 @@ class ConfigService {
     // Check per-network config override
     const provider = this.conf.get(`networks.${network}.provider`) as string | undefined
     if (provider) return provider
-    // Check custom network's stored provider URL
-    const customProvider = this.conf.get(`customNetworks.${network}.providerUrl`) as string | undefined
-    if (customProvider) return customProvider
-    throw new Error(`No provider configured for network '${network}'.`)
+    throw new Error(`No provider configured for network '${network}'. Use wdk config set to configure network settings.`)
   }
 
   get configPath(): string {

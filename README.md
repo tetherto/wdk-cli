@@ -4,9 +4,9 @@ A TypeScript CLI tool that wraps [Tether's Wallet Development Kit (WDK)](https:/
 
 ## Features
 
-- **Key Management** — Generate or import BIP-39 seed phrases, encrypted at rest with AES-256-GCM
-- **Multi-Chain Wallets** — Bitcoin, Ethereum, Polygon, Arbitrum, BSC, Avalanche, Solana + testnets
-- **Balance Checking** — Native tokens and ERC-20 token balances
+- **Wallet Management** — Generate or import BIP-39 seed phrases, encrypted at rest with AES-256-GCM
+- **Multi-Chain Wallets** — Bitcoin, Ethereum, Polygon, Arbitrum, BSC, Avalanche, Solana + testnets + custom networks
+- **Balance Checking** — Native tokens and ERC-20 token balances with address display
 - **Send Transactions** — Native and token transfers with fee estimation and confirmation
 - **Wallet Sessions** — Unlock once, skip password on subsequent commands
 - **Configuration** — Per-network RPC providers, env var overrides, XDG-compliant config
@@ -28,16 +28,16 @@ npm link  # makes `wdk` available globally
 ## Quick Start
 
 ```bash
-# Generate a new wallet
-wdk key generate --words 24
+# Create a new wallet
+wdk wallet create --words 24
 
 # Unlock wallet session (skip password prompts)
 wdk wallet unlock
 
 # Derive wallet address on Ethereum
-wdk wallet address --network ethereum
+wdk address --network ethereum
 
-# Check balance
+# Check balance (shows address + balance)
 wdk balance --network ethereum
 
 # Send ETH (amount in wei)
@@ -47,7 +47,7 @@ wdk send --to 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0 --amount 10000000000000
 wdk network list
 
 # Use testnet for development
-wdk wallet address --network sepolia
+wdk address --network sepolia
 wdk balance --network sepolia
 
 # Lock wallet when done
@@ -56,45 +56,33 @@ wdk wallet lock
 
 ## Commands
 
-### Key Management
+### Wallet
 
 ```bash
-wdk key generate [--words 12|24]   # Generate new BIP-39 seed phrase
-wdk key import                     # Import existing seed phrase (interactive)
-wdk key status                     # Check if a key is stored
+wdk wallet create [--words 12|24]       # Generate new BIP-39 seed phrase
+wdk wallet import                       # Import existing seed phrase (interactive)
+wdk wallet unlock [--ttl <minutes>]     # Unlock wallet session (default: 30 min)
+wdk wallet lock                         # Lock wallet and end session
 ```
 
 Seed phrases are encrypted with AES-256-GCM (scrypt KDF) and stored in `~/.config/wdk-cli/keyring.enc`. The password is prompted interactively and never stored.
 
-### Networks
+If a wallet already exists, `create` and `import` will ask for confirmation before overwriting.
+
+Unlock your wallet once with `wdk wallet unlock` to skip the password prompt on subsequent commands. The session auto-expires after 30 minutes (configurable with `--ttl`).
+
+### Address
 
 ```bash
-wdk network list                  # List all supported networks
-wdk network list --testnet        # Show only testnets
-wdk network list --mainnet        # Show only mainnets
-wdk network list --json           # Machine-readable output
-wdk network create --name base --display-name "Base Mainnet" --wallet-type wdk-wallet-evm --symbol ETH --provider https://mainnet.base.org
-wdk network create --name base-testnet --display-name "Base Testnet" --wallet-type wdk-wallet-evm --symbol ETH --provider https://sepolia.base.org --testnet
-wdk network delete <name>         # Delete a custom network
-```
-
-### Wallet Operations
-
-```bash
-wdk wallet unlock [--ttl <minutes>]                    # Unlock wallet session (default: 30 min)
-wdk wallet lock                                        # Lock wallet and end session
-wdk wallet address --network <network> [--index <n>]   # Derive wallet address
-wdk wallet info --network <network> [--index <n>]      # Show address + balance
+wdk address --network <network> [--index <n>]   # Derive wallet address
 ```
 
 Wallets are derived deterministically from your seed phrase using BIP-44 HD paths — no local state is stored.
 
-Unlock your wallet once with `wdk wallet unlock` to skip the password prompt on subsequent commands. The session auto-expires after 30 minutes (configurable with `--ttl`).
-
 ### Balance
 
 ```bash
-wdk balance --network ethereum                         # Native ETH balance
+wdk balance --network ethereum                         # Native ETH balance (shows address + balance)
 wdk balance --network ethereum --token 0xdAC17F...     # ERC-20 token balance
 wdk balance --network bitcoin                          # BTC balance
 ```
@@ -108,6 +96,60 @@ wdk send --to <address> --amount <base-units> --network ethereum --yes  # skip c
 ```
 
 Amounts are in base units (wei for EVM, satoshis for BTC, lamports for Solana). Fee estimation runs before confirmation.
+
+### Networks
+
+```bash
+wdk network list              # List all networks (built-in + custom)
+wdk network list --testnet    # Show only testnets
+wdk network list --mainnet    # Show only mainnets
+wdk network list --json       # Machine-readable output
+wdk network delete <name>     # Delete a custom network
+```
+
+#### Adding Custom Networks
+
+Use `wdk network create` to define the network identity, then `wdk config set` to configure the provider:
+
+```bash
+# 1. Create the network
+wdk network create \
+  --name base \
+  --display-name "Base Mainnet" \
+  --wallet-type wdk-wallet-evm \
+  --symbol ETH
+
+# 2. Configure the provider
+wdk config set provider https://mainnet.base.org --network base
+
+# Another example: Optimism
+wdk network create \
+  --name optimism \
+  --display-name "Optimism" \
+  --wallet-type wdk-wallet-evm \
+  --symbol ETH
+wdk config set provider https://mainnet.optimism.io --network optimism
+
+# Testnet example
+wdk network create \
+  --name base-sepolia \
+  --display-name "Base Sepolia" \
+  --wallet-type wdk-wallet-evm \
+  --symbol ETH \
+  --testnet
+wdk config set provider https://sepolia.base.org --network base-sepolia
+```
+
+| Flag | Required | Description |
+|------|----------|-------------|
+| `--name <name>` | Yes | Network identifier (lowercase, e.g. `base`) |
+| `--display-name <name>` | Yes | Human-readable name (e.g. `Base Mainnet`) |
+| `--wallet-type <type>` | Yes | `wdk-wallet-evm`, `wdk-wallet-btc`, or `wdk-wallet-solana` |
+| `--symbol <symbol>` | Yes | Native token symbol (e.g. `ETH`) |
+| `--decimals <n>` | No | Token decimals (default: 18 for EVM, 8 for BTC, 9 for Solana) |
+| `--testnet` | No | Mark as testnet |
+
+Custom networks are stored in config and work with all commands (`balance`, `send`, `address`, etc.). After creating a network, use `wdk config set` to configure network settings.
 
 ### Configuration
 
@@ -133,6 +175,8 @@ wdk config path                                                     # Config fil
 
 ## Supported Networks
 
+### Built-in
+
 | Network | Name | Type | Native Symbol |
 |---------|------|------|---------------|
 | `bitcoin` | Bitcoin | BTC | BTC |
@@ -147,6 +191,8 @@ wdk config path                                                     # Config fil
 | `solana` | Solana | Solana | SOL |
 | `solana-testnet` | Solana Testnet | Solana | SOL |
 | `solana-devnet` | Solana Devnet | Solana | SOL |
+
+Additional networks can be added with `wdk network create`. See [Adding Custom Networks](#adding-custom-networks).
 
 ## Environment Variables
 
@@ -165,7 +211,7 @@ wdk config path                                                     # Config fil
 - Seed phrases are **never accepted as CLI arguments** — only via interactive prompt
 - Passwords are **never stored** — prompted each time (or use `wdk wallet unlock` for sessions)
 - Wallet sessions are **encrypted** and **auto-expire** after 30 minutes
-- **Confirmation required** before every send transaction (unless `--yes`)
+- **Confirmation required** before overwriting an existing wallet or sending transactions
 - No telemetry, no analytics, no data sent to external services
 
 ## Development

@@ -22,7 +22,6 @@ export interface NetworkConfig {
   decimals: number
   custom?: boolean
   testnet?: boolean
-  providerUrl?: string
 }
 
 export interface EncryptedPayload {

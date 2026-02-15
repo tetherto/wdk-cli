@@ -23,7 +23,7 @@ export class KeyNotFoundError extends WdkCliError {
     super(
       'No key found.',
       'KEY_NOT_FOUND',
-      'Run `wdk key generate` or `wdk key import` first.',
+      'Run `wdk wallet create` or `wdk wallet import` first.',
     )
   }
 }

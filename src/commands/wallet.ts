@@ -1,42 +1,79 @@
 import { Command } from 'commander'
 import chalk from 'chalk'
-import { getAddress, walletInfo, resolveNetwork, resolveIndex } from '../services/wallet-service.js'
+import ora from 'ora'
 import { KeyService } from '../services/key-service.js'
 import { Keyring } from '../security/keyring.js'
 import { sessionService } from '../services/session-service.js'
-import { isValidNetwork } from '../config/networks.js'
 import { getKeyringPath, SESSION_TTL_MINUTES } from '../config/constants.js'
-import { NetworkNotSupportedError, KeyNotFoundError, handleError } from '../errors/index.js'
-import { promptPassword } from '../ui/prompts.js'
-import { formatBalance, networkColor, formatNetworkLabel } from '../ui/formatters.js'
+import { KeyNotFoundError, handleError } from '../errors/index.js'
+import { promptPassword, promptSeedPhrase, promptConfirm } from '../ui/prompts.js'
+
+function createKeyService(): KeyService {
+  return new KeyService(new Keyring(getKeyringPath()))
+}
 
 export function registerWalletCommand(program: Command): void {
   const wallet = program
     .command('wallet')
-    .description('Derive and inspect HD wallets')
+    .description('Manage wallet keys and sessions')
 
   wallet
-    .command('address')
-    .description('Derive wallet address for a network and index')
-    .option('--network <network>', 'Blockchain network')
-    .option('--index <n>', 'Account index')
+    .command('create')
+    .description('Generate a new BIP-39 seed phrase')
+    .option('--words <count>', 'Word count: 12 or 24', '12')
     .action(async (options) => {
       try {
-        const network = resolveNetwork(options.network ?? program.opts().network)
-        if (!isValidNetwork(network)) throw new NetworkNotSupportedError(network)
-        const index = resolveIndex(options.index ?? program.opts().index)
+        const wordCount = parseInt(options.words, 10) as 12 | 24
+        if (wordCount !== 12 && wordCount !== 24) {
+          console.error(chalk.red('Error: --words must be 12 or 24'))
+          process.exit(1)
+        }
 
-        const address = await getAddress(network, index)
+        const keyService = createKeyService()
 
-        if (program.opts().json) {
-          console.log(JSON.stringify({ network, index, address }))
+        if (await keyService.hasKey()) {
+          const overwrite = await promptConfirm(
+            'A wallet already exists. Overwrite it?',
+          )
+          if (!overwrite) {
+            console.log('Cancelled.')
+            return
+          }
+        }
+
+        const seedPhrase = keyService.generate(wordCount)
+
+        const isJson = program.opts().json
+        if (isJson) {
+          console.log(JSON.stringify({ seedPhrase, wordCount }))
         } else {
-          const color = networkColor(network)
           console.log()
-          console.log(`  Network: ${color(formatNetworkLabel(network))}`)
-          console.log(`  Index:   ${index}`)
-          console.log(`  Address: ${address}`)
+          console.log(chalk.bold.yellow('WARNING: Store this seed phrase safely. It cannot be recovered!'))
           console.log()
+          console.log(chalk.bold('Seed phrase:'))
+          console.log()
+
+          const words = seedPhrase.split(' ')
+          words.forEach((word, i) => {
+            const num = String(i + 1).padStart(2, ' ')
+            console.log(`  ${chalk.dim(num + '.')} ${word}`)
+          })
+          console.log()
+        }
+
+        const shouldStore = isJson || await promptConfirm('Encrypt and store this seed phrase?')
+        if (shouldStore) {
+          const password = await promptPassword('Create a password to encrypt your seed phrase:')
+          const confirmPw = await promptPassword('Confirm password:')
+
+          if (password !== confirmPw) {
+            console.error(chalk.red('Error: Passwords do not match.'))
+            process.exit(1)
+          }
+
+          const spinner = ora('Encrypting and storing seed phrase...').start()
+          await keyService.store(seedPhrase, password)
+          spinner.succeed('Seed phrase encrypted and stored.')
         }
       } catch (error) {
         handleError(error, program.opts().verbose)
@@ -44,33 +81,41 @@ export function registerWalletCommand(program: Command): void {
     })
 
   wallet
-    .command('info')
-    .description('Show wallet address and balance')
-    .option('--network <network>', 'Blockchain network')
-    .option('--index <n>', 'Account index')
-    .action(async (options) => {
+    .command('import')
+    .description('Import an existing BIP-39 seed phrase')
+    .action(async () => {
       try {
-        const network = resolveNetwork(options.network ?? program.opts().network)
-        if (!isValidNetwork(network)) throw new NetworkNotSupportedError(network)
-        const index = resolveIndex(options.index ?? program.opts().index)
+        const keyService = createKeyService()
 
-        const info = await walletInfo(network, index)
-
-        if (program.opts().json) {
-          console.log(JSON.stringify({
-            ...info,
-            balance: info.balance.toString(),
-          }))
-          return
+        if (await keyService.hasKey()) {
+          const overwrite = await promptConfirm(
+            'A wallet already exists. Overwrite it?',
+          )
+          if (!overwrite) {
+            console.log('Import cancelled.')
+            return
+          }
         }
 
-        const color = networkColor(network)
-        console.log()
-        console.log(`  Network: ${color(formatNetworkLabel(network))}`)
-        console.log(`  Index:   ${index}`)
-        console.log(`  Address: ${info.address}`)
-        console.log(`  Balance: ${formatBalance(info.balance.toString(), network)}`)
-        console.log()
+        console.log(chalk.dim('Enter your BIP-39 seed phrase (12 or 24 words).'))
+        const seedPhrase = (await promptSeedPhrase()).trim()
+
+        if (!keyService.validate(seedPhrase)) {
+          console.error(chalk.red('Error: Invalid seed phrase. Must be 12 or 24 valid BIP-39 words.'))
+          process.exit(1)
+        }
+
+        const password = await promptPassword('Create a password to encrypt your seed phrase:')
+        const confirmPw = await promptPassword('Confirm password:')
+
+        if (password !== confirmPw) {
+          console.error(chalk.red('Error: Passwords do not match.'))
+          process.exit(1)
+        }
+
+        const spinner = ora('Encrypting and storing seed phrase...').start()
+        await keyService.store(seedPhrase, password)
+        spinner.succeed('Seed phrase imported and encrypted.')
       } catch (error) {
         handleError(error, program.opts().verbose)
       }

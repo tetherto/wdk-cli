@@ -22,7 +22,7 @@ describe('error classes', () => {
   it('KeyNotFoundError', () => {
     const err = new KeyNotFoundError()
     expect(err.code).toBe('KEY_NOT_FOUND')
-    expect(err.suggestion).toContain('wdk key generate')
+    expect(err.suggestion).toContain('wdk wallet create')
   })
 
   it('InvalidSeedPhraseError', () => {

@@ -1,9 +1,9 @@
 import { Command } from 'commander'
 import chalk from 'chalk'
-import { getBalance, resolveNetwork, resolveIndex } from '../services/wallet-service.js'
+import { getAddress, getBalance, resolveNetwork, resolveIndex } from '../services/wallet-service.js'
 import { isValidNetwork, isEvmNetwork } from '../config/networks.js'
 import { NetworkNotSupportedError, WdkCliError, handleError } from '../errors/index.js'
-import { formatBalance, networkColor, formatNetworkLabel } from '../ui/formatters.js'
+import { networkColor, formatNetworkLabel } from '../ui/formatters.js'
 
 export function registerBalanceCommand(program: Command): void {
   program
@@ -26,12 +26,14 @@ export function registerBalanceCommand(program: Command): void {
           )
         }
 
+        const address = await getAddress(network, index)
         const result = await getBalance(network, index, options.token)
 
         if (program.opts().json) {
           console.log(JSON.stringify({
             network,
             index,
+            address,
             balance: result.balance.toString(),
             symbol: result.symbol,
             decimals: result.decimals,
@@ -45,6 +47,7 @@ export function registerBalanceCommand(program: Command): void {
 
         console.log()
         console.log(`  ${color(formatNetworkLabel(network))} ${chalk.dim(`(index: ${index})`)}`)
+        console.log(`  Address: ${address}`)
         console.log(`  Balance: ${chalk.bold(formatted)}`)
         if (options.token) {
           console.log(`  Token:   ${chalk.dim(options.token)}`)
