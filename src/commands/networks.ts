@@ -29,12 +29,13 @@ export function registerNetworksCommand(program: Command): void {
         return
       }
 
-      const table = createTable(['Network', 'Type', 'Symbol', 'Testnet'])
+      const table = createTable(['Name', 'Network', 'Type', 'Symbol', 'Testnet'])
 
       for (const name of networks) {
         const config = NETWORKS[name]
         const color = networkColor(name)
         table.push([
+          chalk.bold(name),
           color(config.displayName),
           isEvmNetwork(name) ? chalk.cyan('EVM') : isBtcNetwork(name) ? chalk.yellow('BTC') : chalk.magenta('SOL'),
           config.nativeSymbol,
