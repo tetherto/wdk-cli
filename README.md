@@ -177,18 +177,18 @@ BTC networks use the [Electrum protocol](https://electrumx.readthedocs.io/). Def
 
 | Network | Name | Type | Native Symbol |
 |---------|------|------|---------------|
-| `bitcoin` | Bitcoin | BTC | BTC |
-| `bitcoin-testnet3` | Bitcoin Testnet3 | BTC | tBTC |
-| `bitcoin-signet` | Bitcoin Signet | BTC | sBTC |
-| `ethereum` | Ethereum | EVM | ETH |
-| `sepolia` | Sepolia Testnet | EVM | ETH |
-| `polygon` | Polygon | EVM | POL |
-| `arbitrum` | Arbitrum One | EVM | ETH |
-| `bsc` | BNB Smart Chain | EVM | BNB |
-| `avalanche` | Avalanche C-Chain | EVM | AVAX |
-| `solana` | Solana | Solana | SOL |
-| `solana-testnet` | Solana Testnet | Solana | SOL |
-| `solana-devnet` | Solana Devnet | Solana | SOL |
+| `bitcoin` | Bitcoin | wdk-wallet-btc | BTC |
+| `bitcoin-testnet3` | Bitcoin Testnet3 | wdk-wallet-btc | tBTC |
+| `bitcoin-signet` | Bitcoin Signet | wdk-wallet-btc | sBTC |
+| `ethereum` | Ethereum | wdk-wallet-evm | ETH |
+| `sepolia` | Sepolia Testnet | wdk-wallet-evm | ETH |
+| `polygon` | Polygon | wdk-wallet-evm | POL |
+| `arbitrum` | Arbitrum One | wdk-wallet-evm | ETH |
+| `bsc` | BNB Smart Chain | wdk-wallet-evm | BNB |
+| `avalanche` | Avalanche C-Chain | wdk-wallet-evm | AVAX |
+| `solana` | Solana | wdk-wallet-solana | SOL |
+| `solana-testnet` | Solana Testnet | wdk-wallet-solana | SOL |
+| `solana-devnet` | Solana Devnet | wdk-wallet-solana | SOL |
 
 Additional networks can be added with `wdk network create`. See [Adding Custom Networks](#adding-custom-networks).
 
