@@ -6,7 +6,7 @@ A TypeScript CLI tool that wraps [Tether's Wallet Development Kit (WDK)](https:/
 
 - **Wallet Management** — Generate or import BIP-39 seed phrases, encrypted at rest with AES-256-GCM
 - **Multi-Chain Wallets** — Bitcoin, Ethereum, Polygon, Arbitrum, BSC, Avalanche, Solana + testnets + custom networks
-- **Balance Checking** — Native tokens and ERC-20 token balances with address display
+- **Balance Checking** — Native tokens and ERC-20 token balances
 - **Send Transactions** — Native and token transfers with fee estimation and confirmation
 - **Wallet Sessions** — Unlock once, skip password on subsequent commands
 - **Configuration** — Per-network RPC providers, env var overrides, XDG-compliant config
@@ -37,7 +37,7 @@ wdk wallet unlock
 # Derive wallet address on Ethereum
 wdk get address --network ethereum
 
-# Check balance (shows address + balance)
+# Check balance
 wdk get balance --network ethereum
 
 # Send ETH (amount in wei)
@@ -113,7 +113,7 @@ Custom networks are stored in config and work with all commands (`get balance`, 
 
 ```bash
 wdk get address --network <network> [--index <n>]              # Derive wallet address
-wdk get balance --network ethereum                              # Native ETH balance (shows address + balance)
+wdk get balance --network ethereum                              # Native ETH balance
 wdk get balance --network ethereum --token 0xdAC17F...          # ERC-20 token balance
 wdk get balance --network bitcoin                               # BTC balance
 wdk get network --network ethereum                              # Show network details and config

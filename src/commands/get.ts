@@ -30,7 +30,6 @@ export function registerGetCommand(program: Command): void {
           const color = networkColor(network)
           console.log()
           console.log(`  Network: ${color(formatNetworkLabel(network))}`)
-          console.log(`  Index:   ${index}`)
           console.log(`  Address: ${address}`)
           console.log()
         }
@@ -59,14 +58,12 @@ export function registerGetCommand(program: Command): void {
           )
         }
 
-        const address = await getAddress(network, index)
         const result = await getBalance(network, index, options.token)
 
         if (program.opts().json) {
           console.log(JSON.stringify({
             network,
             index,
-            address,
             balance: result.balance.toString(),
             symbol: result.symbol,
             decimals: result.decimals,
@@ -80,7 +77,6 @@ export function registerGetCommand(program: Command): void {
 
         console.log()
         console.log(`  ${color(formatNetworkLabel(network))} ${chalk.dim(`(index: ${index})`)}`)
-        console.log(`  Address: ${address}`)
         console.log(`  Balance: ${chalk.bold(formatted)}`)
         if (options.token) {
           console.log(`  Token:   ${chalk.dim(options.token)}`)
