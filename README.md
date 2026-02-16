@@ -35,10 +35,10 @@ wdk wallet create --words 24
 wdk wallet unlock
 
 # Derive wallet address on Ethereum
-wdk address --network ethereum
+wdk get address --network ethereum
 
 # Check balance (shows address + balance)
-wdk balance --network ethereum
+wdk get balance --network ethereum
 
 # Send ETH (amount in wei)
 wdk send --to 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0 --amount 1000000000000000000 --network ethereum
@@ -47,8 +47,8 @@ wdk send --to 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0 --amount 10000000000000
 wdk network list
 
 # Use testnet for development
-wdk address --network sepolia
-wdk balance --network sepolia
+wdk get address --network sepolia
+wdk get balance --network sepolia
 
 # Lock wallet when done
 wdk wallet lock
@@ -71,21 +71,16 @@ If a wallet already exists, `create` and `import` will ask for confirmation befo
 
 Unlock your wallet once with `wdk wallet unlock` to skip the password prompt on subsequent commands. The session auto-expires after 30 minutes (configurable with `--ttl`).
 
-### Address
+### Get
 
 ```bash
-wdk address --network <network> [--index <n>]   # Derive wallet address
+wdk get address --network <network> [--index <n>]              # Derive wallet address
+wdk get balance --network ethereum                              # Native ETH balance (shows address + balance)
+wdk get balance --network ethereum --token 0xdAC17F...          # ERC-20 token balance
+wdk get balance --network bitcoin                               # BTC balance
 ```
 
-Wallets are derived deterministically from your seed phrase using BIP-44 HD paths — no local state is stored.
-
-### Balance
-
-```bash
-wdk balance --network ethereum                         # Native ETH balance (shows address + balance)
-wdk balance --network ethereum --token 0xdAC17F...     # ERC-20 token balance
-wdk balance --network bitcoin                          # BTC balance
-```
+Wallets are derived deterministically from your seed phrase using BIP-44 HD paths — no local state is stored. `get address` works without a provider configured (local derivation only), while `get balance` requires a provider connection.
 
 ### Send
 
@@ -149,7 +144,7 @@ wdk config set provider https://sepolia.base.org --network base-sepolia
 | `--decimals <n>` | No | Token decimals (default: 18 for EVM, 8 for BTC, 9 for Solana) |
 | `--testnet` | No | Mark as testnet |
 
-Custom networks are stored in config and work with all commands (`balance`, `send`, `address`, etc.). After creating a network, use `wdk config set` to configure network settings.
+Custom networks are stored in config and work with all commands (`get balance`, `send`, `get address`, etc.). After creating a network, use `wdk config set` to configure network settings.
 
 ### Configuration
 
