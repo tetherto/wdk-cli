@@ -20,7 +20,7 @@ import { resolveNetwork, resolveIndex } from '../services/wallet-service.js'
 import { isValidNetwork, isEvmNetwork, getNetworkConfig } from '../config/networks.js'
 import { NetworkNotSupportedError, WdkCliError, handleError } from '../errors/index.js'
 import { promptConfirm } from '../ui/prompts.js'
-import { formatAddress, networkColor, formatNetworkLabel, formatTxHash, formatAmount } from '../ui/formatters.js'
+import { formatAddress, networkColor, formatNetworkLabel, formatAmount } from '../ui/formatters.js'
 import { getTokenConfig } from '../config/tokens.js'
 
 const EVM_ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/

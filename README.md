@@ -218,9 +218,19 @@ npm run build          # Build
 npm run dev            # Build in watch mode
 npm test               # Run tests
 npm run test:coverage  # Run tests with coverage
-npm run lint           # Lint
+npm run lint           # Lint (check only)
+npm run lint:fix       # Lint and auto-fix
 ```
 
 ## License
 
-Apache-2.0
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## Support
+
+For support, please open an issue on the GitHub repository.
+

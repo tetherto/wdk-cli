@@ -16,7 +16,7 @@ import WDK from '@tetherto/wdk'
 import WalletManagerBtc from '@tetherto/wdk-wallet-btc'
 import WalletManagerEvm from '@tetherto/wdk-wallet-evm'
 import WalletManagerSolana from '@tetherto/wdk-wallet-solana'
-import { isValidNetwork, isEvmNetwork, isSolanaNetwork, isBtcNetwork, getNetworkConfig } from '../config/networks.js'
+import { isValidNetwork, isEvmNetwork, isSolanaNetwork, isBtcNetwork } from '../config/networks.js'
 import { configService } from './config-service.js'
 import { NetworkNotSupportedError, NetworkError } from '../errors/index.js'
 import type { NetworkName } from '../types/index.js'
@@ -54,13 +54,13 @@ export class WdkService {
     if (isEvmNetwork(network)) {
       const providerUrl = configService.getProviderUrl(network)
       const maxFee = configService.get(`networks.${network}.transferMaxFee`) as string | undefined
-      ;(this.wdk as any).registerWallet(network, WalletManagerEvm, {
+      ;(this.wdk as typeof WDKAny).registerWallet(network, WalletManagerEvm, {
         provider: providerUrl,
         ...(maxFee ? { transferMaxFee: BigInt(maxFee) } : {}),
       })
     } else if (isSolanaNetwork(network)) {
       const providerUrl = configService.getProviderUrl(network)
-      ;(this.wdk as any).registerWallet(network, WalletManagerSolana, {
+      ;(this.wdk as typeof WDKAny).registerWallet(network, WalletManagerSolana, {
         rpcUrl: providerUrl,
       })
     } else if (isBtcNetwork(network)) {
@@ -69,7 +69,7 @@ export class WdkService {
       const protocol = (configService.get(`networks.${network}.protocol`) as string) || undefined
       const btcNetwork = (configService.get(`networks.${network}.network`) as string) || (network === 'bitcoin' ? 'bitcoin' : 'testnet')
       const bip = (configService.get(`networks.${network}.bip`) as number) || undefined
-      ;(this.wdk as any).registerWallet(network, WalletManagerBtc, {
+      ;(this.wdk as typeof WDKAny).registerWallet(network, WalletManagerBtc, {
         ...(host ? { host } : {}),
         ...(port ? { port } : {}),
         ...(protocol ? { protocol } : {}),

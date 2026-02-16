@@ -20,7 +20,7 @@ import { isValidNetwork } from '../config/networks.js'
 import { handleError, NetworkNotSupportedError } from '../errors/index.js'
 
 function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
-  return path.split('.').reduce((o: any, k) => o?.[k], obj)
+  return path.split('.').reduce((o: Record<string, unknown> | undefined, k) => (o as Record<string, unknown> | undefined)?.[k] as Record<string, unknown> | undefined, obj as Record<string, unknown> | undefined) as unknown
 }
 
 function flatten(obj: Record<string, unknown>, prefix = ''): [string, string][] {

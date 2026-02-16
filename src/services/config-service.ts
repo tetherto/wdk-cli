@@ -14,8 +14,6 @@
 
 import Conf from 'conf'
 import { CONFIG_DEFAULTS } from '../config/schema.js'
-import type { NetworkName } from '../types/index.js'
-
 const ENV_MAP: Record<string, string> = {
   'indexer.baseUrl': 'WDK_INDEXER_BASE_URL',
   'indexer.apiKey': 'WDK_INDEXER_API_KEY',
@@ -78,7 +76,7 @@ class ConfigService {
     }
 
     // v0.2: moved providers.<network> to networks.<network>.provider
-    const providers = (this.conf.store as any).providers
+    const providers = (this.conf.store as Record<string, unknown>).providers as Record<string, string> | undefined
     if (providers && typeof providers === 'object') {
       for (const [network, url] of Object.entries(providers)) {
         if (url) this.conf.set(`networks.${network}.provider`, url)
@@ -112,7 +110,7 @@ class ConfigService {
     }
   }
 
-  private setNestedValue(obj: any, path: string, value: unknown): void {
+  private setNestedValue(obj: Record<string, unknown>, path: string, value: unknown): void {
     const keys = path.split('.')
     let current = obj
     for (let i = 0; i < keys.length - 1; i++) {

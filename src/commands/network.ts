@@ -29,7 +29,7 @@ import {
 } from '../config/networks.js'
 import { configService } from '../services/config-service.js'
 import { createTable } from '../ui/tables.js'
-import { networkColor, formatNetworkLabel } from '../ui/formatters.js'
+import { networkColor } from '../ui/formatters.js'
 import { NetworkNotSupportedError, handleError } from '../errors/index.js'
 import type { NetworkType, NetworkConfig } from '../types/index.js'
 
