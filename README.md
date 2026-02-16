@@ -36,6 +36,9 @@ wdk wallet unlock
 # Derive wallet address on Ethereum
 wdk get address --network ethereum
 
+# Derive address at specific index
+wdk get address --network ethereum --index 1
+
 # Check balance
 wdk get balance --network ethereum
 
