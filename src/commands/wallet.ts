@@ -122,6 +122,42 @@ export function registerWalletCommand(program: Command): void {
     })
 
   wallet
+    .command('export')
+    .description('Export seed phrase (decrypt and display)')
+    .action(async () => {
+      try {
+        const keyService = createKeyService()
+
+        if (!(await keyService.hasKey())) {
+          throw new KeyNotFoundError()
+        }
+
+        const password = await promptPassword('Enter password to decrypt seed phrase:')
+        const seedPhrase = await keyService.unlock(password)
+
+        if (program.opts().json) {
+          console.log(JSON.stringify({ seedPhrase }))
+          return
+        }
+
+        console.log()
+        console.log(chalk.bold.yellow('WARNING: Do not share your seed phrase with anyone!'))
+        console.log()
+        console.log(chalk.bold('Seed phrase:'))
+        console.log()
+
+        const words = seedPhrase.split(' ')
+        words.forEach((word, i) => {
+          const num = String(i + 1).padStart(2, ' ')
+          console.log(`  ${chalk.dim(num + '.')} ${word}`)
+        })
+        console.log()
+      } catch (error) {
+        handleError(error, program.opts().verbose)
+      }
+    })
+
+  wallet
     .command('unlock')
     .description('Unlock wallet session (skip password prompts for subsequent commands)')
     .option('--ttl <minutes>', 'Session duration in minutes', String(SESSION_TTL_MINUTES))

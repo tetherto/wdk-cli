@@ -61,6 +61,7 @@ wdk wallet lock
 ```bash
 wdk wallet create [--words 12|24]       # Generate new BIP-39 seed phrase
 wdk wallet import                       # Import existing seed phrase (interactive)
+wdk wallet export                       # Export seed phrase (decrypt and display)
 wdk wallet unlock [--ttl <minutes>]     # Unlock wallet session (default: 30 min)
 wdk wallet lock                         # Lock wallet and end session
 ```
