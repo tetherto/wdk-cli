@@ -4,12 +4,11 @@ A TypeScript CLI tool that wraps [Tether's Wallet Development Kit (WDK)](https:/
 
 ## Features
 
-- **Wallet Management** — Generate or import BIP-39 seed phrases, encrypted at rest with AES-256-GCM
-- **Multi-Chain Wallets** — Bitcoin, Ethereum, Polygon, Arbitrum, BSC, Avalanche, Solana + testnets + custom networks
-- **Balance Checking** — Native tokens, ERC-20 and SPL token balances with known token registry
-- **Send Transactions** — Native and token transfers with fee estimation and confirmation
-- **Wallet Sessions** — Unlock once, skip password on subsequent commands
-- **Configuration** — Per-network providers (RPC for EVM/Solana, Electrum for BTC), env var overrides, XDG-compliant config
+- **Wallet** — Generate or import BIP-39 seed phrases, encrypted at rest with AES-256-GCM. Session-based unlock to skip password on subsequent commands
+- **Network** — Bitcoin, Ethereum, Polygon, Arbitrum, BSC, Avalanche, Solana + testnets. Add custom networks with `network create`
+- **Get** — Derive wallet addresses and check balances for native and token assets with known token registry
+- **Send** — Native and token transfers with fee estimation and confirmation
+- **Config** — Per-network configuration with env var overrides
 
 ## Requirements
 
