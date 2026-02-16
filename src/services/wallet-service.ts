@@ -11,27 +11,19 @@ import { promptPassword } from '../ui/prompts.js'
 import type { NetworkName } from '../types/index.js'
 
 const keyService = new KeyService(new Keyring(getKeyringPath()))
-let cachedSeedPhrase: string | null = null
 
 async function getSeedPhrase(): Promise<string> {
-  if (cachedSeedPhrase) return cachedSeedPhrase
-
   if (!(await keyService.hasKey())) {
     throw new KeyNotFoundError()
   }
 
   // Check active session first
   const cached = await sessionService.get()
-  if (cached) {
-    cachedSeedPhrase = cached
-    return cached
-  }
+  if (cached) return cached
 
   // No session — prompt for password
   const password = await promptPassword('Enter password to unlock wallet:')
-  const seed = await keyService.unlock(password)
-  cachedSeedPhrase = seed
-  return seed
+  return keyService.unlock(password)
 }
 
 async function ensureInitialized(network: NetworkName): Promise<void> {
