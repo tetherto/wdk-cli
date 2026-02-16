@@ -1,35 +1,26 @@
+// Copyright 2026 Tether Operations Limited
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import { wdkService } from './wdk-service.js'
-import { solanaService } from './solana-service.js'
-import { KeyService } from './key-service.js'
-import { Keyring } from '../security/keyring.js'
-import { sessionService } from './session-service.js'
-import { getNetworkConfig, isEvmNetwork, isSolanaNetwork } from '../config/networks.js'
-import { getKeyringPath } from '../config/constants.js'
-import { KeyNotFoundError, InsufficientBalanceError, TransactionFailedError } from '../errors/index.js'
-import { promptPassword } from '../ui/prompts.js'
+import { getSeedPhrase } from './auth-service.js'
+import { getNetworkConfig } from '../config/networks.js'
+import { InsufficientBalanceError, TransactionFailedError } from '../errors/index.js'
 import type { NetworkName, TxResult } from '../types/index.js'
 
-const keyService = new KeyService(new Keyring(getKeyringPath()))
-
-async function getSeedPhrase(): Promise<string> {
-  if (!(await keyService.hasKey())) {
-    throw new KeyNotFoundError()
-  }
-
-  const cached = await sessionService.get()
-  if (cached) return cached
-
-  const password = await promptPassword('Enter password to unlock wallet:')
-  return keyService.unlock(password)
-}
-
-async function ensureInitialized(network: NetworkName): Promise<void> {
+export async function ensureInitialized(network: NetworkName): Promise<void> {
   const seedPhrase = await getSeedPhrase()
-  if (isSolanaNetwork(network)) {
-    solanaService.initialize(seedPhrase)
-  } else {
-    await wdkService.initialize(seedPhrase, network)
-  }
+  await wdkService.initialize(seedPhrase, network)
 }
 
 export interface SendOptions {
@@ -38,7 +29,6 @@ export interface SendOptions {
   to: string
   amount: string
   token?: string
-  maxFee?: string
 }
 
 export interface FeeQuote {
@@ -51,9 +41,7 @@ export async function estimateFee(options: SendOptions): Promise<FeeQuote> {
   const networkConfig = getNetworkConfig(options.network)
   let fee: bigint
 
-  if (isSolanaNetwork(options.network)) {
-    fee = await solanaService.estimateFee(options.network)
-  } else if (options.token && isEvmNetwork(options.network)) {
+  if (options.token) {
     const account = await wdkService.getAccount(options.network, options.index)
     const quote = await account.quoteTransfer({
       token: options.token,
@@ -71,7 +59,7 @@ export async function estimateFee(options: SendOptions): Promise<FeeQuote> {
   }
 
   const decimals = networkConfig.decimals
-  const divisor = BigInt(10 ** decimals)
+  const divisor = 10n ** BigInt(decimals)
   const whole = fee / divisor
   const remainder = fee % divisor
   const decimal = remainder.toString().padStart(decimals, '0').replace(/0+$/, '') || '0'
@@ -84,37 +72,11 @@ export async function send(options: SendOptions): Promise<TxResult> {
   const networkConfig = getNetworkConfig(options.network)
   const sendAmount = BigInt(options.amount)
 
-  if (isSolanaNetwork(options.network)) {
-    const from = solanaService.getAddress(options.index)
-    const balance = await solanaService.getBalance(options.network, options.index)
-    if (balance < sendAmount) {
-      throw new InsufficientBalanceError(
-        balance.toString(),
-        sendAmount.toString(),
-        networkConfig.nativeSymbol,
-      )
-    }
-    try {
-      const result = await solanaService.sendTransaction(options.network, options.index, options.to, sendAmount)
-      return {
-        txHash: result.hash,
-        network: options.network,
-        from,
-        to: options.to,
-        amount: options.amount,
-        fee: result.fee.toString(),
-      }
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error)
-      throw new TransactionFailedError(msg)
-    }
-  }
-
   // ensureInitialized already called during fee estimation, but re-init is cached
   const account = await wdkService.getAccount(options.network, options.index)
   const balance = await account.getBalance()
 
-  if (options.token && isEvmNetwork(options.network)) {
+  if (options.token) {
     const tokenBalance = await account.getTokenBalance(options.token)
     if (tokenBalance < sendAmount) {
       throw new InsufficientBalanceError(

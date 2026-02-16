@@ -1,3 +1,17 @@
+// Copyright 2026 Tether Operations Limited
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import chalk from 'chalk'
 import { getNetworkConfig, isBuiltinNetwork } from '../config/networks.js'
 import type { NetworkName } from '../types/index.js'
@@ -5,7 +19,7 @@ import type { NetworkName } from '../types/index.js'
 export function formatBalance(rawBalance: string | number, network: string): string {
   const config = getNetworkConfig(network)
   const raw = BigInt(rawBalance.toString())
-  const divisor = BigInt(10 ** config.decimals)
+  const divisor = 10n ** BigInt(config.decimals)
   const whole = raw / divisor
   const remainder = raw % divisor
   const decimal = remainder.toString().padStart(config.decimals, '0').replace(/0+$/, '') || '0'
@@ -13,6 +27,16 @@ export function formatBalance(rawBalance: string | number, network: string): str
   // Show up to 8 decimal places
   const trimmed = decimal.slice(0, 8)
   return `${whole}.${trimmed} ${config.nativeSymbol}`
+}
+
+export function formatAmount(raw: bigint, decimals: number, symbol: string): string {
+  const divisor = 10n ** BigInt(decimals)
+  const whole = raw / divisor
+  const remainder = raw % divisor
+  if (remainder === 0n) return `${whole} ${symbol}`
+  const decimal = remainder.toString().padStart(decimals, '0').replace(/0+$/, '')
+  const trimmed = decimal.slice(0, 8)
+  return `${whole}.${trimmed} ${symbol}`
 }
 
 export function formatAddress(address: string, truncate: boolean = false): string {
@@ -37,7 +61,7 @@ export function formatDate(dateStr: string): string {
 
 const BUILTIN_COLORS: Record<NetworkName, (text: string) => string> = {
   bitcoin: chalk.hex('#F7931A'),
-  'bitcoin-testnet': chalk.hex('#F7931A'),
+  'bitcoin-testnet3': chalk.hex('#F7931A'),
   'bitcoin-signet': chalk.hex('#F7931A'),
   ethereum: chalk.hex('#627EEA'),
   sepolia: chalk.hex('#627EEA'),

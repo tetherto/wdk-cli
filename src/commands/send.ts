@@ -1,23 +1,49 @@
+// Copyright 2026 Tether Operations Limited
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import { Command } from 'commander'
 import chalk from 'chalk'
 import ora from 'ora'
-import { estimateFee, send, type SendOptions } from '../services/transaction-service.js'
+import { ensureInitialized, estimateFee, send, type SendOptions } from '../services/transaction-service.js'
 import { resolveNetwork, resolveIndex } from '../services/wallet-service.js'
-import { isValidNetwork, isEvmNetwork, NETWORKS } from '../config/networks.js'
+import { isValidNetwork, isEvmNetwork, getNetworkConfig } from '../config/networks.js'
 import { NetworkNotSupportedError, WdkCliError, handleError } from '../errors/index.js'
 import { promptConfirm } from '../ui/prompts.js'
-import { formatAddress, networkColor, formatNetworkLabel, formatTxHash } from '../ui/formatters.js'
+import { formatAddress, networkColor, formatNetworkLabel, formatTxHash, formatAmount } from '../ui/formatters.js'
+import { getTokenConfig } from '../config/tokens.js'
+
+const EVM_ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>
+  return Promise.race([
+    promise.then((v) => { clearTimeout(timer); return v }),
+    new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s. The RPC provider may be slow or unreachable.`)), ms)
+    }),
+  ])
+}
 
 export function registerSendCommand(program: Command): void {
   program
     .command('send')
-    .description('Send native tokens or ERC-20 tokens')
+    .description('Send native tokens, ERC-20, or SPL tokens')
     .requiredOption('--to <address>', 'Recipient address')
     .requiredOption('--amount <value>', 'Amount in base units (wei/satoshis/lamports)')
     .option('--network <network>', 'Blockchain network')
     .option('--index <n>', 'Account index')
-    .option('--token <address>', 'ERC-20 token contract (EVM only)')
-    .option('--max-fee <value>', 'Max fee in base units (EVM only)')
+    .option('--token <address>', 'Token contract address (ERC-20 or SPL mint)')
     .option('--yes', 'Skip confirmation prompt')
     .action(async (options) => {
       try {
@@ -25,11 +51,21 @@ export function registerSendCommand(program: Command): void {
         if (!isValidNetwork(network)) throw new NetworkNotSupportedError(network)
         const index = resolveIndex(options.index ?? program.opts().index)
 
-        if (options.token && !isEvmNetwork(network)) {
+        // Validate amount is a positive integer in base units
+        if (!/^\d+$/.test(options.amount) || options.amount === '0') {
           throw new WdkCliError(
-            'Token transfers are only supported on EVM networks.',
-            'TOKEN_NOT_SUPPORTED',
-            'Use an EVM network like ethereum, polygon, etc.',
+            'Invalid amount. Must be a positive integer in base units (wei/satoshis/lamports).',
+            'INVALID_AMOUNT',
+            'Do not use decimal points. Example: 1000000 for 1 USDT (6 decimals).',
+          )
+        }
+
+        // Validate EVM address format before any RPC calls
+        if (isEvmNetwork(network) && !EVM_ADDRESS_RE.test(options.to)) {
+          throw new WdkCliError(
+            `Invalid EVM address: ${options.to}`,
+            'INVALID_ADDRESS',
+            'Address must be 0x followed by 40 hex characters.',
           )
         }
 
@@ -39,21 +75,23 @@ export function registerSendCommand(program: Command): void {
           to: options.to,
           amount: options.amount,
           token: options.token,
-          maxFee: options.maxFee,
         }
 
-        // Estimate fee
+        // Initialize wallet (may prompt for password — must happen before spinner)
+        await ensureInitialized(network)
+
+        // Estimate fee (with 30s timeout to avoid hanging on slow RPCs)
         const spinner = ora('Estimating fee...').start()
         let feeQuote
         try {
-          feeQuote = await estimateFee(sendOptions)
+          feeQuote = await withTimeout(estimateFee(sendOptions), 30_000, 'Fee estimation')
           spinner.stop()
         } catch (error) {
           spinner.stop()
           throw error
         }
 
-        const networkConfig = NETWORKS[network]
+        const networkConfig = getNetworkConfig(network)
         const color = networkColor(network)
 
         // Display transaction summary
@@ -62,7 +100,17 @@ export function registerSendCommand(program: Command): void {
           console.log(chalk.bold('Transaction Summary:'))
           console.log(`  Network:   ${color(formatNetworkLabel(network))}`)
           console.log(`  To:        ${formatAddress(options.to)}`)
-          console.log(`  Amount:    ${options.amount} ${options.token ? 'tokens' : networkConfig.nativeSymbol} (base units)`)
+          const amountBigInt = BigInt(options.amount)
+          let amountFormatted: string
+          if (options.token) {
+            const tokenConfig = getTokenConfig(network, options.token)
+            amountFormatted = tokenConfig
+              ? formatAmount(amountBigInt, tokenConfig.decimals, tokenConfig.symbol)
+              : `${options.amount} tokens (base units)`
+          } else {
+            amountFormatted = formatAmount(amountBigInt, networkConfig.decimals, networkConfig.nativeSymbol)
+          }
+          console.log(`  Amount:    ${amountFormatted}`)
           if (options.token) {
             console.log(`  Token:     ${options.token}`)
           }
@@ -93,7 +141,7 @@ export function registerSendCommand(program: Command): void {
             console.log(`  From:    ${formatAddress(result.from)}`)
             console.log(`  To:      ${formatAddress(result.to)}`)
             if (result.fee) {
-              console.log(`  Fee:     ${result.fee} (base units)`)
+              console.log(`  Fee:     ${formatAmount(BigInt(result.fee), networkConfig.decimals, networkConfig.nativeSymbol)}`)
             }
             console.log()
           }

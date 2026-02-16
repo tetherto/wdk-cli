@@ -10,13 +10,25 @@
   },
   "networks": {
     "bitcoin": {
-      "provider": "https://blockstream.info/api"
+      "host": "electrum.blockstream.info",
+      "port": 50001,
+      "protocol": "tcp",
+      "network": "bitcoin",
+      "bip": 84
     },
-    "bitcoin-testnet": {
-      "provider": "https://blockstream.info/testnet/api"
+    "bitcoin-testnet3": {
+      "host": "electrum.blockstream.info",
+      "port": 60001,
+      "protocol": "tcp",
+      "network": "testnet",
+      "bip": 84
     },
     "bitcoin-signet": {
-      "provider": "https://mempool.space/signet/api"
+      "host": "electrum.emzy.de",
+      "port": 60601,
+      "protocol": "tcp",
+      "network": "testnet",
+      "bip": 84
     },
     "ethereum": {
       "provider": "https://eth.drpc.org",

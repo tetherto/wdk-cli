@@ -1,7 +1,22 @@
+// Copyright 2026 Tether Operations Limited
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import WDK from '@tetherto/wdk'
 import WalletManagerBtc from '@tetherto/wdk-wallet-btc'
 import WalletManagerEvm from '@tetherto/wdk-wallet-evm'
-import { isValidNetwork, isEvmNetwork, getNetworkConfig } from '../config/networks.js'
+import WalletManagerSolana from '@tetherto/wdk-wallet-solana'
+import { isValidNetwork, isEvmNetwork, isSolanaNetwork, isBtcNetwork, getNetworkConfig } from '../config/networks.js'
 import { configService } from './config-service.js'
 import { NetworkNotSupportedError, NetworkError } from '../errors/index.js'
 import type { NetworkName } from '../types/index.js'
@@ -34,21 +49,35 @@ export class WdkService {
   private registerNetwork(network: NetworkName): void {
     if (!this.wdk) throw new Error('WDK not initialized')
 
-    const providerUrl = configService.getProviderUrl(network)
-
     // Use 'as any' for registerWallet — WDK's JSDoc-generated types
     // don't perfectly represent the runtime config shapes
     if (isEvmNetwork(network)) {
-      const maxFee = configService.get('evm.transferMaxFee') as string | undefined
+      const providerUrl = configService.getProviderUrl(network)
+      const maxFee = configService.get(`networks.${network}.transferMaxFee`) as string | undefined
       ;(this.wdk as any).registerWallet(network, WalletManagerEvm, {
         provider: providerUrl,
         ...(maxFee ? { transferMaxFee: BigInt(maxFee) } : {}),
       })
-    } else {
-      ;(this.wdk as any).registerWallet(network, WalletManagerBtc, {
-        provider: providerUrl,
-        network: network === 'bitcoin' ? 'bitcoin' : 'testnet',
+    } else if (isSolanaNetwork(network)) {
+      const providerUrl = configService.getProviderUrl(network)
+      ;(this.wdk as any).registerWallet(network, WalletManagerSolana, {
+        rpcUrl: providerUrl,
       })
+    } else if (isBtcNetwork(network)) {
+      const host = (configService.get(`networks.${network}.host`) as string) || undefined
+      const port = (configService.get(`networks.${network}.port`) as number) || undefined
+      const protocol = (configService.get(`networks.${network}.protocol`) as string) || undefined
+      const btcNetwork = (configService.get(`networks.${network}.network`) as string) || (network === 'bitcoin' ? 'bitcoin' : 'testnet')
+      const bip = (configService.get(`networks.${network}.bip`) as number) || undefined
+      ;(this.wdk as any).registerWallet(network, WalletManagerBtc, {
+        ...(host ? { host } : {}),
+        ...(port ? { port } : {}),
+        ...(protocol ? { protocol } : {}),
+        ...(bip ? { bip } : {}),
+        network: btcNetwork,
+      })
+    } else {
+      throw new NetworkNotSupportedError(network)
     }
 
     this.registeredNetworks.add(network)

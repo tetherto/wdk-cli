@@ -1,3 +1,17 @@
+// Copyright 2026 Tether Operations Limited
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import { readFile, writeFile, unlink, chmod, mkdir } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { randomBytes, createCipheriv, createDecipheriv } from 'node:crypto'
@@ -16,6 +30,7 @@ interface SessionData {
 
 class SessionService {
   private readonly path = getSessionPath()
+  private readonly keyPath = getSessionPath() + '.key'
 
   async create(seedPhrase: string, ttlMinutes: number = SESSION_TTL_MINUTES): Promise<void> {
     const key = randomBytes(KEY_LEN)
@@ -26,15 +41,17 @@ class SessionService {
     ciphertext += cipher.final('hex')
     const tag = cipher.getAuthTag()
 
-    const session: SessionData & { key: string } = {
+    const session: SessionData = {
       ciphertext,
       iv: iv.toString('hex'),
       tag: tag.toString('hex'),
-      key: key.toString('hex'),
       expiresAt: Date.now() + ttlMinutes * 60 * 1000,
     }
 
     await mkdir(dirname(this.path), { recursive: true })
+    // Store key in a separate file from the ciphertext
+    await writeFile(this.keyPath, key.toString('hex'), 'utf8')
+    await chmod(this.keyPath, 0o600)
     await writeFile(this.path, JSON.stringify(session), 'utf8')
     await chmod(this.path, 0o600)
   }
@@ -42,14 +59,15 @@ class SessionService {
   async get(): Promise<string | null> {
     try {
       const data = await readFile(this.path, 'utf8')
-      const session: SessionData & { key: string } = JSON.parse(data)
+      const session: SessionData = JSON.parse(data)
 
       if (Date.now() > session.expiresAt) {
         await this.destroy()
         return null
       }
 
-      const key = Buffer.from(session.key, 'hex')
+      const keyHex = await readFile(this.keyPath, 'utf8')
+      const key = Buffer.from(keyHex, 'hex')
       const iv = Buffer.from(session.iv, 'hex')
       const tag = Buffer.from(session.tag, 'hex')
       const decipher = createDecipheriv(ALGORITHM, key, iv)
@@ -64,11 +82,8 @@ class SessionService {
   }
 
   async destroy(): Promise<void> {
-    try {
-      await unlink(this.path)
-    } catch {
-      // File doesn't exist
-    }
+    try { await unlink(this.path) } catch { /* File doesn't exist */ }
+    try { await unlink(this.keyPath) } catch { /* File doesn't exist */ }
   }
 
   async isActive(): Promise<boolean> {

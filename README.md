@@ -6,10 +6,10 @@ A TypeScript CLI tool that wraps [Tether's Wallet Development Kit (WDK)](https:/
 
 - **Wallet Management** — Generate or import BIP-39 seed phrases, encrypted at rest with AES-256-GCM
 - **Multi-Chain Wallets** — Bitcoin, Ethereum, Polygon, Arbitrum, BSC, Avalanche, Solana + testnets + custom networks
-- **Balance Checking** — Native tokens and ERC-20 token balances
+- **Balance Checking** — Native tokens, ERC-20 and SPL token balances with known token registry
 - **Send Transactions** — Native and token transfers with fee estimation and confirmation
 - **Wallet Sessions** — Unlock once, skip password on subsequent commands
-- **Configuration** — Per-network RPC providers, env var overrides, XDG-compliant config
+- **Configuration** — Per-network providers (RPC for EVM/Solana, Electrum for BTC), env var overrides, XDG-compliant config
 
 ## Requirements
 
@@ -41,7 +41,10 @@ wdk get address --network ethereum
 wdk get balance --network ethereum
 
 # Send ETH (amount in wei)
-wdk send --to 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0 --amount 1000000000000000000 --network ethereum
+wdk send --to 0x000000000000000000000000000000000000dEaD --amount 1000000000000000000 --network ethereum
+
+# Show network details and config
+wdk network info --network ethereum
 
 # List supported networks
 wdk network list
@@ -78,7 +81,7 @@ Unlock your wallet once with `wdk wallet unlock` to skip the password prompt on 
 wdk network list              # List all networks (built-in + custom)
 wdk network list --testnet    # Show only testnets
 wdk network list --mainnet    # Show only mainnets
-wdk network list --json       # Machine-readable output
+wdk network info --network <network>  # Show network details and config
 wdk network delete <name>     # Delete a custom network
 ```
 
@@ -115,18 +118,21 @@ Custom networks are stored in config and work with all commands (`get balance`, 
 wdk get address --network <network> [--index <n>]              # Derive wallet address
 wdk get balance --network ethereum                              # Native ETH balance
 wdk get balance --network ethereum --token 0xdAC17F...          # ERC-20 token balance
+wdk get balance --network solana --token Es9vMFrz...            # SPL token balance
 wdk get balance --network bitcoin                               # BTC balance
-wdk get network --network ethereum                              # Show network details and config
 ```
 
-Wallets are derived deterministically from your seed phrase using BIP-44 HD paths — no local state is stored. `get address` works without a provider configured (local derivation only), while `get balance` requires a provider connection.
+Known tokens (e.g. USDT) are automatically resolved with correct decimals and symbol. Unknown tokens fall back to raw base-unit amounts.
+
+Wallets are derived deterministically from your seed phrase using HD paths (BIP-84 for BTC, BIP-44 for EVM/Solana) — no local state is stored. `get address` works without a provider configured (local derivation only), while `get balance` requires a provider connection.
 
 ### Send
 
 ```bash
 wdk send --to <address> --amount <base-units> --network <network>
-wdk send --to <address> --amount <base-units> --network ethereum --token <contract>
-wdk send --to <address> --amount <base-units> --network ethereum --yes  # skip confirmation
+wdk send --to <address> --amount <base-units> --network ethereum --token <contract>  # ERC-20 transfer
+wdk send --to <address> --amount <base-units> --network solana --token <mint>        # SPL transfer
+wdk send --to <address> --amount <base-units> --network ethereum --yes               # skip confirmation
 ```
 
 Amounts are in base units (wei for EVM, satoshis for BTC, lamports for Solana). Fee estimation runs before confirmation.
@@ -139,9 +145,22 @@ wdk config get                                                      # Show globa
 wdk config get --network ethereum                                   # Show Ethereum config
 wdk config set provider <rpc-url> --network ethereum                # Custom RPC for Ethereum
 wdk config set transferMaxFee 50000000000 --network ethereum        # Max fee for Ethereum
+wdk config set host electrum.example.com --network bitcoin          # Custom Electrum host for BTC
+wdk config set port 50002 --network bitcoin                         # Custom Electrum port
+wdk config set protocol tls --network bitcoin                       # Electrum transport (tcp/tls/ssl)
 wdk config reset provider --network ethereum                        # Reset to default
 wdk config path                                                     # Config file location
 ```
+
+#### Network Configuration
+
+| Network Type | Config Keys | Description |
+|-------------|-------------|-------------|
+| EVM | `provider`, `transferMaxFee` | JSON-RPC URL, max gas fee (wei) |
+| Solana | `provider` | JSON-RPC URL |
+| BTC | `host`, `port`, `protocol`, `network`, `bip` | Electrum server settings |
+
+BTC networks use the [Electrum protocol](https://electrumx.readthedocs.io/). Default: `tcp` on standard ports. Set `protocol` to `tls` or `ssl` for encrypted connections. `bip` controls address type: `84` (native SegWit, default) or `44` (legacy P2PKH).
 
 ### Global Flags
 
@@ -160,7 +179,7 @@ wdk config path                                                     # Config fil
 | Network | Name | Type | Native Symbol |
 |---------|------|------|---------------|
 | `bitcoin` | Bitcoin | BTC | BTC |
-| `bitcoin-testnet` | Bitcoin Testnet | BTC | tBTC |
+| `bitcoin-testnet3` | Bitcoin Testnet3 | BTC | tBTC |
 | `bitcoin-signet` | Bitcoin Signet | BTC | sBTC |
 | `ethereum` | Ethereum | EVM | ETH |
 | `sepolia` | Sepolia Testnet | EVM | ETH |

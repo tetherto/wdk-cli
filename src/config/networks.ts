@@ -1,3 +1,17 @@
+// Copyright 2026 Tether Operations Limited
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import type { NetworkName, NetworkConfig } from '../types/index.js'
 import { configService } from '../services/config-service.js'
 
@@ -9,9 +23,9 @@ export const NETWORKS: Record<NetworkName, NetworkConfig> = {
     nativeSymbol: 'BTC',
     decimals: 8,
   },
-  'bitcoin-testnet': {
-    name: 'bitcoin-testnet',
-    displayName: 'Bitcoin Testnet',
+  'bitcoin-testnet3': {
+    name: 'bitcoin-testnet3',
+    displayName: 'Bitcoin Testnet3',
     type: 'wdk-wallet-btc',
     nativeSymbol: 'tBTC',
     decimals: 8,
@@ -90,7 +104,7 @@ export const NETWORKS: Record<NetworkName, NetworkConfig> = {
 
 export const NETWORK_NAMES = Object.keys(NETWORKS) as NetworkName[]
 
-const BUILTIN_TESTNETS: readonly string[] = ['bitcoin-testnet', 'bitcoin-signet', 'sepolia', 'solana-testnet', 'solana-devnet']
+const BUILTIN_TESTNETS: readonly string[] = ['bitcoin-testnet3', 'bitcoin-signet', 'sepolia', 'solana-testnet', 'solana-devnet']
 
 export function getCustomNetworks(): Record<string, NetworkConfig> {
   const custom = configService.get('customNetworks') as Record<string, NetworkConfig> | undefined
@@ -116,7 +130,9 @@ export function isBuiltinNetwork(name: string): name is NetworkName {
 
 export function getNetworkConfig(name: string): NetworkConfig {
   const all = getAllNetworks()
-  return all[name]
+  const config = all[name]
+  if (!config) throw new Error(`Network '${name}' is not supported.`)
+  return config
 }
 
 export function isEvmNetwork(name: string): boolean {

@@ -1,3 +1,17 @@
+// Copyright 2026 Tether Operations Limited
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import Conf from 'conf'
 import { CONFIG_DEFAULTS } from '../config/schema.js'
 import type { NetworkName } from '../types/index.js'
@@ -70,6 +84,26 @@ class ConfigService {
         if (url) this.conf.set(`networks.${network}.provider`, url)
       }
       this.conf.delete('providers')
+    }
+
+    // v0.3: rename bitcoin-testnet to bitcoin-testnet3
+    if (this.conf.has('networks.bitcoin-testnet')) {
+      this.conf.delete('networks.bitcoin-testnet')
+    }
+
+    // v0.3: migrate BTC networks to Electrum config.
+    // conf uses shallow merge for defaults — since `networks` exists in the
+    // store, per-network defaults are never applied. Write them explicitly.
+    const BTC_DEFAULTS: Record<string, { host: string; port: number; protocol: string; network: string; bip: number }> = {
+      bitcoin: { host: 'electrum.blockstream.info', port: 50001, protocol: 'tcp', network: 'bitcoin', bip: 84 },
+      'bitcoin-testnet3': { host: 'electrum.blockstream.info', port: 60001, protocol: 'tcp', network: 'testnet', bip: 84 },
+      'bitcoin-signet': { host: 'electrum.emzy.de', port: 60601, protocol: 'tcp', network: 'testnet', bip: 84 },
+    }
+    for (const [btcNet, defaults] of Object.entries(BTC_DEFAULTS)) {
+      const stored = this.conf.get(`networks.${btcNet}`) as Record<string, unknown> | undefined
+      if (!stored || !stored.host) {
+        this.conf.set(`networks.${btcNet}`, defaults)
+      }
     }
 
     // v0.2: clean up old top-level keys

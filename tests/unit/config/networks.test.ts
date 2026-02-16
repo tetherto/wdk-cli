@@ -5,7 +5,7 @@ import { configService } from '../../../src/services/config-service.js'
 describe('networks', () => {
   it('has all expected built-in networks', () => {
     expect(NETWORK_NAMES).toContain('bitcoin')
-    expect(NETWORK_NAMES).toContain('bitcoin-testnet')
+    expect(NETWORK_NAMES).toContain('bitcoin-testnet3')
     expect(NETWORK_NAMES).toContain('bitcoin-signet')
     expect(NETWORK_NAMES).toContain('ethereum')
     expect(NETWORK_NAMES).toContain('sepolia')
@@ -23,12 +23,12 @@ describe('networks', () => {
     expect(isEvmNetwork('sepolia')).toBe(true)
     expect(isEvmNetwork('polygon')).toBe(true)
     expect(isEvmNetwork('bitcoin')).toBe(false)
-    expect(isEvmNetwork('bitcoin-testnet')).toBe(false)
+    expect(isEvmNetwork('bitcoin-testnet3')).toBe(false)
   })
 
   it('identifies BTC networks', () => {
     expect(isBtcNetwork('bitcoin')).toBe(true)
-    expect(isBtcNetwork('bitcoin-testnet')).toBe(true)
+    expect(isBtcNetwork('bitcoin-testnet3')).toBe(true)
     expect(isBtcNetwork('bitcoin-signet')).toBe(true)
     expect(isBtcNetwork('ethereum')).toBe(false)
   })
@@ -51,7 +51,7 @@ describe('networks', () => {
   })
 
   it('identifies testnets', () => {
-    expect(isTestnet('bitcoin-testnet')).toBe(true)
+    expect(isTestnet('bitcoin-testnet3')).toBe(true)
     expect(isTestnet('bitcoin-signet')).toBe(true)
     expect(isTestnet('sepolia')).toBe(true)
     expect(isTestnet('solana-testnet')).toBe(true)
