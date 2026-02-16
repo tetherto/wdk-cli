@@ -72,27 +72,6 @@ If a wallet already exists, `create` and `import` will ask for confirmation befo
 
 Unlock your wallet once with `wdk wallet unlock` to skip the password prompt on subsequent commands. The session auto-expires after 30 minutes (configurable with `--ttl`).
 
-### Get
-
-```bash
-wdk get address --network <network> [--index <n>]              # Derive wallet address
-wdk get balance --network ethereum                              # Native ETH balance (shows address + balance)
-wdk get balance --network ethereum --token 0xdAC17F...          # ERC-20 token balance
-wdk get balance --network bitcoin                               # BTC balance
-```
-
-Wallets are derived deterministically from your seed phrase using BIP-44 HD paths — no local state is stored. `get address` works without a provider configured (local derivation only), while `get balance` requires a provider connection.
-
-### Send
-
-```bash
-wdk send --to <address> --amount <base-units> --network <network>
-wdk send --to <address> --amount <base-units> --network ethereum --token <contract>
-wdk send --to <address> --amount <base-units> --network ethereum --yes  # skip confirmation
-```
-
-Amounts are in base units (wei for EVM, satoshis for BTC, lamports for Solana). Fee estimation runs before confirmation.
-
 ### Networks
 
 ```bash
@@ -117,23 +96,6 @@ wdk network create \
 
 # 2. Configure the provider
 wdk config set provider https://mainnet.base.org --network base
-
-# Another example: Optimism
-wdk network create \
-  --name optimism \
-  --display-name "Optimism" \
-  --wallet-type wdk-wallet-evm \
-  --symbol ETH
-wdk config set provider https://mainnet.optimism.io --network optimism
-
-# Testnet example
-wdk network create \
-  --name base-sepolia \
-  --display-name "Base Sepolia" \
-  --wallet-type wdk-wallet-evm \
-  --symbol ETH \
-  --testnet
-wdk config set provider https://sepolia.base.org --network base-sepolia
 ```
 
 | Flag | Required | Description |
@@ -146,6 +108,28 @@ wdk config set provider https://sepolia.base.org --network base-sepolia
 | `--testnet` | No | Mark as testnet |
 
 Custom networks are stored in config and work with all commands (`get balance`, `send`, `get address`, etc.). After creating a network, use `wdk config set` to configure network settings.
+
+### Get
+
+```bash
+wdk get address --network <network> [--index <n>]              # Derive wallet address
+wdk get balance --network ethereum                              # Native ETH balance (shows address + balance)
+wdk get balance --network ethereum --token 0xdAC17F...          # ERC-20 token balance
+wdk get balance --network bitcoin                               # BTC balance
+wdk get network --network ethereum                              # Show network details and config
+```
+
+Wallets are derived deterministically from your seed phrase using BIP-44 HD paths — no local state is stored. `get address` works without a provider configured (local derivation only), while `get balance` requires a provider connection.
+
+### Send
+
+```bash
+wdk send --to <address> --amount <base-units> --network <network>
+wdk send --to <address> --amount <base-units> --network ethereum --token <contract>
+wdk send --to <address> --amount <base-units> --network ethereum --yes  # skip confirmation
+```
+
+Amounts are in base units (wei for EVM, satoshis for BTC, lamports for Solana). Fee estimation runs before confirmation.
 
 ### Configuration
 
@@ -195,9 +179,7 @@ Additional networks can be added with `wdk network create`. See [Adding Custom N
 | Variable | Description |
 |----------|-------------|
 | `WDK_PASSWORD` | Wallet unlock password (skip interactive prompt) |
-| `WDK_PROVIDER_ETHEREUM` | Ethereum RPC URL |
-| `WDK_PROVIDER_BITCOIN` | Bitcoin API URL |
-| `WDK_PROVIDER_<NETWORK>` | Any network provider URL |
+| `WDK_PROVIDER_<NETWORK>` | Provider URL override (e.g. `WDK_PROVIDER_ETHEREUM`, `WDK_PROVIDER_BITCOIN`) |
 | `WDK_INDEXER_BASE_URL` | WDK Indexer API URL |
 | `WDK_INDEXER_API_KEY` | WDK Indexer API key |
 

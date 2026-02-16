@@ -1,14 +1,15 @@
 import { Command } from 'commander'
 import chalk from 'chalk'
 import { getAddress, getBalance, resolveNetwork, resolveIndex } from '../services/wallet-service.js'
-import { isValidNetwork, isEvmNetwork } from '../config/networks.js'
+import { isValidNetwork, isEvmNetwork, isBuiltinNetwork, isCustomNetwork, getNetworkConfig, isTestnet } from '../config/networks.js'
+import { configService } from '../services/config-service.js'
 import { NetworkNotSupportedError, WdkCliError, handleError } from '../errors/index.js'
 import { networkColor, formatNetworkLabel } from '../ui/formatters.js'
 
 export function registerGetCommand(program: Command): void {
   const get = program
     .command('get')
-    .description('Query wallet address and balance')
+    .description('Query wallet, network, and balance information')
 
   get
     .command('address')
@@ -83,6 +84,53 @@ export function registerGetCommand(program: Command): void {
         console.log(`  Balance: ${chalk.bold(formatted)}`)
         if (options.token) {
           console.log(`  Token:   ${chalk.dim(options.token)}`)
+        }
+        console.log()
+      } catch (error) {
+        handleError(error, program.opts().verbose)
+      }
+    })
+
+  get
+    .command('network')
+    .description('Show network details and configuration')
+    .option('--network <network>', 'Blockchain network')
+    .action((options) => {
+      try {
+        const networkName = options.network ?? program.opts().network
+        if (!networkName) {
+          console.error(chalk.red('Error: --network is required.'))
+          process.exit(1)
+        }
+        if (!isValidNetwork(networkName)) throw new NetworkNotSupportedError(networkName)
+
+        const config = getNetworkConfig(networkName)
+        const providerUrl = (configService.get(`networks.${networkName}.provider`) as string) || ''
+        const transferMaxFee = (configService.get(`networks.${networkName}.transferMaxFee`) as string) || ''
+
+        if (program.opts().json) {
+          console.log(JSON.stringify({
+            ...config,
+            provider: providerUrl || undefined,
+            transferMaxFee: transferMaxFee || undefined,
+          }, null, 2))
+          return
+        }
+
+        const color = networkColor(networkName)
+        console.log()
+        console.log(`  ${color(config.displayName)}`)
+        console.log()
+        console.log(`  Name:       ${networkName}`)
+        console.log(`  Type:       ${config.type}`)
+        console.log(`  Symbol:     ${config.nativeSymbol}`)
+        console.log(`  Decimals:   ${config.decimals}`)
+        console.log(`  Testnet:    ${isTestnet(networkName) ? 'yes' : 'no'}`)
+        console.log(`  Source:     ${isBuiltinNetwork(networkName) ? 'built-in' : 'custom'}`)
+        console.log()
+        console.log(`  Provider:       ${providerUrl || chalk.dim('(not set)')}`)
+        if (isEvmNetwork(networkName)) {
+          console.log(`  TransferMaxFee: ${transferMaxFee || chalk.dim('(not set)')}`)
         }
         console.log()
       } catch (error) {
