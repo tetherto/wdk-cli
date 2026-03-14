@@ -145,7 +145,7 @@ async function testNetwork(wdk: WdkService, test: NetworkTest): Promise<{ ok: bo
       } else {
         const result = await account.sendTransaction({
           to: test.sendNative.to,
-          value: BigInt(test.sendNative.amount),
+          value: test.sendNative.amount,
         })
         console.log(`  ✅ Send native: ${result.hash}`)
       }
@@ -166,7 +166,7 @@ async function testNetwork(wdk: WdkService, test: NetworkTest): Promise<{ ok: bo
         const result = await account.transfer({
           token: test.sendToken.token,
           recipient: test.sendToken.to,
-          amount: BigInt(test.sendToken.amount),
+          amount: test.sendToken.amount,
         })
         console.log(`  ✅ Send token: ${result.hash}`)
       }

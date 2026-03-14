@@ -58,7 +58,6 @@ export async function send(options: SendOptions): Promise<TxResult> {
   const networkConfig = getNetworkConfig(options.network)
   const sendAmount = BigInt(options.amount)
 
-  // ensureInitialized already called during fee estimation, but re-init is cached
   const account = await wdkService.getAccount(options.network, options.index)
   const balance = await account.getBalance()
 
