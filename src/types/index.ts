@@ -1,17 +1,3 @@
-// Copyright 2026 Tether Operations Limited
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 export type NetworkName =
   | 'bitcoin'
   | 'bitcoin-testnet3'
@@ -20,13 +6,36 @@ export type NetworkName =
   | 'sepolia'
   | 'polygon'
   | 'arbitrum'
+  | 'base'
   | 'bsc'
   | 'avalanche'
   | 'solana'
   | 'solana-testnet'
   | 'solana-devnet'
+  | 'spark'
+  | 'spark-regtest'
+  | 'smart-account-ethereum'
+  | 'smart-account-sepolia'
+  | 'smart-account-polygon'
+  | 'smart-account-arbitrum'
+  | 'smart-account-base'
+  | 'smart-account-plasma'
+  | 'tron'
+  | 'tron-testnet'
 
-export type NetworkType = 'wdk-wallet-evm' | 'wdk-wallet-btc' | 'wdk-wallet-solana'
+export type NetworkType = 'wdk-wallet-evm' | 'wdk-wallet-btc' | 'wdk-wallet-solana' | 'wdk-wallet-spark' | 'wdk-wallet-evm-erc-4337' | 'wdk-wallet-tron'
+
+export type Erc4337Mode = 'paymasterToken' | 'sponsored' | 'nativeCoins'
+
+export interface ConfigFieldSchema {
+  key: string
+  description: string
+  required?: boolean | ((config: Record<string, unknown>) => boolean)
+  secret?: boolean
+  type?: 'string' | 'number' | 'boolean'
+  options?: string[]
+  condition?: (config: Record<string, unknown>) => boolean
+}
 
 export interface NetworkConfig {
   name: string
@@ -79,10 +88,8 @@ export interface WdkCliConfig {
     baseUrl: string
     apiKey: string
   }
-  providers: Partial<Record<NetworkName, string>>
-  evm: {
-    transferMaxFee?: string
-  }
+  networks: Record<string, Record<string, unknown>>
+  customNetworks?: Record<string, NetworkConfig>
   output: {
     json: boolean
     noColor: boolean

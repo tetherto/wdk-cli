@@ -1,17 +1,3 @@
-// Copyright 2026 Tether Operations Limited
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 import type { NetworkName, NetworkConfig } from '../types/index.js'
 import { configService } from '../services/config-service.js'
 
@@ -65,6 +51,13 @@ export const NETWORKS: Record<NetworkName, NetworkConfig> = {
     nativeSymbol: 'ETH',
     decimals: 18,
   },
+  base: {
+    name: 'base',
+    displayName: 'Base',
+    type: 'wdk-wallet-evm',
+    nativeSymbol: 'ETH',
+    decimals: 18,
+  },
   bsc: {
     name: 'bsc',
     displayName: 'BNB Smart Chain',
@@ -100,11 +93,84 @@ export const NETWORKS: Record<NetworkName, NetworkConfig> = {
     nativeSymbol: 'SOL',
     decimals: 9,
   },
+  spark: {
+    name: 'spark',
+    displayName: 'Spark',
+    type: 'wdk-wallet-spark',
+    nativeSymbol: 'BTC',
+    decimals: 8,
+  },
+  'spark-regtest': {
+    name: 'spark-regtest',
+    displayName: 'Spark Regtest',
+    type: 'wdk-wallet-spark',
+    nativeSymbol: 'BTC',
+    decimals: 8,
+    testnet: true,
+  },
+  tron: {
+    name: 'tron',
+    displayName: 'Tron',
+    type: 'wdk-wallet-tron',
+    nativeSymbol: 'TRX',
+    decimals: 6,
+  },
+  'tron-testnet': {
+    name: 'tron-testnet',
+    displayName: 'Tron Testnet (Shasta)',
+    type: 'wdk-wallet-tron',
+    nativeSymbol: 'TRX',
+    decimals: 6,
+    testnet: true,
+  },
+  'smart-account-ethereum': {
+    name: 'smart-account-ethereum',
+    displayName: 'Smart Account Ethereum',
+    type: 'wdk-wallet-evm-erc-4337',
+    nativeSymbol: 'ETH',
+    decimals: 18,
+  },
+  'smart-account-sepolia': {
+    name: 'smart-account-sepolia',
+    displayName: 'Smart Account Sepolia',
+    type: 'wdk-wallet-evm-erc-4337',
+    nativeSymbol: 'ETH',
+    decimals: 18,
+    testnet: true,
+  },
+  'smart-account-polygon': {
+    name: 'smart-account-polygon',
+    displayName: 'Smart Account Polygon',
+    type: 'wdk-wallet-evm-erc-4337',
+    nativeSymbol: 'POL',
+    decimals: 18,
+  },
+  'smart-account-arbitrum': {
+    name: 'smart-account-arbitrum',
+    displayName: 'Smart Account Arbitrum',
+    type: 'wdk-wallet-evm-erc-4337',
+    nativeSymbol: 'ETH',
+    decimals: 18,
+  },
+  'smart-account-base': {
+    name: 'smart-account-base',
+    displayName: 'Smart Account Base',
+    type: 'wdk-wallet-evm-erc-4337',
+    nativeSymbol: 'ETH',
+    decimals: 18,
+  },
+  'smart-account-plasma': {
+    name: 'smart-account-plasma',
+    displayName: 'Smart Account Plasma',
+    type: 'wdk-wallet-evm-erc-4337',
+    nativeSymbol: 'ETH',
+    decimals: 18,
+  },
 }
 
 export const NETWORK_NAMES = Object.keys(NETWORKS) as NetworkName[]
 
-const BUILTIN_TESTNETS: readonly string[] = ['bitcoin-testnet3', 'bitcoin-signet', 'sepolia', 'solana-testnet', 'solana-devnet']
+const BUILTIN_TESTNETS: readonly string[] = ['bitcoin-testnet3', 'bitcoin-signet', 'sepolia', 'solana-testnet', 'solana-devnet', 'spark-regtest', 'tron-testnet', 'smart-account-sepolia']
 
 export function getCustomNetworks(): Record<string, NetworkConfig> {
   const custom = configService.get('customNetworks') as Record<string, NetworkConfig> | undefined
@@ -148,6 +214,16 @@ export function isBtcNetwork(name: string): boolean {
 export function isSolanaNetwork(name: string): boolean {
   const config = getNetworkConfig(name)
   return config?.type === 'wdk-wallet-solana'
+}
+
+export function isSparkNetwork(name: string): boolean {
+  const config = getNetworkConfig(name)
+  return config?.type === 'wdk-wallet-spark'
+}
+
+export function isEvmErc4337Network(name: string): boolean {
+  const config = getNetworkConfig(name)
+  return config?.type === 'wdk-wallet-evm-erc-4337'
 }
 
 export function isValidNetwork(name: string): name is NetworkName {

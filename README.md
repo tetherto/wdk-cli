@@ -1,11 +1,11 @@
 # wdk-cli
 
-A TypeScript CLI tool that wraps [Tether's Wallet Development Kit (WDK)](https://wallet.tether.io/) for multi-chain wallet operations.
+A TypeScript CLI tool that wraps [Wallet Development Kit (WDK)](https://wallet.tether.io/) for multi-chain wallet operations.
 
 ## Features
 
 - **Wallet** — Generate or import BIP-39 seed phrases, encrypted at rest with AES-256-GCM. Session-based unlock to skip password on subsequent commands
-- **Network** — Bitcoin, Ethereum, Polygon, Arbitrum, BSC, Avalanche, Solana + testnets. Add custom networks with `network create`
+- **Network** — Bitcoin, Ethereum, Polygon, Arbitrum, BSC, Avalanche, Solana, Tron, Spark, Smart Account (ERC-4337) + testnets. Add custom networks with `network create`
 - **Get** — Derive wallet addresses and check balances for native and token assets with known token registry
 - **Send** — Native and token transfers with fee estimation and confirmation
 - **Config** — Per-network configuration with env var overrides
@@ -107,9 +107,9 @@ wdk config set provider https://mainnet.base.org --network base
 |------|----------|-------------|
 | `--name <name>` | Yes | Network identifier (lowercase, e.g. `base`) |
 | `--display-name <name>` | Yes | Human-readable name (e.g. `Base Mainnet`) |
-| `--wallet-type <type>` | Yes | `wdk-wallet-evm`, `wdk-wallet-btc`, or `wdk-wallet-solana` |
+| `--wallet-type <type>` | Yes | `wdk-wallet-evm`, `wdk-wallet-btc`, `wdk-wallet-solana`, `wdk-wallet-spark`, `wdk-wallet-tron`, `wdk-wallet-evm-erc-4337` |
 | `--symbol <symbol>` | Yes | Native token symbol (e.g. `ETH`) |
-| `--decimals <n>` | No | Token decimals (default: 18 for EVM, 8 for BTC, 9 for Solana) |
+| `--decimals <n>` | No | Token decimals (default: 18 for EVM, 8 for BTC/Spark, 9 for Solana, 6 for Tron) |
 | `--testnet` | No | Mark as testnet |
 
 Custom networks are stored in config and work with all commands (`get balance`, `send`, `get address`, etc.). After creating a network, use `wdk config set` to configure network settings.
@@ -161,6 +161,9 @@ wdk config path                                                     # Config fil
 | EVM | `provider`, `transferMaxFee` | JSON-RPC URL, max gas fee (wei) |
 | Solana | `provider` | JSON-RPC URL |
 | BTC | `host`, `port`, `protocol`, `network`, `bip` | Electrum server settings |
+| Spark | `sparkNetwork`, `sparkScanApiKey` | Network (MAINNET/REGTEST), API key |
+| Tron | `provider`, `transferMaxFee` | JSON-RPC URL, max fee (sun) |
+| Smart Account | `chainId`, `provider`, `bundlerUrl`, `entryPointAddress`, `safeModulesVersion`, `mode`, `paymasterUrl`, `paymasterAddress`, `paymasterToken`, `transferMaxFee` | ERC-4337 account abstraction |
 
 BTC networks use the [Electrum protocol](https://electrumx.readthedocs.io/). Default: `tcp` on standard ports. Set `protocol` to `tls` or `ssl` for encrypted connections. `bip` controls address type: `84` (native SegWit, default) or `44` (legacy P2PKH).
 
@@ -187,11 +190,22 @@ BTC networks use the [Electrum protocol](https://electrumx.readthedocs.io/). Def
 | `sepolia` | Sepolia Testnet | wdk-wallet-evm | ETH |
 | `polygon` | Polygon | wdk-wallet-evm | POL |
 | `arbitrum` | Arbitrum One | wdk-wallet-evm | ETH |
+| `base` | Base | wdk-wallet-evm | ETH |
 | `bsc` | BNB Smart Chain | wdk-wallet-evm | BNB |
 | `avalanche` | Avalanche C-Chain | wdk-wallet-evm | AVAX |
 | `solana` | Solana | wdk-wallet-solana | SOL |
 | `solana-testnet` | Solana Testnet | wdk-wallet-solana | SOL |
 | `solana-devnet` | Solana Devnet | wdk-wallet-solana | SOL |
+| `spark` | Spark | wdk-wallet-spark | BTC |
+| `spark-regtest` | Spark Regtest | wdk-wallet-spark | BTC |
+| `tron` | Tron | wdk-wallet-tron | TRX |
+| `tron-testnet` | Tron Testnet (Shasta) | wdk-wallet-tron | TRX |
+| `smart-account-ethereum` | Smart Account Ethereum | wdk-wallet-evm-erc-4337 | ETH |
+| `smart-account-sepolia` | Smart Account Sepolia | wdk-wallet-evm-erc-4337 | ETH |
+| `smart-account-polygon` | Smart Account Polygon | wdk-wallet-evm-erc-4337 | POL |
+| `smart-account-arbitrum` | Smart Account Arbitrum | wdk-wallet-evm-erc-4337 | ETH |
+| `smart-account-base` | Smart Account Base | wdk-wallet-evm-erc-4337 | ETH |
+| `smart-account-plasma` | Smart Account Plasma | wdk-wallet-evm-erc-4337 | ETH |
 
 Additional networks can be added with `wdk network create`. See [Adding Custom Networks](#adding-custom-networks).
 

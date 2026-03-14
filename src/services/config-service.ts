@@ -1,17 +1,3 @@
-// Copyright 2026 Tether Operations Limited
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 import Conf from 'conf'
 import { CONFIG_DEFAULTS } from '../config/schema.js'
 const ENV_MAP: Record<string, string> = {
@@ -70,43 +56,20 @@ class ConfigService {
   }
 
   private migrate(): void {
-    // v0.1: clean up legacy keys
-    for (const key of ['defaultChain', 'defaultNetwork'] as const) {
-      if (key in this.conf.store) this.conf.delete(key)
-    }
-
-    // v0.2: moved providers.<network> to networks.<network>.provider
-    const providers = (this.conf.store as Record<string, unknown>).providers as Record<string, string> | undefined
-    if (providers && typeof providers === 'object') {
-      for (const [network, url] of Object.entries(providers)) {
-        if (url) this.conf.set(`networks.${network}.provider`, url)
-      }
-      this.conf.delete('providers')
-    }
-
-    // v0.3: rename bitcoin-testnet to bitcoin-testnet3
-    if (this.conf.has('networks.bitcoin-testnet')) {
-      this.conf.delete('networks.bitcoin-testnet')
-    }
-
-    // v0.3: migrate BTC networks to Electrum config.
-    // conf uses shallow merge for defaults — since `networks` exists in the
+    // Conf uses shallow merge for defaults — since `networks` exists in the
     // store, per-network defaults are never applied. Write them explicitly.
-    const BTC_DEFAULTS: Record<string, { host: string; port: number; protocol: string; network: string; bip: number }> = {
-      bitcoin: { host: 'electrum.blockstream.info', port: 50001, protocol: 'tcp', network: 'bitcoin', bip: 84 },
-      'bitcoin-testnet3': { host: 'electrum.blockstream.info', port: 60001, protocol: 'tcp', network: 'testnet', bip: 84 },
-      'bitcoin-signet': { host: 'electrum.emzy.de', port: 60601, protocol: 'tcp', network: 'testnet', bip: 84 },
-    }
-    for (const [btcNet, defaults] of Object.entries(BTC_DEFAULTS)) {
-      const stored = this.conf.get(`networks.${btcNet}`) as Record<string, unknown> | undefined
-      if (!stored || !stored.host) {
-        this.conf.set(`networks.${btcNet}`, defaults)
+    const networkDefaults = (CONFIG_DEFAULTS as Record<string, unknown>).networks as Record<string, Record<string, unknown>>
+    for (const [net, expected] of Object.entries(networkDefaults)) {
+      const stored = this.conf.get(`networks.${net}`) as Record<string, unknown> | undefined
+      if (!stored) {
+        this.conf.set(`networks.${net}`, expected)
+      } else {
+        for (const [key, value] of Object.entries(expected)) {
+          if (!(key in stored)) {
+            this.conf.set(`networks.${net}.${key}`, value)
+          }
+        }
       }
-    }
-
-    // v0.2: clean up old top-level keys
-    for (const key of ['evm'] as const) {
-      if (key in this.conf.store) this.conf.delete(key)
     }
   }
 
@@ -115,7 +78,7 @@ class ConfigService {
     let current = obj
     for (let i = 0; i < keys.length - 1; i++) {
       if (!(keys[i] in current)) current[keys[i]] = {}
-      current = current[keys[i]]
+      current = current[keys[i]] as Record<string, unknown>
     }
     current[keys[keys.length - 1]] = value
   }

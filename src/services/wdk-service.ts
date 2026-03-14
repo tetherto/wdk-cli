@@ -1,27 +1,80 @@
-// Copyright 2026 Tether Operations Limited
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 import WDK from '@tetherto/wdk'
 import WalletManagerBtc from '@tetherto/wdk-wallet-btc'
 import WalletManagerEvm from '@tetherto/wdk-wallet-evm'
 import WalletManagerSolana from '@tetherto/wdk-wallet-solana'
-import { isValidNetwork, isEvmNetwork, isSolanaNetwork, isBtcNetwork } from '../config/networks.js'
+import WalletManagerSpark from '@tetherto/wdk-wallet-spark'
+import WalletManagerEvmErc4337 from '@tetherto/wdk-wallet-evm-erc-4337'
+import WalletManagerTron from '@tetherto/wdk-wallet-tron'
+import { isValidNetwork, getNetworkConfig } from '../config/networks.js'
 import { configService } from './config-service.js'
 import { NetworkNotSupportedError, NetworkError } from '../errors/index.js'
-import type { NetworkName } from '../types/index.js'
+import type { NetworkName, NetworkType } from '../types/index.js'
 
-// WDK SDK is JS with JSDoc types — use any for account objects
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const WALLET_MANAGERS: Record<NetworkType, any> = {
+  'wdk-wallet-evm': WalletManagerEvm,
+  'wdk-wallet-btc': WalletManagerBtc,
+  'wdk-wallet-solana': WalletManagerSolana,
+  'wdk-wallet-spark': WalletManagerSpark,
+  'wdk-wallet-evm-erc-4337': WalletManagerEvmErc4337,
+  'wdk-wallet-tron': WalletManagerTron,
+}
+
+export function transformConfig(type: NetworkType, raw: Record<string, unknown>, network: string): Record<string, unknown> {
+  const config = { ...raw }
+
+  for (const [key, value] of Object.entries(config)) {
+    if (value === '') delete config[key]
+  }
+
+  if (type === 'wdk-wallet-solana') {
+    config.rpcUrl = configService.getProviderUrl(network)
+    delete config.provider
+  } else if (type === 'wdk-wallet-spark') {
+    if (config.sparkNetwork) {
+      config.network = config.sparkNetwork
+      delete config.sparkNetwork
+    }
+  } else if (type === 'wdk-wallet-tron') {
+    config.provider = configService.getProviderUrl(network)
+  } else if (type === 'wdk-wallet-evm' || type === 'wdk-wallet-evm-erc-4337') {
+    config.provider = configService.getProviderUrl(network)
+  }
+
+  if (type === 'wdk-wallet-evm-erc-4337') {
+    const mode = (config.mode as string) || 'paymasterToken'
+    delete config.mode
+
+    if (mode === 'sponsored') {
+      config.isSponsored = true
+      delete config.useNativeCoins
+      delete config.paymasterToken
+      delete config.paymasterAddress
+    } else if (mode === 'nativeCoins') {
+      config.useNativeCoins = true
+      delete config.isSponsored
+      delete config.paymasterToken
+      delete config.paymasterAddress
+      delete config.paymasterUrl
+      delete config.sponsorshipPolicyId
+    } else {
+      delete config.isSponsored
+      delete config.useNativeCoins
+      delete config.sponsorshipPolicyId
+    }
+  }
+
+  if (config.transferMaxFee) {
+    config.transferMaxFee = BigInt(config.transferMaxFee as string)
+  }
+
+  if (config.paymasterToken && typeof config.paymasterToken === 'string') {
+    config.paymasterToken = { address: config.paymasterToken }
+  }
+
+  return config
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type WdkAccount = any
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -49,37 +102,14 @@ export class WdkService {
   private registerNetwork(network: NetworkName): void {
     if (!this.wdk) throw new Error('WDK not initialized')
 
-    // Use 'as any' for registerWallet — WDK's JSDoc-generated types
-    // don't perfectly represent the runtime config shapes
-    if (isEvmNetwork(network)) {
-      const providerUrl = configService.getProviderUrl(network)
-      const maxFee = configService.get(`networks.${network}.transferMaxFee`) as string | undefined
-      ;(this.wdk as typeof WDKAny).registerWallet(network, WalletManagerEvm, {
-        provider: providerUrl,
-        ...(maxFee ? { transferMaxFee: BigInt(maxFee) } : {}),
-      })
-    } else if (isSolanaNetwork(network)) {
-      const providerUrl = configService.getProviderUrl(network)
-      ;(this.wdk as typeof WDKAny).registerWallet(network, WalletManagerSolana, {
-        rpcUrl: providerUrl,
-      })
-    } else if (isBtcNetwork(network)) {
-      const host = (configService.get(`networks.${network}.host`) as string) || undefined
-      const port = (configService.get(`networks.${network}.port`) as number) || undefined
-      const protocol = (configService.get(`networks.${network}.protocol`) as string) || undefined
-      const btcNetwork = (configService.get(`networks.${network}.network`) as string) || (network === 'bitcoin' ? 'bitcoin' : 'testnet')
-      const bip = (configService.get(`networks.${network}.bip`) as number) || undefined
-      ;(this.wdk as typeof WDKAny).registerWallet(network, WalletManagerBtc, {
-        ...(host ? { host } : {}),
-        ...(port ? { port } : {}),
-        ...(protocol ? { protocol } : {}),
-        ...(bip ? { bip } : {}),
-        network: btcNetwork,
-      })
-    } else {
-      throw new NetworkNotSupportedError(network)
-    }
+    const networkConfig = getNetworkConfig(network)
+    const WalletManager = WALLET_MANAGERS[networkConfig.type]
+    if (!WalletManager) throw new NetworkNotSupportedError(network)
 
+    const rawConfig = { ...(configService.get(`networks.${network}`) as Record<string, unknown> || {}) }
+    const sdkConfig = transformConfig(networkConfig.type, rawConfig, network)
+
+    ;(this.wdk as typeof WDKAny).registerWallet(network, WalletManager, sdkConfig)
     this.registeredNetworks.add(network)
   }
 
@@ -104,7 +134,9 @@ export class WdkService {
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error)
       if (msg.includes('ECONNREFUSED') || msg.includes('ETIMEDOUT') || msg.includes('fetch failed')) {
-        throw new NetworkError(configService.getProviderUrl(network))
+        let connectionInfo = network
+        try { connectionInfo = configService.getProviderUrl(network) } catch { /* no provider for this network type */ }
+        throw new NetworkError(connectionInfo)
       }
       throw error
     }
@@ -127,5 +159,4 @@ export class WdkService {
   }
 }
 
-// Singleton instance
 export const wdkService = new WdkService()

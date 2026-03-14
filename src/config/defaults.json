@@ -31,28 +31,32 @@
       "bip": 84
     },
     "ethereum": {
-      "provider": "https://eth.drpc.org",
-      "transferMaxFee": ""
+      "provider": "https://ethereum-rpc.publicnode.com",
+      "transferMaxFee": 5000000000000000
     },
     "sepolia": {
       "provider": "https://ethereum-sepolia-rpc.publicnode.com",
-      "transferMaxFee": ""
+      "transferMaxFee": 5000000000000000
     },
     "polygon": {
       "provider": "https://polygon-rpc.com",
-      "transferMaxFee": ""
+      "transferMaxFee": 5000000000000000
     },
     "arbitrum": {
       "provider": "https://arb1.arbitrum.io/rpc",
-      "transferMaxFee": ""
+      "transferMaxFee": 1000000000000000
+    },
+    "base": {
+      "provider": "https://mainnet.base.org",
+      "transferMaxFee": 1000000000000000
     },
     "bsc": {
       "provider": "https://bsc-dataseed.binance.org",
-      "transferMaxFee": ""
+      "transferMaxFee": 5000000000000000
     },
     "avalanche": {
       "provider": "https://api.avax.network/ext/bc/C/rpc",
-      "transferMaxFee": ""
+      "transferMaxFee": 5000000000000000
     },
     "solana": {
       "provider": "https://api.mainnet-beta.solana.com"
@@ -62,6 +66,100 @@
     },
     "solana-devnet": {
       "provider": "https://api.devnet.solana.com"
+    },
+    "spark": {
+      "sparkNetwork": "MAINNET",
+      "sparkScanApiKey": ""
+    },
+    "spark-regtest": {
+      "sparkNetwork": "REGTEST",
+      "sparkScanApiKey": ""
+    },
+    "smart-account-ethereum": {
+      "chainId": 1,
+      "blockchain": "ethereum",
+      "provider": "https://wallet-ap7ha02ezs.rumble.com/eth",
+      "bundlerUrl": "https://api.candide.dev/public/v3/ethereum",
+      "entryPointAddress": "0x0000000071727De22E5E9d8BAf0edAc6f37da032",
+      "safeModulesVersion": "0.3.0",
+      "mode": "paymasterToken",
+      "paymasterUrl": "https://api.candide.dev/public/v3/ethereum",
+      "paymasterAddress": "0x8b1f6cb5d062aa2ce8d581942bbb960420d875ba",
+      "paymasterToken": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+      "transferMaxFee": 100000
+    },
+    "smart-account-sepolia": {
+      "chainId": 11155111,
+      "blockchain": "sepolia",
+      "provider": "https://sepolia.gateway.tenderly.co",
+      "bundlerUrl": "https://api.candide.dev/public/v3/sepolia",
+      "entryPointAddress": "0x0000000071727De22E5E9d8BAf0edAc6f37da032",
+      "safeModulesVersion": "0.3.0",
+      "mode": "paymasterToken",
+      "paymasterUrl": "https://api.candide.dev/public/v3/sepolia",
+      "paymasterAddress": "0x8b1f6cb5d062aa2ce8d581942bbb960420d875ba",
+      "paymasterToken": "0xd077A400968890Eacc75cdc901F0356c943e4fDb",
+      "transferMaxFee": 100000
+    },
+    "smart-account-polygon": {
+      "chainId": 137,
+      "blockchain": "polygon",
+      "provider": "https://wallet-ap7ha02ezs.rumble.com/pol",
+      "bundlerUrl": "https://api.candide.dev/public/v3/polygon",
+      "entryPointAddress": "0x0000000071727De22E5E9d8BAf0edAc6f37da032",
+      "safeModulesVersion": "0.3.0",
+      "mode": "paymasterToken",
+      "paymasterUrl": "https://api.candide.dev/public/v3/polygon",
+      "paymasterAddress": "0x8b1f6cb5d062aa2ce8d581942bbb960420d875ba",
+      "paymasterToken": "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
+      "transferMaxFee": 100000
+    },
+    "smart-account-arbitrum": {
+      "chainId": 42161,
+      "blockchain": "arbitrum",
+      "provider": "https://wallet-ap7ha02ezs.rumble.com/arb",
+      "bundlerUrl": "https://public.pimlico.io/v2/42161/rpc",
+      "entryPointAddress": "0x0000000071727De22E5E9d8BAf0edAc6f37da032",
+      "safeModulesVersion": "0.3.0",
+      "mode": "paymasterToken",
+      "paymasterUrl": "https://public.pimlico.io/v2/42161/rpc",
+      "paymasterAddress": "0x777777777777AeC03fd955926DbF81597e66834C",
+      "paymasterToken": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+      "transferMaxFee": 100000
+    },
+    "smart-account-base": {
+      "chainId": 8453,
+      "blockchain": "base",
+      "provider": "https://mainnet.base.org",
+      "bundlerUrl": "https://api.candide.dev/public/v3/base",
+      "entryPointAddress": "0x0000000071727De22E5E9d8BAf0edAc6f37da032",
+      "safeModulesVersion": "0.3.0",
+      "mode": "paymasterToken",
+      "paymasterUrl": "https://api.candide.dev/public/v3/base",
+      "paymasterAddress": "0x8b1f6cb5d062aa2ce8d581942bbb960420d875ba",
+      "paymasterToken": "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2",
+      "transferMaxFee": 100000
+    },
+    "smart-account-plasma": {
+      "chainId": 9745,
+      "blockchain": "plasma",
+      "provider": "https://rpc.plasma.to",
+      "bundlerUrl": "https://api.candide.dev/public/v3/9745",
+      "entryPointAddress": "0x0000000071727De22E5E9d8BAf0edAc6f37da032",
+      "safeModulesVersion": "0.3.0",
+      "mode": "paymasterToken",
+      "paymasterUrl": "https://api.candide.dev/public/v3/9745",
+      "paymasterAddress": "0x8b1f6cb5d062aa2ce8d581942bbb960420d875ba",
+      "paymasterToken": "0xB8CE59FC3717ada4C02eaDF9682A9e934F625ebb",
+      "transferMaxFee": 100000
+    },
+    "tron": {
+      "provider": "https://api.trongrid.io",
+      "transferMaxFee": 30000000
+    },
+    "tron-testnet": {
+      "provider": "https://api.shasta.trongrid.io",
+      "transferMaxFee": 30000000
     }
   }
 }

@@ -1,7 +1,7 @@
 {
   "name": "wdk-cli",
   "version": "0.1.0",
-  "description": "CLI tool for Tether's Wallet Development Kit (WDK)",
+  "description": "CLI tool for Wallet Development Kit (WDK)",
   "type": "module",
   "bin": {
     "wdk": "./dist/bin/wdk.js"
@@ -19,17 +19,20 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
-    "@inquirer/prompts": "^8.0.0",
-    "@tetherto/wdk": "1.0.0-beta.5",
-    "@tetherto/wdk-wallet": "^1.0.0-beta.7",
-    "@tetherto/wdk-wallet-btc": "1.0.0-beta.5",
-    "@tetherto/wdk-wallet-evm": "1.0.0-beta.6",
-    "@tetherto/wdk-wallet-solana": "^1.0.0-beta.5",
-    "chalk": "^5.0.0",
-    "cli-table3": "^0.6.5",
-    "commander": "^14.0.0",
-    "conf": "^15.0.0",
-    "ora": "^9.0.0"
+    "@inquirer/prompts": "8.2.0",
+    "@tetherto/wdk": "1.0.0-beta.6",
+    "@tetherto/wdk-wallet": "1.0.0-beta.7",
+    "@tetherto/wdk-wallet-btc": "1.0.0-beta.6",
+    "@tetherto/wdk-wallet-evm": "1.0.0-beta.8",
+    "@tetherto/wdk-wallet-evm-erc-4337": "1.0.0-beta.5",
+    "@tetherto/wdk-wallet-solana": "1.0.0-beta.5",
+    "@tetherto/wdk-wallet-spark": "1.0.0-beta.11",
+    "@tetherto/wdk-wallet-tron": "1.0.0-beta.4",
+    "chalk": "5.6.2",
+    "cli-table3": "0.6.5",
+    "commander": "14.0.3",
+    "conf": "15.1.0",
+    "ora": "9.3.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

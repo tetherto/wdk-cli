@@ -1,20 +1,15 @@
-// Copyright 2026 Tether Operations Limited
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 import chalk from 'chalk'
 import { getNetworkConfig, isBuiltinNetwork } from '../config/networks.js'
-import type { NetworkName } from '../types/index.js'
+import type { NetworkName, NetworkType } from '../types/index.js'
+
+export const TYPE_LABELS: Record<NetworkType, { label: string; color: (t: string) => string }> = {
+  'wdk-wallet-evm': { label: 'EVM', color: chalk.cyan },
+  'wdk-wallet-btc': { label: 'BTC', color: chalk.yellow },
+  'wdk-wallet-solana': { label: 'SOL', color: chalk.magenta },
+  'wdk-wallet-spark': { label: 'SPARK', color: chalk.hex('#FF9500') },
+  'wdk-wallet-evm-erc-4337': { label: '4337', color: chalk.hex('#4FC08D') },
+  'wdk-wallet-tron': { label: 'TRX', color: chalk.hex('#FF0013') },
+}
 
 export function formatBalance(rawBalance: string | number, network: string): string {
   const config = getNetworkConfig(network)
@@ -24,7 +19,6 @@ export function formatBalance(rawBalance: string | number, network: string): str
   const remainder = raw % divisor
   const decimal = remainder.toString().padStart(config.decimals, '0').replace(/0+$/, '') || '0'
 
-  // Show up to 8 decimal places
   const trimmed = decimal.slice(0, 8)
   return `${whole}.${trimmed} ${config.nativeSymbol}`
 }
@@ -67,22 +61,30 @@ const BUILTIN_COLORS: Record<NetworkName, (text: string) => string> = {
   sepolia: chalk.hex('#627EEA'),
   polygon: chalk.hex('#8247E5'),
   arbitrum: chalk.hex('#28A0F0'),
+  base: chalk.hex('#0052FF'),
   bsc: chalk.hex('#F0B90B'),
   avalanche: chalk.hex('#E84142'),
   solana: chalk.hex('#9945FF'),
   'solana-testnet': chalk.hex('#9945FF'),
   'solana-devnet': chalk.hex('#9945FF'),
+  spark: chalk.hex('#FF9500'),
+  'spark-regtest': chalk.hex('#FF9500'),
+  tron: chalk.hex('#FF0013'),
+  'tron-testnet': chalk.hex('#FF0013'),
+  'smart-account-ethereum': chalk.hex('#4FC08D'),
+  'smart-account-sepolia': chalk.hex('#4FC08D'),
+  'smart-account-polygon': chalk.hex('#4FC08D'),
+  'smart-account-arbitrum': chalk.hex('#4FC08D'),
+  'smart-account-base': chalk.hex('#4FC08D'),
+  'smart-account-plasma': chalk.hex('#4FC08D'),
 }
 
 export function networkColor(network: string): (text: string) => string {
   if (isBuiltinNetwork(network)) {
     return BUILTIN_COLORS[network] || chalk.white
   }
-  // For custom networks, pick a color based on wallet type
   const config = getNetworkConfig(network)
   if (!config) return chalk.white
-  if (config.type === 'wdk-wallet-evm') return chalk.cyan
-  if (config.type === 'wdk-wallet-btc') return chalk.yellow
-  if (config.type === 'wdk-wallet-solana') return chalk.magenta
-  return chalk.white
+  const typeLabel = TYPE_LABELS[config.type]
+  return typeLabel ? typeLabel.color : chalk.white
 }

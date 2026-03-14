@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { NETWORKS, NETWORK_NAMES, isEvmNetwork, isBtcNetwork, isSolanaNetwork, isValidNetwork, isTestnet, getNetworkConfig, getAllNetworks, getAllNetworkNames, isCustomNetwork, isBuiltinNetwork, getCustomNetworks, saveCustomNetwork, deleteCustomNetwork } from '../../../src/config/networks.js'
+import { NETWORKS, NETWORK_NAMES, isEvmNetwork, isBtcNetwork, isSolanaNetwork, isSparkNetwork, isEvmErc4337Network, isValidNetwork, isTestnet, getNetworkConfig, getAllNetworks, getAllNetworkNames, isCustomNetwork, isBuiltinNetwork, getCustomNetworks, saveCustomNetwork, deleteCustomNetwork } from '../../../src/config/networks.js'
 import { configService } from '../../../src/services/config-service.js'
 
 describe('networks', () => {
@@ -16,6 +16,15 @@ describe('networks', () => {
     expect(NETWORK_NAMES).toContain('solana')
     expect(NETWORK_NAMES).toContain('solana-testnet')
     expect(NETWORK_NAMES).toContain('solana-devnet')
+    expect(NETWORK_NAMES).toContain('spark')
+    expect(NETWORK_NAMES).toContain('spark-regtest')
+    expect(NETWORK_NAMES).toContain('tron')
+    expect(NETWORK_NAMES).toContain('tron-testnet')
+    expect(NETWORK_NAMES).toContain('smart-account-ethereum')
+    expect(NETWORK_NAMES).toContain('smart-account-sepolia')
+    expect(NETWORK_NAMES).toContain('smart-account-polygon')
+    expect(NETWORK_NAMES).toContain('smart-account-arbitrum')
+    expect(NETWORK_NAMES).toContain('smart-account-plasma')
   })
 
   it('identifies EVM networks', () => {
@@ -41,6 +50,20 @@ describe('networks', () => {
     expect(isSolanaNetwork('bitcoin')).toBe(false)
   })
 
+  it('identifies Spark networks', () => {
+    expect(isSparkNetwork('spark')).toBe(true)
+    expect(isSparkNetwork('spark-regtest')).toBe(true)
+    expect(isSparkNetwork('ethereum')).toBe(false)
+    expect(isSparkNetwork('bitcoin')).toBe(false)
+  })
+
+  it('identifies EVM ERC-4337 networks', () => {
+    expect(isEvmErc4337Network('smart-account-ethereum')).toBe(true)
+    expect(isEvmErc4337Network('smart-account-sepolia')).toBe(true)
+    expect(isEvmErc4337Network('ethereum')).toBe(false)
+    expect(isEvmErc4337Network('bitcoin')).toBe(false)
+  })
+
   it('validates network names', () => {
     expect(isValidNetwork('ethereum')).toBe(true)
     expect(isValidNetwork('bitcoin')).toBe(true)
@@ -56,9 +79,13 @@ describe('networks', () => {
     expect(isTestnet('sepolia')).toBe(true)
     expect(isTestnet('solana-testnet')).toBe(true)
     expect(isTestnet('solana-devnet')).toBe(true)
+    expect(isTestnet('spark-regtest')).toBe(true)
+    expect(isTestnet('smart-account-sepolia')).toBe(true)
     expect(isTestnet('bitcoin')).toBe(false)
     expect(isTestnet('ethereum')).toBe(false)
     expect(isTestnet('solana')).toBe(false)
+    expect(isTestnet('spark')).toBe(false)
+    expect(isTestnet('smart-account-ethereum')).toBe(false)
   })
 
   it('returns network config', () => {
@@ -74,7 +101,7 @@ describe('networks', () => {
       const config = NETWORKS[network]
       expect(config.name).toBe(network)
       expect(config.displayName).toBeTruthy()
-      expect(config.type).toMatch(/^wdk-wallet-(evm|btc|solana)$/)
+      expect(config.type).toMatch(/^wdk-wallet-(evm|btc|solana|spark|evm-erc-4337|tron)$/)
       expect(config.nativeSymbol).toBeTruthy()
       expect(config.decimals).toBeGreaterThan(0)
     }
@@ -182,5 +209,27 @@ describe('custom networks', () => {
     vi.spyOn(configService, 'get').mockReturnValue(undefined)
     const custom = getCustomNetworks()
     expect(custom).toEqual({})
+  })
+
+  it('isSparkNetwork works with custom spark networks', () => {
+    vi.restoreAllMocks()
+    vi.spyOn(configService, 'get').mockImplementation((key: string) => {
+      if (key === 'customNetworks') {
+        return { 'spark-custom': { name: 'spark-custom', displayName: 'Spark Custom', type: 'wdk-wallet-spark', nativeSymbol: 'BTC', decimals: 8, custom: true } }
+      }
+      return undefined
+    })
+    expect(isSparkNetwork('spark-custom')).toBe(true)
+  })
+
+  it('isEvmErc4337Network works with custom ERC-4337 networks', () => {
+    vi.restoreAllMocks()
+    vi.spyOn(configService, 'get').mockImplementation((key: string) => {
+      if (key === 'customNetworks') {
+        return { 'erc4337-custom': { name: 'erc4337-custom', displayName: 'ERC-4337 Custom', type: 'wdk-wallet-evm-erc-4337', nativeSymbol: 'ETH', decimals: 18, custom: true } }
+      }
+      return undefined
+    })
+    expect(isEvmErc4337Network('erc4337-custom')).toBe(true)
   })
 })

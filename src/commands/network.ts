@@ -1,26 +1,11 @@
-// Copyright 2026 Tether Operations Limited
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 import type { Command } from 'commander'
 import chalk from 'chalk'
 import {
+  NETWORKS,
   getAllNetworks,
   getAllNetworkNames,
   getNetworkConfig,
   isTestnet,
-  isEvmNetwork,
-  isBtcNetwork,
   isBuiltinNetwork,
   isCustomNetwork,
   isValidNetwork,
@@ -28,16 +13,20 @@ import {
   deleteCustomNetwork,
 } from '../config/networks.js'
 import { configService } from '../services/config-service.js'
+import { getVisibleFields, isFieldRequired } from '../config/schema.js'
 import { createTable } from '../ui/tables.js'
-import { networkColor } from '../ui/formatters.js'
+import { networkColor, TYPE_LABELS } from '../ui/formatters.js'
 import { NetworkNotSupportedError, handleError } from '../errors/index.js'
 import type { NetworkType, NetworkConfig } from '../types/index.js'
 
-const VALID_WALLET_TYPES: NetworkType[] = ['wdk-wallet-evm', 'wdk-wallet-btc', 'wdk-wallet-solana']
+const VALID_WALLET_TYPES: NetworkType[] = ['wdk-wallet-evm', 'wdk-wallet-btc', 'wdk-wallet-solana', 'wdk-wallet-spark', 'wdk-wallet-evm-erc-4337', 'wdk-wallet-tron']
 const DEFAULT_DECIMALS: Record<NetworkType, number> = {
   'wdk-wallet-evm': 18,
   'wdk-wallet-btc': 8,
   'wdk-wallet-solana': 9,
+  'wdk-wallet-spark': 8,
+  'wdk-wallet-evm-erc-4337': 18,
+  'wdk-wallet-tron': 6,
 }
 
 export function registerNetworkCommand(program: Command): void {
@@ -66,10 +55,11 @@ export function registerNetworkCommand(program: Command): void {
         const config = allNetworks[name]
         const color = networkColor(name)
         const nameLabel = config.custom ? `${name} ${chalk.dim('(custom)')}` : name
+        const typeInfo = TYPE_LABELS[config.type] || { label: config.type, color: chalk.white }
         table.push([
           chalk.bold(nameLabel),
           color(config.displayName),
-          isEvmNetwork(name) ? chalk.cyan('EVM') : isBtcNetwork(name) ? chalk.yellow('BTC') : chalk.magenta('SOL'),
+          typeInfo.color(typeInfo.label),
           config.nativeSymbol,
           isTestnet(name) ? chalk.dim('yes') : '',
         ])
@@ -91,7 +81,6 @@ export function registerNetworkCommand(program: Command): void {
     .action((options, cmd) => {
       const { name, displayName, walletType: type, symbol, testnet } = options
 
-      // Check all required options at once
       const missing: string[] = []
       if (!name) missing.push('--name <name>')
       if (!displayName) missing.push('--display-name <name>')
@@ -104,7 +93,6 @@ export function registerNetworkCommand(program: Command): void {
         process.exit(1)
       }
 
-      // Validate name
       if (!/^[a-z0-9][a-z0-9-]*$/.test(name)) {
         console.error(chalk.red('Error: Name must be lowercase alphanumeric with hyphens.'))
         process.exit(1)
@@ -114,7 +102,6 @@ export function registerNetworkCommand(program: Command): void {
         process.exit(1)
       }
 
-      // Validate wallet type
       if (!VALID_WALLET_TYPES.includes(type as NetworkType)) {
         console.error(chalk.red(`Error: Wallet type must be one of: ${VALID_WALLET_TYPES.join(', ')}`))
         process.exit(1)
@@ -122,7 +109,6 @@ export function registerNetworkCommand(program: Command): void {
 
       const walletType = type as NetworkType
 
-      // Parse decimals
       const decimals = options.decimals ? parseInt(options.decimals, 10) : DEFAULT_DECIMALS[walletType]
       if (isNaN(decimals) || decimals < 0 || decimals > 24) {
         console.error(chalk.red('Error: Decimals must be a number between 0 and 24.'))
@@ -139,19 +125,16 @@ export function registerNetworkCommand(program: Command): void {
         testnet: !!testnet,
       }
 
-      // Save custom network identity
       saveCustomNetwork(name, config)
 
-      // Create empty per-network config entries (user fills via `wdk config set`)
-      const networkConf: Record<string, string | number> = {}
-      if (walletType === 'wdk-wallet-btc') {
-        networkConf.host = ''
-        networkConf.port = 0
-      } else {
-        networkConf.provider = ''
-      }
-      if (walletType === 'wdk-wallet-evm') {
-        networkConf.transferMaxFee = ''
+      // Scaffold config from schema with empty defaults
+      const fields = getVisibleFields(walletType, { mode: 'paymasterToken' })
+      const networkConf: Record<string, unknown> = {}
+      for (const field of fields) {
+        if (field.type === 'number') networkConf[field.key] = 0
+        else if (field.type === 'boolean') networkConf[field.key] = false
+        else if (field.options) networkConf[field.key] = field.options[0]
+        else networkConf[field.key] = ''
       }
       configService.set(`networks.${name}`, networkConf)
 
@@ -207,21 +190,18 @@ export function registerNetworkCommand(program: Command): void {
         if (!isValidNetwork(networkName)) throw new NetworkNotSupportedError(networkName)
 
         const config = getNetworkConfig(networkName)
-        const isBtc = isBtcNetwork(networkName)
-        const providerUrl = isBtc ? '' : ((configService.get(`networks.${networkName}.provider`) as string) || '')
-        const host = isBtc ? ((configService.get(`networks.${networkName}.host`) as string) || '') : ''
-        const port = isBtc ? ((configService.get(`networks.${networkName}.port`) as number) || 0) : 0
-        const protocol = isBtc ? ((configService.get(`networks.${networkName}.protocol`) as string) || '') : ''
-        const btcNetwork = isBtc ? ((configService.get(`networks.${networkName}.network`) as string) || '') : ''
-        const bip = isBtc ? ((configService.get(`networks.${networkName}.bip`) as number) || 0) : 0
-        const transferMaxFee = (configService.get(`networks.${networkName}.transferMaxFee`) as string) || ''
+        const netConf = configService.get(`networks.${networkName}`) as Record<string, unknown> || {}
 
         if (program.opts().json) {
-          console.log(JSON.stringify({
-            ...config,
-            ...(isBtc ? { host: host || undefined, port: port || undefined, protocol: protocol || undefined, network: btcNetwork || undefined, bip: bip || undefined } : { provider: providerUrl || undefined }),
-            transferMaxFee: transferMaxFee || undefined,
-          }, null, 2))
+          const jsonConf: Record<string, unknown> = { ...config }
+          const fields = getVisibleFields(config.type, netConf)
+          for (const field of fields) {
+            const value = netConf[field.key]
+            if (value !== '' && value !== null && value !== undefined) {
+              jsonConf[field.key] = value
+            }
+          }
+          console.log(JSON.stringify(jsonConf, null, 2))
           return
         }
 
@@ -236,17 +216,29 @@ export function registerNetworkCommand(program: Command): void {
         console.log(`  Testnet:    ${isTestnet(networkName) ? 'yes' : 'no'}`)
         console.log(`  Source:     ${isBuiltinNetwork(networkName) ? 'built-in' : 'custom'}`)
         console.log()
-        if (isBtc) {
-          console.log(`  Host:           ${host || chalk.dim('(default)')}`)
-          console.log(`  Port:           ${port || chalk.dim('(default)')}`)
-          console.log(`  Protocol:       ${protocol || chalk.dim('tcp')}`)
-          console.log(`  Network:        ${btcNetwork || chalk.dim('(default)')}`)
-          console.log(`  BIP:            ${bip || chalk.dim('84')}`)
-        } else {
-          console.log(`  Provider:       ${providerUrl || chalk.dim('(not set)')}`)
-        }
-        if (isEvmNetwork(networkName)) {
-          console.log(`  TransferMaxFee: ${transferMaxFee || chalk.dim('(not set)')}`)
+        const fields = getVisibleFields(config.type, netConf)
+        if (fields.length > 0) {
+          // Show mode header for ERC-4337
+          if (netConf.mode) {
+            console.log(chalk.bold(`  Mode: ${netConf.mode}`))
+            console.log()
+          }
+          for (const field of fields) {
+            const value = netConf[field.key]
+            const label = field.key.padEnd(22)
+            const req = isFieldRequired(field, netConf) ? chalk.dim(' *') : '  '
+            let display: string
+            if (value === '' || value === null || value === undefined) {
+              display = chalk.dim('(not set)')
+            } else if (field.secret && value) {
+              display = chalk.dim('***')
+            } else {
+              display = String(value)
+            }
+            console.log(`  ${label}${display}${req}  ${chalk.dim(field.description)}`)
+          }
+          console.log()
+          console.log(chalk.dim('  * = required'))
         }
         console.log()
       } catch (error) {
