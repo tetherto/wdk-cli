@@ -122,11 +122,15 @@ wdk get balance --network ethereum                              # Native ETH bal
 wdk get balance --network ethereum --token 0xdAC17F...          # ERC-20 token balance
 wdk get balance --network solana --token Es9vMFrz...            # SPL token balance
 wdk get balance --network bitcoin                               # BTC balance
+wdk get history --network ethereum                               # USDT transfer history
+wdk get history --network ethereum --token xaut --limit 50       # XAUT transfers, last 50
 ```
 
 Known tokens (e.g. USDT) are automatically resolved with correct decimals and symbol. Unknown tokens fall back to raw base-unit amounts.
 
 Wallets are derived deterministically from your seed phrase using HD paths (BIP-84 for BTC, BIP-44 for EVM/Solana) — no local state is stored. `get address` works without a provider configured (local derivation only), while `get balance` requires a provider connection.
+
+`get history` uses the [WDK Indexer API](https://github.com/tetherto/wdk-indexer-http). Configure with `WDK_INDEXER_BASE_URL` / `WDK_INDEXER_API_KEY` env vars, or use `wdk config set` for `indexer.baseUrl` and `indexer.apiKey`. If using a proxy provider that includes the API key, only the base URL is needed.
 
 ### Send
 

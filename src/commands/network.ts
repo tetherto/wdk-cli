@@ -1,7 +1,6 @@
 import type { Command } from 'commander'
 import chalk from 'chalk'
 import {
-  NETWORKS,
   getAllNetworks,
   getAllNetworkNames,
   getNetworkConfig,

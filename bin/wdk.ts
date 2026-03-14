@@ -1,4 +1,4 @@
-#!/usr/bin/env -S node --disable-warning=ExperimentalWarning
+#!/usr/bin/env -S node --disable-warning=ExperimentalWarning --disable-warning=DeprecationWarning
 
 import { run } from '../src/index.ts'
 
