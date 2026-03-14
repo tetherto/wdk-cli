@@ -16,13 +16,6 @@ export const NETWORKS: Record<NetworkName, NetworkConfig> = {
     nativeSymbol: 'tBTC',
     decimals: 8,
   },
-  'bitcoin-signet': {
-    name: 'bitcoin-signet',
-    displayName: 'Bitcoin Signet',
-    type: 'wdk-wallet-btc',
-    nativeSymbol: 'sBTC',
-    decimals: 8,
-  },
   ethereum: {
     name: 'ethereum',
     displayName: 'Ethereum',
@@ -170,7 +163,7 @@ export const NETWORKS: Record<NetworkName, NetworkConfig> = {
 
 export const NETWORK_NAMES = Object.keys(NETWORKS) as NetworkName[]
 
-const BUILTIN_TESTNETS: readonly string[] = ['bitcoin-testnet3', 'bitcoin-signet', 'sepolia', 'solana-testnet', 'solana-devnet', 'spark-regtest', 'tron-testnet', 'smart-account-sepolia']
+const BUILTIN_TESTNETS: readonly string[] = ['bitcoin-testnet3', 'sepolia', 'solana-testnet', 'solana-devnet', 'spark-regtest', 'tron-testnet', 'smart-account-sepolia']
 
 export function getCustomNetworks(): Record<string, NetworkConfig> {
   const custom = configService.get('customNetworks') as Record<string, NetworkConfig> | undefined

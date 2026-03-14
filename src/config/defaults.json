@@ -23,13 +23,6 @@
       "network": "testnet",
       "bip": 84
     },
-    "bitcoin-signet": {
-      "host": "electrum.emzy.de",
-      "port": 60601,
-      "protocol": "tcp",
-      "network": "testnet",
-      "bip": 84
-    },
     "ethereum": {
       "provider": "https://ethereum-rpc.publicnode.com",
       "transferMaxFee": 5000000000000000

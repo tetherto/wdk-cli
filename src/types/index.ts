@@ -1,7 +1,6 @@
 export type NetworkName =
   | 'bitcoin'
   | 'bitcoin-testnet3'
-  | 'bitcoin-signet'
   | 'ethereum'
   | 'sepolia'
   | 'polygon'

@@ -56,7 +56,6 @@ export function formatDate(dateStr: string): string {
 const BUILTIN_COLORS: Record<NetworkName, (text: string) => string> = {
   bitcoin: chalk.hex('#F7931A'),
   'bitcoin-testnet3': chalk.hex('#F7931A'),
-  'bitcoin-signet': chalk.hex('#F7931A'),
   ethereum: chalk.hex('#627EEA'),
   sepolia: chalk.hex('#627EEA'),
   polygon: chalk.hex('#8247E5'),

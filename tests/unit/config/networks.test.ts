@@ -6,7 +6,6 @@ describe('networks', () => {
   it('has all expected built-in networks', () => {
     expect(NETWORK_NAMES).toContain('bitcoin')
     expect(NETWORK_NAMES).toContain('bitcoin-testnet3')
-    expect(NETWORK_NAMES).toContain('bitcoin-signet')
     expect(NETWORK_NAMES).toContain('ethereum')
     expect(NETWORK_NAMES).toContain('sepolia')
     expect(NETWORK_NAMES).toContain('polygon')
@@ -24,7 +23,9 @@ describe('networks', () => {
     expect(NETWORK_NAMES).toContain('smart-account-sepolia')
     expect(NETWORK_NAMES).toContain('smart-account-polygon')
     expect(NETWORK_NAMES).toContain('smart-account-arbitrum')
+    expect(NETWORK_NAMES).toContain('smart-account-base')
     expect(NETWORK_NAMES).toContain('smart-account-plasma')
+    expect(NETWORK_NAMES).toContain('base')
   })
 
   it('identifies EVM networks', () => {
@@ -38,7 +39,6 @@ describe('networks', () => {
   it('identifies BTC networks', () => {
     expect(isBtcNetwork('bitcoin')).toBe(true)
     expect(isBtcNetwork('bitcoin-testnet3')).toBe(true)
-    expect(isBtcNetwork('bitcoin-signet')).toBe(true)
     expect(isBtcNetwork('ethereum')).toBe(false)
   })
 
@@ -75,7 +75,6 @@ describe('networks', () => {
 
   it('identifies testnets', () => {
     expect(isTestnet('bitcoin-testnet3')).toBe(true)
-    expect(isTestnet('bitcoin-signet')).toBe(true)
     expect(isTestnet('sepolia')).toBe(true)
     expect(isTestnet('solana-testnet')).toBe(true)
     expect(isTestnet('solana-devnet')).toBe(true)
@@ -116,8 +115,8 @@ describe('networks', () => {
 
 describe('custom networks', () => {
   const mockCustomNetwork = {
-    name: 'base',
-    displayName: 'Base Mainnet',
+    name: 'optimism',
+    displayName: 'Optimism',
     type: 'wdk-wallet-evm' as const,
     nativeSymbol: 'ETH',
     decimals: 18,
@@ -128,7 +127,7 @@ describe('custom networks', () => {
   beforeEach(() => {
     vi.spyOn(configService, 'get').mockImplementation((key: string) => {
       if (key === 'customNetworks') {
-        return { base: mockCustomNetwork }
+        return { optimism: mockCustomNetwork }
       }
       return undefined
     })
@@ -140,68 +139,68 @@ describe('custom networks', () => {
 
   it('returns custom networks from config', () => {
     const custom = getCustomNetworks()
-    expect(custom).toHaveProperty('base')
-    expect(custom.base.displayName).toBe('Base Mainnet')
-    expect(custom.base.custom).toBe(true)
+    expect(custom).toHaveProperty('optimism')
+    expect(custom.optimism.displayName).toBe('Optimism')
+    expect(custom.optimism.custom).toBe(true)
   })
 
   it('getAllNetworks merges built-in and custom', () => {
     const all = getAllNetworks()
     expect(all).toHaveProperty('ethereum')
-    expect(all).toHaveProperty('base')
+    expect(all).toHaveProperty('optimism')
   })
 
   it('getAllNetworkNames includes custom networks', () => {
     const names = getAllNetworkNames()
     expect(names).toContain('ethereum')
-    expect(names).toContain('base')
+    expect(names).toContain('optimism')
   })
 
   it('isValidNetwork accepts custom networks', () => {
-    expect(isValidNetwork('base')).toBe(true)
+    expect(isValidNetwork('optimism')).toBe(true)
     expect(isValidNetwork('nonexistent')).toBe(false)
   })
 
   it('isCustomNetwork identifies custom networks', () => {
-    expect(isCustomNetwork('base')).toBe(true)
+    expect(isCustomNetwork('optimism')).toBe(true)
     expect(isCustomNetwork('ethereum')).toBe(false)
   })
 
   it('getNetworkConfig returns custom network config', () => {
-    const config = getNetworkConfig('base')
-    expect(config.displayName).toBe('Base Mainnet')
+    const config = getNetworkConfig('optimism')
+    expect(config.displayName).toBe('Optimism')
     expect(config.type).toBe('wdk-wallet-evm')
     expect(config.custom).toBe(true)
   })
 
   it('isEvmNetwork works with custom networks', () => {
-    expect(isEvmNetwork('base')).toBe(true)
+    expect(isEvmNetwork('optimism')).toBe(true)
   })
 
   it('isTestnet works with custom networks', () => {
-    expect(isTestnet('base')).toBe(false)
+    expect(isTestnet('optimism')).toBe(false)
 
     vi.restoreAllMocks()
     vi.spyOn(configService, 'get').mockImplementation((key: string) => {
       if (key === 'customNetworks') {
-        return { 'base-testnet': { ...mockCustomNetwork, name: 'base-testnet', testnet: true } }
+        return { 'optimism-testnet': { ...mockCustomNetwork, name: 'optimism-testnet', testnet: true } }
       }
       return undefined
     })
 
-    expect(isTestnet('base-testnet')).toBe(true)
+    expect(isTestnet('optimism-testnet')).toBe(true)
   })
 
   it('saveCustomNetwork stores to config', () => {
     const setSpy = vi.spyOn(configService, 'set').mockImplementation(() => {})
-    saveCustomNetwork('optimism', mockCustomNetwork)
-    expect(setSpy).toHaveBeenCalledWith('customNetworks.optimism', mockCustomNetwork)
+    saveCustomNetwork('linea', mockCustomNetwork)
+    expect(setSpy).toHaveBeenCalledWith('customNetworks.linea', mockCustomNetwork)
   })
 
   it('deleteCustomNetwork removes from config', () => {
     const deleteSpy = vi.spyOn(configService, 'delete').mockImplementation(() => {})
-    deleteCustomNetwork('base')
-    expect(deleteSpy).toHaveBeenCalledWith('customNetworks.base')
+    deleteCustomNetwork('optimism')
+    expect(deleteSpy).toHaveBeenCalledWith('customNetworks.optimism')
   })
 
   it('returns empty object when no custom networks exist', () => {

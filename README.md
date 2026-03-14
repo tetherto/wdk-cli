@@ -185,7 +185,6 @@ BTC networks use the [Electrum protocol](https://electrumx.readthedocs.io/). Def
 |---------|------|------|---------------|
 | `bitcoin` | Bitcoin | wdk-wallet-btc | BTC |
 | `bitcoin-testnet3` | Bitcoin Testnet3 | wdk-wallet-btc | tBTC |
-| `bitcoin-signet` | Bitcoin Signet | wdk-wallet-btc | sBTC |
 | `ethereum` | Ethereum | wdk-wallet-evm | ETH |
 | `sepolia` | Sepolia Testnet | wdk-wallet-evm | ETH |
 | `polygon` | Polygon | wdk-wallet-evm | POL |
