@@ -74,6 +74,13 @@ export async function getTokenTransfers(
   const response = await fetch(url, { headers })
 
   if (!response.ok) {
+    if (response.status === 403) {
+      throw new Error(
+        `Indexer API error: 403 Forbidden. Please set your API key or use a proxy API for the indexer provider:\n` +
+        `  wdk config set indexer.apiKey <your-api-key>\n` +
+        `  wdk config set indexer.baseUrl <your-proxy-url>`,
+      )
+    }
     throw new Error(`Indexer API error: ${response.status} ${response.statusText}`)
   }
 
