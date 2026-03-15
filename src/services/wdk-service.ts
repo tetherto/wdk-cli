@@ -65,7 +65,11 @@ export function transformConfig(type: NetworkType, raw: Record<string, unknown>,
   }
 
   if (config.transferMaxFee) {
-    config.transferMaxFee = BigInt(config.transferMaxFee as string)
+    try {
+      config.transferMaxFee = BigInt(config.transferMaxFee as string | number)
+    } catch {
+      delete config.transferMaxFee
+    }
   }
 
   if (config.paymasterToken && typeof config.paymasterToken === 'string') {
@@ -134,7 +138,7 @@ export class WdkService {
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error)
       if (msg.includes('ECONNREFUSED') || msg.includes('ETIMEDOUT') || msg.includes('fetch failed')) {
-        let connectionInfo = network
+        let connectionInfo: string = network
         try { connectionInfo = configService.getProviderUrl(network) } catch { /* no provider for this network type */ }
         throw new NetworkError(connectionInfo)
       }
