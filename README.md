@@ -140,9 +140,10 @@ wdk send --to <address> --amount <base-units> --network <network>
 wdk send --to <address> --amount <base-units> --network ethereum --token <contract>  # ERC-20 transfer
 wdk send --to <address> --amount <base-units> --network solana --token <mint>        # SPL transfer
 wdk send --to <address> --amount <base-units> --network ethereum --yes               # skip confirmation
+wdk send --to <address> --amount <base-units> --network ethereum --dry-run           # preview without sending
 ```
 
-Amounts are in base units (wei for EVM, satoshis for BTC, lamports for Solana). Fee estimation runs before confirmation.
+Amounts are in base units (wei for EVM, satoshis for BTC, lamports for Solana). Fee estimation runs before confirmation. Use `--dry-run` to preview the transaction with fee and USD estimates without sending.
 
 ### Policy
 
@@ -267,8 +268,11 @@ wdk-cli is designed to be operated by AI agents. Use `--json` for machine-parsea
 # Check balance
 wdk get balance --network ethereum --json
 
-# Send tokens
-wdk send --to 0xRECIPIENT --amount 1000000 --network ethereum --token 0xdAC17F958D2ee523a2206206994597C13D831ec7 --json
+# Preview transaction (fee + USD estimate)
+wdk send --to 0xRECIPIENT --amount 1000000 --network ethereum --token 0xdAC17F958D2ee523a2206206994597C13D831ec7 --dry-run
+
+# Send tokens (after user confirms)
+wdk send --to 0xRECIPIENT --amount 1000000 --network ethereum --token 0xdAC17F958D2ee523a2206206994597C13D831ec7 --json --yes
 
 # Check policy and spending limits
 wdk policy show --json

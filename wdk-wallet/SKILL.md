@@ -20,9 +20,11 @@ Operate a self-custody multi-chain wallet through the `wdk` CLI. All commands ru
 ## Rules
 
 1. Always append `--json` to get machine-parseable output
-2. Check `wdk policy show --json` before sending to respect spending limits
-4. Amounts are always in **base units** (wei, satoshis, lamports) — never decimals
-5. Never ask for or log seed phrases or passwords
+2. Before sending, use `--dry-run` to preview, show summary to user, and wait for confirmation in chat
+3. Use `--yes` when sending (user already confirmed in chat, CLI prompt would hang)
+4. Check `wdk policy show --json` before sending to respect spending limits
+5. Amounts are always in **base units** (wei, satoshis, lamports) — never decimals
+6. Never ask for or log seed phrases or passwords
 
 ## Prerequisites
 
@@ -65,12 +67,19 @@ wdk get balance --network ethereum --token 0xdAC17F958D2ee523a2206206994597C13D8
 
 ### Send
 
-```bash
-# Native transfer
-wdk send --to 0xRECIPIENT --amount 1000000000000000000 --network ethereum --json
+Step 1: Preview the transaction with `--dry-run` to get accurate fee and USD values:
 
-# Token transfer (USDT on Ethereum)
-wdk send --to 0xRECIPIENT --amount 1000000 --network ethereum --token 0xdAC17F958D2ee523a2206206994597C13D831ec7 --json
+```bash
+wdk send --to 0xRECIPIENT --amount 1000000000000000000 --network ethereum --dry-run
+# {"network":"ethereum","networkName":"Ethereum","to":"0x...","amount":"1000000000000000000","amountFormatted":"1.00 ETH","amountUsd":2100.50,"estimatedFee":"21000","estimatedFeeFormatted":"0.00000002 ETH","estimatedFeeUsd":0.04}
+```
+
+Step 2: Show the summary to the user and wait for confirmation in chat.
+
+Step 3: Execute the transfer with `--yes` (user already confirmed):
+
+```bash
+wdk send --to 0xRECIPIENT --amount 1000000000000000000 --network ethereum --json --yes
 ```
 
 ### Transaction History

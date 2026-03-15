@@ -34,6 +34,7 @@ export function registerSendCommand(program: Command): void {
     .option('--index <n>', 'Account index')
     .option('--token <address>', 'Token contract address (ERC-20 or SPL mint)')
     .option('--yes', 'Skip confirmation prompt')
+    .option('--dry-run', 'Estimate fees and show summary without sending')
     .action(async (options) => {
       try {
         const network = resolveNetwork(options.network ?? program.opts().network)
@@ -78,6 +79,42 @@ export function registerSendCommand(program: Command): void {
         }
 
         const networkConfig = getNetworkConfig(network)
+        const amountBigInt = BigInt(options.amount)
+
+        if (options.dryRun) {
+          let amountFormatted: string
+          let tokenSymbol: string | undefined
+          if (options.token) {
+            const tokenConfig = getTokenConfig(network, options.token)
+            amountFormatted = tokenConfig
+              ? formatAmount(amountBigInt, tokenConfig.decimals, tokenConfig.symbol)
+              : `${options.amount} tokens (base units)`
+            tokenSymbol = tokenConfig?.symbol
+          } else {
+            amountFormatted = formatAmount(amountBigInt, networkConfig.decimals, networkConfig.nativeSymbol)
+          }
+          let amountUsdValue: number | undefined
+          let feeUsdValue: number | undefined
+          try { amountUsdValue = await convertToUsd(network as NetworkName, amountBigInt, options.token) } catch { /* */ }
+          try { feeUsdValue = await convertToUsd(network as NetworkName, feeQuote.fee) } catch { /* */ }
+
+          const summary = {
+            network,
+            networkName: networkConfig.displayName,
+            to: options.to,
+            amount: options.amount,
+            amountFormatted,
+            amountUsd: amountUsdValue,
+            token: options.token,
+            tokenSymbol,
+            estimatedFee: feeQuote.fee.toString(),
+            estimatedFeeFormatted: feeQuote.feeFormatted,
+            estimatedFeeUsd: feeUsdValue,
+          }
+          console.log(JSON.stringify(summary))
+          return
+        }
+
         const color = networkColor(network)
 
         if (!program.opts().json) {
@@ -85,7 +122,6 @@ export function registerSendCommand(program: Command): void {
           console.log(chalk.bold('Transaction Summary:'))
           console.log(`  Network:   ${color(formatNetworkLabel(network))}`)
           console.log(`  To:        ${formatAddress(options.to)}`)
-          const amountBigInt = BigInt(options.amount)
           let amountFormatted: string
           if (options.token) {
             const tokenConfig = getTokenConfig(network, options.token)
