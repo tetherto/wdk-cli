@@ -8,6 +8,7 @@ import { NetworkNotSupportedError, WdkCliError, handleError } from '../errors/in
 import { promptConfirm } from '../ui/prompts.js'
 import { formatAddress, networkColor, formatNetworkLabel, formatAmount } from '../ui/formatters.js'
 import { getTokenConfig } from '../config/tokens.js'
+import { enforcePolicies, recordTransaction } from '../services/policy-service.js'
 
 const EVM_ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/
 
@@ -37,7 +38,6 @@ export function registerSendCommand(program: Command): void {
         if (!isValidNetwork(network)) throw new NetworkNotSupportedError(network)
         const index = resolveIndex(options.index ?? program.opts().index)
 
-        // Validate amount is a positive integer in base units
         if (!/^\d+$/.test(options.amount) || options.amount === '0') {
           throw new WdkCliError(
             'Invalid amount. Must be a positive integer in base units (wei/satoshis/lamports).',
@@ -46,7 +46,6 @@ export function registerSendCommand(program: Command): void {
           )
         }
 
-        // Validate EVM address format before any RPC calls
         if (isEvmNetwork(network) && !EVM_ADDRESS_RE.test(options.to)) {
           throw new WdkCliError(
             `Invalid EVM address: ${options.to}`,
@@ -63,10 +62,9 @@ export function registerSendCommand(program: Command): void {
           token: options.token,
         }
 
-        // Initialize wallet (may prompt for password — must happen before spinner)
         await ensureInitialized(network)
+        const { amountUsd } = await enforcePolicies(sendOptions)
 
-        // Estimate fee (with 30s timeout to avoid hanging on slow RPCs)
         const spinner = ora('Estimating fee...').start()
         let feeQuote
         try {
@@ -80,7 +78,6 @@ export function registerSendCommand(program: Command): void {
         const networkConfig = getNetworkConfig(network)
         const color = networkColor(network)
 
-        // Display transaction summary
         if (!program.opts().json) {
           console.log()
           console.log(chalk.bold('Transaction Summary:'))
@@ -104,7 +101,6 @@ export function registerSendCommand(program: Command): void {
           console.log()
         }
 
-        // Confirm
         if (!options.yes) {
           const confirmed = await promptConfirm('Send this transaction?')
           if (!confirmed) {
@@ -113,11 +109,12 @@ export function registerSendCommand(program: Command): void {
           }
         }
 
-        // Send
         const sendSpinner = ora('Broadcasting transaction...').start()
         try {
           const result = await send(sendOptions)
           sendSpinner.succeed('Transaction sent!')
+
+          recordTransaction(sendOptions, result.txHash, amountUsd)
 
           if (program.opts().json) {
             console.log(JSON.stringify(result))
