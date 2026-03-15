@@ -20,9 +20,10 @@ export function registerPolicyCommand(program: Command): void {
         console.log()
         console.log(chalk.bold('Policy Settings:'))
         console.log(`  Enabled:          ${p.enabled ? chalk.green('yes') : chalk.dim('no')}`)
-        console.log(`  Max per call:     ${p.maxPerCallUsd > 0 ? `$${p.maxPerCallUsd}` : chalk.dim('unlimited')}`)
-        console.log(`  Max per day:      ${p.maxPerDayUsd > 0 ? `$${p.maxPerDayUsd}` : chalk.dim('unlimited')}`)
-        console.log(`  Max tx per day:   ${p.maxTxPerDay > 0 ? `${p.maxTxPerDay}` : chalk.dim('unlimited')}`)
+        const fmtLimit = (val: number, prefix = '$') => val > 0 ? `${prefix}${val}` : chalk.dim('unlimited (0)')
+        console.log(`  Max USD per tx:   ${fmtLimit(p.maxPerCallUsd)}  ${chalk.dim('(maxPerCallUsd)')}`)
+        console.log(`  Max USD per day:  ${fmtLimit(p.maxPerDayUsd)}  ${chalk.dim('(maxPerDayUsd)')}`)
+        console.log(`  Max tx per day:   ${fmtLimit(p.maxTxPerDay, '')}  ${chalk.dim('(maxTxPerDay)')}`)
         console.log(`  Whitelist:        ${p.whitelist.length > 0 ? `${p.whitelist.length} address(es)` : chalk.dim('any address')}`)
 
         if (p.whitelist.length > 0) {

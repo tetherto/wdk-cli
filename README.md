@@ -1,6 +1,6 @@
 # wdk-cli
 
-A TypeScript CLI tool that wraps [Wallet Development Kit (WDK)](https://wallet.tether.io/) for multi-chain wallet operations.
+A TypeScript CLI wallet for AI agents, built on [Wallet Development Kit (WDK)](https://wallet.tether.io/). Designed to be installed on a machine and operated by AI agents (e.g. OpenClaw, Claude) for multi-chain wallet operations, with user-controlled spending policies to keep agents safe.
 
 ## Features
 
@@ -8,6 +8,7 @@ A TypeScript CLI tool that wraps [Wallet Development Kit (WDK)](https://wallet.t
 - **Network** — Bitcoin, Ethereum, Polygon, Arbitrum, BSC, Avalanche, Solana, Tron, Spark, Smart Account (ERC-4337) + testnets. Add custom networks with `network create`
 - **Get** — Derive wallet addresses and check balances for native and token assets with known token registry
 - **Send** — Native and token transfers with fee estimation and confirmation
+- **Policy** — Spending limits and address whitelists for AI agent safety (TTY-protected)
 - **Config** — Per-network configuration with env var overrides
 
 ## Requirements
@@ -142,6 +143,31 @@ wdk send --to <address> --amount <base-units> --network ethereum --yes          
 ```
 
 Amounts are in base units (wei for EVM, satoshis for BTC, lamports for Solana). Fee estimation runs before confirmation.
+
+### Policy
+
+Spending policies protect against unauthorized or excessive transactions — designed for environments where AI agents interact with the wallet.
+
+```bash
+wdk policy show                              # Show policy settings and daily spending
+wdk policy enable                            # Enable policy enforcement
+wdk policy disable                           # Disable policy enforcement
+wdk policy set maxPerCallUsd 100             # Max $100 per transaction
+wdk policy set maxPerDayUsd 1000             # Max $1000 per day
+wdk policy set maxTxPerDay 50                # Max 50 transactions per day
+wdk policy whitelist add <address>           # Allow only whitelisted addresses
+wdk policy whitelist remove <address>        # Remove from whitelist
+wdk policy whitelist list                    # List whitelisted addresses
+```
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `maxPerCallUsd` | `0` (unlimited) | Max USD value per transaction (0 = unlimited) |
+| `maxPerDayUsd` | `0` (unlimited) | Max total USD spent per day (0 = unlimited) |
+| `maxTxPerDay` | `0` (unlimited) | Max number of transactions per day (0 = unlimited) |
+| `whitelist` | empty (any address) | Only allow sending to listed addresses (empty = any) |
+
+Policy changes **require an interactive terminal** (TTY). AI agents running via pipes or scripts cannot modify policies. USD conversion uses Bitfinex price feeds. Transactions with unknown tokens are blocked when policy is enabled.
 
 ### Configuration
 
