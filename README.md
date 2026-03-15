@@ -257,6 +257,41 @@ Additional networks can be added with `wdk network create`. See [Adding Custom N
 - **Confirmation required** before overwriting an existing wallet or sending transactions
 - No telemetry, no analytics, no data sent to external services
 
+## AI Agent Integration
+
+wdk-cli is designed to be operated by AI agents. Use `--json` for machine-parseable output and `--yes` to skip confirmation prompts.
+
+### Quick Example
+
+```bash
+# Check balance
+wdk get balance --network ethereum --json
+
+# Send tokens
+wdk send --to 0xRECIPIENT --amount 1000000 --network ethereum --token 0xdAC17F958D2ee523a2206206994597C13D831ec7 --json
+
+# Check policy and spending limits
+wdk policy show --json
+```
+
+### OpenClaw Skill
+
+An [OpenClaw](https://github.com/openclaw/openclaw) skill is included in the `wdk-wallet/` directory. Install it to let OpenClaw's AI agent manage your wallet with full policy protection.
+
+### Claude Code
+
+Add to your project's `CLAUDE.md`:
+
+```
+Use the `wdk` CLI for wallet operations. Always use --json flag for parseable output.
+Run `wdk policy show --json` before sending to check spending limits.
+See wdk-wallet/SKILL.md for full command reference.
+```
+
+### Any AI Agent
+
+The `wdk-wallet/SKILL.md` file contains complete instructions for any AI agent to operate the wallet. It covers commands, workflows, error handling, and amount conversions. Feed it as context to your agent.
+
 ## Development
 
 ```bash

@@ -18,6 +18,11 @@ export function registerPolicyCommand(program: Command): void {
         const p = getPolicy()
         const spending = getSpendingRecord()
 
+        if (program.opts().json) {
+          console.log(JSON.stringify({ policy: p, spending }))
+          return
+        }
+
         console.log()
         console.log(chalk.bold('Policy Settings:'))
         console.log(`  Enabled:          ${p.enabled ? chalk.green('yes') : chalk.dim('no')}`)
