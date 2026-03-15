@@ -2,6 +2,7 @@ import { Command } from 'commander'
 import chalk from 'chalk'
 import { getPolicy, setPolicyValue, addToWhitelist, removeFromWhitelist } from '../services/policy-service.js'
 import { getSpendingRecord } from '../services/spending-service.js'
+import { requirePasswordForPolicy } from '../services/policy-auth.js'
 import { handleError } from '../errors/index.js'
 
 export function registerPolicyCommand(program: Command): void {
@@ -45,8 +46,9 @@ export function registerPolicyCommand(program: Command): void {
   policy
     .command('enable')
     .description('Enable policy enforcement')
-    .action(() => {
+    .action(async () => {
       try {
+        await requirePasswordForPolicy()
         setPolicyValue('enabled', true)
         console.log(chalk.green('Policy enforcement enabled.'))
       } catch (error) {
@@ -57,8 +59,9 @@ export function registerPolicyCommand(program: Command): void {
   policy
     .command('disable')
     .description('Disable policy enforcement')
-    .action(() => {
+    .action(async () => {
       try {
+        await requirePasswordForPolicy()
         setPolicyValue('enabled', false)
         console.log(chalk.yellow('Policy enforcement disabled.'))
       } catch (error) {
@@ -69,7 +72,7 @@ export function registerPolicyCommand(program: Command): void {
   policy
     .command('set <key> <value>')
     .description('Set a policy value (maxPerCallUsd, maxPerDayUsd, maxTxPerDay)')
-    .action((key: string, value: string) => {
+    .action(async (key: string, value: string) => {
       try {
         const validKeys = ['maxPerCallUsd', 'maxPerDayUsd', 'maxTxPerDay']
         if (!validKeys.includes(key)) {
@@ -83,6 +86,7 @@ export function registerPolicyCommand(program: Command): void {
           process.exit(1)
         }
 
+        await requirePasswordForPolicy()
         setPolicyValue(key, numValue)
         console.log(chalk.green(`Policy ${key} set to ${numValue}.`))
       } catch (error) {
@@ -97,8 +101,9 @@ export function registerPolicyCommand(program: Command): void {
   whitelist
     .command('add <address>')
     .description('Add address to whitelist')
-    .action((address: string) => {
+    .action(async (address: string) => {
       try {
+        await requirePasswordForPolicy()
         addToWhitelist(address)
         console.log(chalk.green(`Added ${address} to whitelist.`))
       } catch (error) {
@@ -109,8 +114,9 @@ export function registerPolicyCommand(program: Command): void {
   whitelist
     .command('remove <address>')
     .description('Remove address from whitelist')
-    .action((address: string) => {
+    .action(async (address: string) => {
       try {
+        await requirePasswordForPolicy()
         removeFromWhitelist(address)
         console.log(chalk.yellow(`Removed ${address} from whitelist.`))
       } catch (error) {

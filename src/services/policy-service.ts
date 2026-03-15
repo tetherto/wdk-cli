@@ -33,23 +33,10 @@ export function getPolicy(): PolicyConfig {
 }
 
 export function setPolicyValue(key: string, value: unknown): void {
-  if (!process.stdin.isTTY) {
-    throw new WdkCliError(
-      'Policy changes require an interactive terminal.',
-      'POLICY_TTY_REQUIRED',
-      'Policy can only be modified from an interactive shell, not from scripts or AI agents.',
-    )
-  }
   configService.set(`policy.${key}`, value)
 }
 
 export function addToWhitelist(address: string): void {
-  if (!process.stdin.isTTY) {
-    throw new WdkCliError(
-      'Policy changes require an interactive terminal.',
-      'POLICY_TTY_REQUIRED',
-    )
-  }
   const policy = getPolicy()
   const normalized = address.toLowerCase()
   if (!policy.whitelist.map((a) => a.toLowerCase()).includes(normalized)) {
@@ -59,12 +46,6 @@ export function addToWhitelist(address: string): void {
 }
 
 export function removeFromWhitelist(address: string): void {
-  if (!process.stdin.isTTY) {
-    throw new WdkCliError(
-      'Policy changes require an interactive terminal.',
-      'POLICY_TTY_REQUIRED',
-    )
-  }
   const policy = getPolicy()
   const normalized = address.toLowerCase()
   const filtered = policy.whitelist.filter((a) => a.toLowerCase() !== normalized)
