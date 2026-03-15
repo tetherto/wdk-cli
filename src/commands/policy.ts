@@ -44,51 +44,34 @@ export function registerPolicyCommand(program: Command): void {
     })
 
   policy
-    .command('enable')
-    .description('Enable policy enforcement')
-    .action(async () => {
-      try {
-        await requirePasswordForPolicy()
-        setPolicyValue('enabled', true)
-        console.log(chalk.green('Policy enforcement enabled.'))
-      } catch (error) {
-        handleError(error, program.opts().verbose)
-      }
-    })
-
-  policy
-    .command('disable')
-    .description('Disable policy enforcement')
-    .action(async () => {
-      try {
-        await requirePasswordForPolicy()
-        setPolicyValue('enabled', false)
-        console.log(chalk.yellow('Policy enforcement disabled.'))
-      } catch (error) {
-        handleError(error, program.opts().verbose)
-      }
-    })
-
-  policy
     .command('set <key> <value>')
-    .description('Set a policy value (maxPerCallUsd, maxPerDayUsd, maxTxPerDay)')
+    .description('Set a policy value (enabled, maxPerCallUsd, maxPerDayUsd, maxTxPerDay)')
     .action(async (key: string, value: string) => {
       try {
-        const validKeys = ['maxPerCallUsd', 'maxPerDayUsd', 'maxTxPerDay']
+        const validKeys = ['enabled', 'maxPerCallUsd', 'maxPerDayUsd', 'maxTxPerDay']
         if (!validKeys.includes(key)) {
           console.error(chalk.red(`Invalid key: ${key}. Valid keys: ${validKeys.join(', ')}`))
           process.exit(1)
         }
 
-        const numValue = parseFloat(value)
-        if (isNaN(numValue) || numValue < 0) {
-          console.error(chalk.red('Value must be a non-negative number. Use 0 for unlimited.'))
-          process.exit(1)
+        let parsed: boolean | number
+        if (key === 'enabled') {
+          if (value !== 'true' && value !== 'false') {
+            console.error(chalk.red('Value for "enabled" must be true or false.'))
+            process.exit(1)
+          }
+          parsed = value === 'true'
+        } else {
+          parsed = parseFloat(value)
+          if (isNaN(parsed) || parsed < 0) {
+            console.error(chalk.red('Value must be a non-negative number. Use 0 for unlimited.'))
+            process.exit(1)
+          }
         }
 
         await requirePasswordForPolicy()
-        setPolicyValue(key, numValue)
-        console.log(chalk.green(`Policy ${key} set to ${numValue}.`))
+        setPolicyValue(key, parsed)
+        console.log(chalk.green(`Policy ${key} set to ${parsed}.`))
       } catch (error) {
         handleError(error, program.opts().verbose)
       }

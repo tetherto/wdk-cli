@@ -8,7 +8,7 @@ A TypeScript CLI wallet for AI agents, built on [Wallet Development Kit (WDK)](h
 - **Network** — Bitcoin, Ethereum, Polygon, Arbitrum, BSC, Avalanche, Solana, Tron, Spark, Smart Account (ERC-4337) + testnets. Add custom networks with `network create`
 - **Get** — Derive wallet addresses and check balances for native and token assets with known token registry
 - **Send** — Native and token transfers with fee estimation and confirmation
-- **Policy** — Spending limits and address whitelists for AI agent safety (TTY-protected)
+- **Policy** — Spending limits and address whitelists for AI agent safety (password-protected)
 - **Config** — Per-network configuration with env var overrides
 
 ## Requirements
@@ -150,8 +150,8 @@ Spending policies protect against unauthorized or excessive transactions — des
 
 ```bash
 wdk policy show                              # Show policy settings and daily spending
-wdk policy enable                            # Enable policy enforcement
-wdk policy disable                           # Disable policy enforcement
+wdk policy set enabled true                  # Enable policy enforcement
+wdk policy set enabled false                 # Disable policy enforcement
 wdk policy set maxPerCallUsd 100             # Max $100 per transaction
 wdk policy set maxPerDayUsd 1000             # Max $1000 per day
 wdk policy set maxTxPerDay 50                # Max 50 transactions per day
@@ -162,12 +162,13 @@ wdk policy whitelist list                    # List whitelisted addresses
 
 | Setting | Default | Description |
 |---------|---------|-------------|
+| `enabled` | `false` | Enable/disable policy enforcement (true/false) |
 | `maxPerCallUsd` | `0` (unlimited) | Max USD value per transaction (0 = unlimited) |
 | `maxPerDayUsd` | `0` (unlimited) | Max total USD spent per day (0 = unlimited) |
 | `maxTxPerDay` | `0` (unlimited) | Max number of transactions per day (0 = unlimited) |
 | `whitelist` | empty (any address) | Only allow sending to listed addresses (empty = any) |
 
-Policy changes **require an interactive terminal** (TTY). AI agents running via pipes or scripts cannot modify policies. USD conversion uses Bitfinex price feeds. Transactions with unknown tokens are blocked when policy is enabled.
+Policy changes **require wallet password confirmation** in an interactive terminal. AI agents cannot modify policies — even if running in a TTY, they cannot provide the wallet password. USD conversion uses Bitfinex price feeds. Transactions with unknown tokens are blocked when policy is enabled.
 
 ### Configuration
 

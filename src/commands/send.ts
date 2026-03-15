@@ -9,6 +9,8 @@ import { promptConfirm } from '../ui/prompts.js'
 import { formatAddress, networkColor, formatNetworkLabel, formatAmount } from '../ui/formatters.js'
 import { getTokenConfig } from '../config/tokens.js'
 import { enforcePolicies, recordTransaction } from '../services/policy-service.js'
+import { convertToUsd } from '../services/price-service.js'
+import type { NetworkName } from '../types/index.js'
 
 const EVM_ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/
 
@@ -93,11 +95,21 @@ export function registerSendCommand(program: Command): void {
           } else {
             amountFormatted = formatAmount(amountBigInt, networkConfig.decimals, networkConfig.nativeSymbol)
           }
-          console.log(`  Amount:    ${amountFormatted}`)
+          let usdDisplay = ''
+          try {
+            const usd = await convertToUsd(network as NetworkName, amountBigInt, options.token)
+            if (usd > 0) usdDisplay = ` (~$${usd.toFixed(2)})`
+          } catch { /* price unavailable */ }
+          console.log(`  Amount:    ${amountFormatted}${usdDisplay}`)
           if (options.token) {
             console.log(`  Token:     ${options.token}`)
           }
-          console.log(`  Est. Fee:  ${feeQuote.feeFormatted}`)
+          let feeUsdDisplay = ''
+          try {
+            const feeUsd = await convertToUsd(network as NetworkName, feeQuote.fee)
+            if (feeUsd > 0) feeUsdDisplay = ` (~$${feeUsd.toFixed(2)})`
+          } catch { /* price unavailable */ }
+          console.log(`  Est. Fee:  ${feeQuote.feeFormatted}${feeUsdDisplay}`)
           console.log()
         }
 
