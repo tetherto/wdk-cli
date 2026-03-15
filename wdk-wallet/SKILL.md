@@ -127,10 +127,6 @@ Amounts are in base units. Common conversions:
 | "403 Forbidden" (indexer) | Ask user to set API key: `wdk config set indexer.apiKey <key>` |
 | "Unknown token" | Token not in known registry, provide contract address |
 
-## Network Details
-
-See [references/networks.md](references/networks.md) for full network list and token addresses.
-
 ## What You Cannot Do
 
 - **Modify policies** — requires wallet password in interactive terminal
