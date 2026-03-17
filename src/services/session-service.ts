@@ -31,7 +31,7 @@ class SessionService {
       ciphertext,
       iv: iv.toString('hex'),
       tag: tag.toString('hex'),
-      expiresAt: Date.now() + ttlMinutes * 60 * 1000,
+      expiresAt: ttlMinutes === 0 ? 0 : Date.now() + ttlMinutes * 60 * 1000,
     }
 
     await mkdir(dirname(this.path), { recursive: true })
@@ -47,7 +47,7 @@ class SessionService {
       const data = await readFile(this.path, 'utf8')
       const session: SessionData = JSON.parse(data)
 
-      if (Date.now() > session.expiresAt) {
+      if (session.expiresAt !== 0 && Date.now() > session.expiresAt) {
         await this.destroy()
         return null
       }
@@ -81,6 +81,7 @@ class SessionService {
     try {
       const data = await readFile(this.path, 'utf8')
       const session: SessionData = JSON.parse(data)
+      if (session.expiresAt === 0) return 0 // unlimited
       const remaining = session.expiresAt - Date.now()
       return remaining > 0 ? remaining : 0
     } catch {

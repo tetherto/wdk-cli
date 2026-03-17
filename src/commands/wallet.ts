@@ -160,7 +160,7 @@ export function registerWalletCommand(program: Command): void {
   wallet
     .command('unlock')
     .description('Unlock wallet session (skip password prompts for subsequent commands)')
-    .option('--ttl <minutes>', 'Session duration in minutes', String(SESSION_TTL_MINUTES))
+    .option('--ttl <minutes>', 'Session duration in minutes (0 = unlimited)', String(SESSION_TTL_MINUTES))
     .action(async (options) => {
       try {
         const keyService = new KeyService(new Keyring(getKeyringPath()))
@@ -170,8 +170,12 @@ export function registerWalletCommand(program: Command): void {
 
         if (await sessionService.isActive()) {
           const remaining = await sessionService.ttlRemaining()
-          const mins = Math.ceil(remaining / 60000)
-          console.log(chalk.yellow(`  Wallet already unlocked (${mins} min remaining)`))
+          if (remaining === 0) {
+            console.log(chalk.yellow('  Wallet already unlocked (unlimited session)'))
+          } else {
+            const mins = Math.ceil(remaining / 60000)
+            console.log(chalk.yellow(`  Wallet already unlocked (${mins} min remaining)`))
+          }
           return
         }
 
@@ -182,7 +186,11 @@ export function registerWalletCommand(program: Command): void {
 
         console.log()
         console.log(chalk.green('  Wallet unlocked'))
-        console.log(chalk.dim(`  Session expires in ${ttl} minutes`))
+        if (ttl === 0) {
+          console.log(chalk.dim('  Session will not expire'))
+        } else {
+          console.log(chalk.dim(`  Session expires in ${ttl} minutes`))
+        }
         console.log(chalk.dim('  Run `wdk wallet lock` to end session early'))
         console.log()
       } catch (error) {

@@ -2,6 +2,8 @@ import { getNetworkConfig } from '../config/networks.js'
 import { getTokenConfig } from '../config/tokens.js'
 import type { NetworkName } from '../types/index.js'
 
+// Map native token symbols to Bitfinex trading pair
+// Testnet tokens (e.g. tBTC) map to their mainnet price pair
 const NATIVE_SYMBOLS: Record<string, string> = {
   BTC: 'tBTCUSD',
   tBTC: 'tBTCUSD',
@@ -11,6 +13,7 @@ const NATIVE_SYMBOLS: Record<string, string> = {
   BNB: 'tBNBUSD',
   AVAX: 'tAVAXUSD',
   POL: 'tMATICUSD',
+  MATIC: 'tMATICUSD',
 }
 
 const TOKEN_SYMBOLS: Record<string, string> = {

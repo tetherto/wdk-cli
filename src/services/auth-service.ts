@@ -9,28 +9,41 @@ const keyService = new KeyService(new Keyring(getKeyringPath()))
 
 // Process-scoped cache — avoids prompting for password multiple times in a single command
 let seedPhraseCache: string | null = null
+let seedPhrasePromise: Promise<string> | null = null
 
 export async function getSeedPhrase(): Promise<string> {
   if (seedPhraseCache) return seedPhraseCache
 
-  if (!(await keyService.hasKey())) {
-    throw new KeyNotFoundError()
-  }
+  // Deduplicate concurrent calls — only the first caller runs the unlock flow
+  if (seedPhrasePromise) return seedPhrasePromise
 
-  // Check active session first
-  const cached = await sessionService.get()
-  if (cached) {
-    seedPhraseCache = cached
-    return cached
-  }
+  seedPhrasePromise = (async () => {
+    if (!(await keyService.hasKey())) {
+      throw new KeyNotFoundError()
+    }
 
-  // No session — prompt for password
-  const password = await promptPassword('Enter password to unlock wallet:')
-  const phrase = await keyService.unlock(password)
-  seedPhraseCache = phrase
-  return phrase
+    // Check active session first
+    const cached = await sessionService.get()
+    if (cached) {
+      seedPhraseCache = cached
+      return cached
+    }
+
+    // No session — prompt for password
+    const password = await promptPassword('Enter password to unlock wallet:')
+    const phrase = await keyService.unlock(password)
+    seedPhraseCache = phrase
+    return phrase
+  })()
+
+  try {
+    return await seedPhrasePromise
+  } finally {
+    seedPhrasePromise = null
+  }
 }
 
 export function clearSeedPhraseCache(): void {
   seedPhraseCache = null
+  seedPhrasePromise = null
 }

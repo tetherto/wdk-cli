@@ -31,8 +31,8 @@ npm link  # makes `wdk` available globally
 # Create a new wallet
 wdk wallet create --words 24
 
-# Unlock wallet session (skip password prompts)
-wdk wallet unlock
+# Unlock wallet session (default: 30 min, use --ttl 0 for unlimited)
+wdk wallet unlock --ttl 0
 
 # Derive wallet address on Ethereum
 wdk get address --network ethereum
@@ -68,7 +68,7 @@ wdk wallet lock
 wdk wallet create [--words 12|24]       # Generate new BIP-39 seed phrase
 wdk wallet import                       # Import existing seed phrase (interactive)
 wdk wallet export                       # Export seed phrase (decrypt and display)
-wdk wallet unlock [--ttl <minutes>]     # Unlock wallet session (default: 30 min)
+wdk wallet unlock [--ttl <minutes>]     # Unlock wallet session (default: 30 min, 0 = unlimited)
 wdk wallet lock                         # Lock wallet and end session
 ```
 
@@ -76,7 +76,7 @@ Seed phrases are encrypted with AES-256-GCM (scrypt KDF) and stored in `~/.confi
 
 If a wallet already exists, `create` and `import` will ask for confirmation before overwriting.
 
-Unlock your wallet once with `wdk wallet unlock` to skip the password prompt on subsequent commands. The session auto-expires after 30 minutes (configurable with `--ttl`).
+Unlock your wallet once with `wdk wallet unlock` to skip the password prompt on subsequent commands. The session auto-expires after 30 minutes by default (configurable with `--ttl`). Use `--ttl 0` for an unlimited session that never expires — ideal for AI agent environments.
 
 ### Networks
 
@@ -119,10 +119,12 @@ Custom networks are stored in config and work with all commands (`get balance`, 
 
 ```bash
 wdk get address --network <network> [--index <n>]              # Derive wallet address
+wdk get address                                                 # All mainnet addresses
+wdk get address --testnet                                       # All testnet addresses
 wdk get balance --network ethereum                              # Native ETH balance
 wdk get balance --network ethereum --token 0xdAC17F...          # ERC-20 token balance
-wdk get balance --network solana --token Es9vMFrz...            # SPL token balance
-wdk get balance --network bitcoin                               # BTC balance
+wdk get balance                                                 # All mainnet balances with USD
+wdk get balance --testnet                                       # All testnet balances with USD
 wdk get history --network ethereum                               # USDT transfer history
 wdk get history --network ethereum --token xaut --limit 50       # XAUT transfers, last 50
 ```
@@ -254,7 +256,7 @@ Additional networks can be added with `wdk network create`. See [Adding Custom N
 - Seed phrases are **encrypted at rest** using AES-256-GCM with scrypt key derivation
 - Seed phrases are **never accepted as CLI arguments** — only via interactive prompt
 - Passwords are **never stored** — prompted each time (or use `wdk wallet unlock` for sessions)
-- Wallet sessions are **encrypted** and **auto-expire** after 30 minutes
+- Wallet sessions are **encrypted** and **auto-expire** after 30 minutes by default (`--ttl 0` for unlimited)
 - **Confirmation required** before overwriting an existing wallet or sending transactions
 - No telemetry, no analytics, no data sent to external services
 

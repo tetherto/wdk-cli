@@ -31,7 +31,7 @@ Operate a self-custody multi-chain wallet through the `wdk` CLI. All commands ru
 The user must complete these steps before the AI agent can operate the wallet:
 
 1. **Create wallet**: `wdk wallet create --words 24`
-2. **Unlock session**: `wdk wallet unlock --ttl 480` (session duration in minutes, e.g. 480 = 8 hours)
+2. **Unlock session**: `wdk wallet unlock --ttl 0` (unlimited session, or `--ttl 480` for 8 hours; default: 30 min)
 3. **Configure policy** (optional): `wdk policy set enabled true`, `wdk policy set maxPerCallUsd 100`, etc.
 
 These require interactive password input — the AI agent cannot perform them.
@@ -48,21 +48,34 @@ wdk network info --network ethereum --json
 ### Get Address
 
 ```bash
+# Single network
 wdk get address --network ethereum --json
 # {"network":"ethereum","index":0,"address":"0x..."}
 
-wdk get address --network solana --json
-wdk get address --network bitcoin --json
+# All mainnet addresses (omit --network)
+wdk get address --json
+# {"index":0,"addresses":[{"network":"ethereum","address":"0x..."},{"network":"bitcoin","address":"1A1z..."},...]}
+
+# All testnet addresses
+wdk get address --testnet --json
 ```
 
 ### Check Balance
 
 ```bash
+# Single network
 wdk get balance --network ethereum --json
-# {"network":"ethereum","index":0,"address":"0x...","balance":"1000000000000000000","formatted":"1.00 ETH"}
+# {"network":"ethereum","index":0,"balance":"1000000000000000000","symbol":"ETH","decimals":18}
 
 # Token balance (USDT)
 wdk get balance --network ethereum --token 0xdAC17F958D2ee523a2206206994597C13D831ec7 --json
+
+# All mainnet balances with USD totals (omit --network)
+wdk get balance --json
+# {"index":0,"balances":[{"network":"ethereum","address":"0x...","balance":"...","formatted":"1.00 ETH","usd":2100.50},...],"totalUsd":2500.75}
+
+# All testnet balances
+wdk get balance --testnet --json
 ```
 
 ### Send
