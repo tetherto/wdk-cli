@@ -32,7 +32,7 @@
       "transferMaxFee": 5000000000000000
     },
     "polygon": {
-      "provider": "https://polygon-rpc.com",
+      "provider": "https://polygon.drpc.org",
       "transferMaxFee": 5000000000000000
     },
     "arbitrum": {
