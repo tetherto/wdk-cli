@@ -3,6 +3,10 @@
   "version": "0.0.1",
   "description": "CLI tool for Wallet Development Kit (WDK)",
   "type": "module",
+  "files": [
+    "bin/",
+    "dist/"
+  ],
   "bin": {
     "wdk": "./bin/wdk.mjs"
   },
