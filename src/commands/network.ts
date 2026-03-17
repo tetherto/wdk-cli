@@ -241,7 +241,7 @@ export function registerNetworkCommand(program: Command): void {
         }
         console.log()
       } catch (error) {
-        handleError(error, program.opts().verbose)
+        handleError(error, program.opts().verbose, program.opts().json)
       }
     })
 }

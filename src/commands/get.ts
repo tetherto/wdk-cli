@@ -78,7 +78,7 @@ export function registerGetCommand(program: Command): void {
         }
         console.log()
       } catch (error) {
-        handleError(error, program.opts().verbose)
+        handleError(error, program.opts().verbose, program.opts().json)
       }
     })
 
@@ -172,7 +172,7 @@ export function registerGetCommand(program: Command): void {
         console.log(`  ${chalk.bold(`Total: ~$${totalUsd.toFixed(2)}`)}`)
         console.log()
       } catch (error) {
-        handleError(error, program.opts().verbose)
+        handleError(error, program.opts().verbose, program.opts().json)
       }
     })
 
@@ -243,7 +243,7 @@ export function registerGetCommand(program: Command): void {
         console.log(chalk.dim(`\n  ${transfers.length} transfer(s)`))
         console.log()
       } catch (error) {
-        handleError(error, program.opts().verbose)
+        handleError(error, program.opts().verbose, program.opts().json)
       }
     })
 }

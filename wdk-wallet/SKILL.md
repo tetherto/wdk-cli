@@ -19,7 +19,7 @@ Operate a self-custody multi-chain wallet through the `wdk` CLI. All commands ru
 
 ## Rules
 
-1. Always append `--json` to get machine-parseable output
+1. Always append `--json` to get machine-parseable output (errors also return JSON: `{"error":"...","code":"...","suggestion":"..."}`)
 2. Before sending, use `--dry-run` to preview, show summary to user, and wait for confirmation in chat
 3. Use `--yes` when sending (user already confirmed in chat, CLI prompt would hang)
 4. Check `wdk policy show --json` before sending to respect spending limits

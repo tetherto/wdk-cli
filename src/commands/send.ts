@@ -181,7 +181,7 @@ export function registerSendCommand(program: Command): void {
           throw error
         }
       } catch (error) {
-        handleError(error, program.opts().verbose)
+        handleError(error, program.opts().verbose, program.opts().json)
       }
     })
 }

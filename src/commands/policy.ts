@@ -44,7 +44,7 @@ export function registerPolicyCommand(program: Command): void {
         console.log(`  Transactions:     ${spending.txCount}`)
         console.log()
       } catch (error) {
-        handleError(error, program.opts().verbose)
+        handleError(error, program.opts().verbose, program.opts().json)
       }
     })
 
@@ -78,7 +78,7 @@ export function registerPolicyCommand(program: Command): void {
         setPolicyValue(key, parsed)
         console.log(chalk.green(`Policy ${key} set to ${parsed}.`))
       } catch (error) {
-        handleError(error, program.opts().verbose)
+        handleError(error, program.opts().verbose, program.opts().json)
       }
     })
 
@@ -95,7 +95,7 @@ export function registerPolicyCommand(program: Command): void {
         addToWhitelist(address)
         console.log(chalk.green(`Added ${address} to whitelist.`))
       } catch (error) {
-        handleError(error, program.opts().verbose)
+        handleError(error, program.opts().verbose, program.opts().json)
       }
     })
 
@@ -108,7 +108,7 @@ export function registerPolicyCommand(program: Command): void {
         removeFromWhitelist(address)
         console.log(chalk.yellow(`Removed ${address} from whitelist.`))
       } catch (error) {
-        handleError(error, program.opts().verbose)
+        handleError(error, program.opts().verbose, program.opts().json)
       }
     })
 
@@ -128,7 +128,7 @@ export function registerPolicyCommand(program: Command): void {
         }
         console.log()
       } catch (error) {
-        handleError(error, program.opts().verbose)
+        handleError(error, program.opts().verbose, program.opts().json)
       }
     })
 }

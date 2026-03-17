@@ -76,7 +76,7 @@ export function registerWalletCommand(program: Command): void {
           spinner.succeed('Seed phrase encrypted and stored.')
         }
       } catch (error) {
-        handleError(error, program.opts().verbose)
+        handleError(error, program.opts().verbose, program.opts().json)
       }
     })
 
@@ -117,7 +117,7 @@ export function registerWalletCommand(program: Command): void {
         await keyService.store(seedPhrase, password)
         spinner.succeed('Seed phrase imported and encrypted.')
       } catch (error) {
-        handleError(error, program.opts().verbose)
+        handleError(error, program.opts().verbose, program.opts().json)
       }
     })
 
@@ -153,7 +153,7 @@ export function registerWalletCommand(program: Command): void {
         })
         console.log()
       } catch (error) {
-        handleError(error, program.opts().verbose)
+        handleError(error, program.opts().verbose, program.opts().json)
       }
     })
 
@@ -194,7 +194,7 @@ export function registerWalletCommand(program: Command): void {
         console.log(chalk.dim('  Run `wdk wallet lock` to end session early'))
         console.log()
       } catch (error) {
-        handleError(error, program.opts().verbose)
+        handleError(error, program.opts().verbose, program.opts().json)
       }
     })
 
@@ -208,7 +208,7 @@ export function registerWalletCommand(program: Command): void {
         console.log(chalk.green('  Wallet locked'))
         console.log()
       } catch (error) {
-        handleError(error, program.opts().verbose)
+        handleError(error, program.opts().verbose, program.opts().json)
       }
     })
 }

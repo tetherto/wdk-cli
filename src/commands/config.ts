@@ -89,7 +89,7 @@ export function registerConfigCommand(program: Command): void {
           printEntries(flatten(global))
         }
       } catch (error) {
-        handleError(error)
+        handleError(error, false, program.opts().json)
       }
     })
 
@@ -149,7 +149,7 @@ export function registerConfigCommand(program: Command): void {
           }
         }
       } catch (error) {
-        handleError(error)
+        handleError(error, false, program.opts().json)
       }
     })
 
@@ -179,7 +179,7 @@ export function registerConfigCommand(program: Command): void {
           console.log(chalk.green(`Reset ${key} to default.`))
         }
       } catch (error) {
-        handleError(error)
+        handleError(error, false, program.opts().json)
       }
     })
 
@@ -237,7 +237,7 @@ export function registerConfigCommand(program: Command): void {
 
         console.log(chalk.dim(`\n  Config file: ${configService.configPath}`))
       } catch (error) {
-        handleError(error)
+        handleError(error, false, program.opts().json)
       }
     })
 

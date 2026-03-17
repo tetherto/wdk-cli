@@ -95,9 +95,13 @@ export class NetworkError extends WdkCliError {
   }
 }
 
-export function handleError(error: unknown, verbose: boolean = false): never {
+export function handleError(error: unknown, verbose: boolean = false, json: boolean = false): never {
   if (error instanceof WdkCliError) {
-    error.display()
+    if (json) {
+      console.log(JSON.stringify({ error: error.message, code: error.code, ...(error.suggestion ? { suggestion: error.suggestion } : {}) }))
+    } else {
+      error.display()
+    }
     process.exit(1)
   }
 
@@ -114,18 +118,30 @@ export function handleError(error: unknown, verbose: boolean = false): never {
       }
       const match = messages[coded.code]
       if (match) {
-        console.error(chalk.red(`Error: ${match[0]}`))
-        if (match[1]) console.error(chalk.yellow(`Hint: ${match[1]}`))
-        if (verbose) console.error(error.stack)
+        if (json) {
+          console.log(JSON.stringify({ error: match[0], code: coded.code, ...(match[1] ? { suggestion: match[1] } : {}) }))
+        } else {
+          console.error(chalk.red(`Error: ${match[0]}`))
+          if (match[1]) console.error(chalk.yellow(`Hint: ${match[1]}`))
+        }
+        if (verbose && !json) console.error(error.stack)
         process.exit(1)
       }
     }
 
-    console.error(chalk.red(`Error: ${error.message}`))
-    if (verbose) console.error(error.stack)
+    if (json) {
+      console.log(JSON.stringify({ error: error.message, code: 'UNKNOWN_ERROR' }))
+    } else {
+      console.error(chalk.red(`Error: ${error.message}`))
+    }
+    if (verbose && !json) console.error(error.stack)
     process.exit(1)
   }
 
-  console.error(chalk.red('Unexpected error occurred.'))
+  if (json) {
+    console.log(JSON.stringify({ error: 'Unexpected error occurred.', code: 'UNEXPECTED_ERROR' }))
+  } else {
+    console.error(chalk.red('Unexpected error occurred.'))
+  }
   process.exit(2)
 }
