@@ -4,7 +4,7 @@
   "description": "CLI tool for Wallet Development Kit (WDK)",
   "type": "module",
   "bin": {
-    "wdk": "./dist/bin/wdk.js"
+    "wdk": "./bin/wdk.mjs"
   },
   "scripts": {
     "build": "tsup",

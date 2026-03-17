@@ -1,7 +1,7 @@
 import { defineConfig } from 'tsup'
 
 export default defineConfig({
-  entry: ['src/index.ts', 'bin/wdk.ts'],
+  entry: ['src/index.ts'],
   format: ['esm'],
   target: 'node20',
   outDir: 'dist',
@@ -9,7 +9,4 @@ export default defineConfig({
   sourcemap: true,
   dts: { entry: 'src/index.ts' },
   splitting: false,
-  banner: {
-    js: '',
-  },
 })
