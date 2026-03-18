@@ -34,13 +34,19 @@ wdk wallet create --words 24
 # Unlock wallet session (default: 30 min, use --ttl 0 for unlimited)
 wdk wallet unlock --ttl 0
 
-# Derive wallet address on Ethereum
+# Get all wallet addresses across networks
+wdk get address
+
+# Get address for a specific network
 wdk get address --network ethereum
 
-# Derive address at specific index
+# Get address at specific index
 wdk get address --network ethereum --index 1
 
-# Check balance
+# Check all balances across networks (with USD totals)
+wdk get balance
+
+# Check balance for a specific network
 wdk get balance --network ethereum
 
 # Send ETH (amount in wei)
