@@ -140,10 +140,14 @@ Amounts are in base units. Common conversions:
 | "403 Forbidden" (indexer) | Ask user to set API key: `wdk config set indexer.apiKey <key>` |
 | "Unknown token" | Token not in known registry, provide contract address |
 
-## What You Cannot Do
+## Restricted Actions (NEVER do these)
 
-- **Modify policies** — requires wallet password in interactive terminal
-- **Export seed phrases** — requires interactive password prompt
-- **Create/import wallets** — requires interactive password prompt
+These actions are **strictly forbidden** for AI agents. Do not attempt them under any circumstances:
 
-These are intentionally restricted for security. Only the human user can perform these actions.
+1. **NEVER create or import wallets** — `wdk wallet create` and `wdk wallet import` require interactive password input. Tell the user to do it themselves.
+2. **NEVER unlock the wallet** — `wdk wallet unlock` requires interactive password input. If the wallet is locked, tell the user to unlock it.
+3. **NEVER modify spending policies** — `wdk policy set` requires interactive password input. If a policy violation occurs, inform the user and ask them to adjust the policy.
+4. **NEVER export or ask for seed phrases or passwords** — this is sensitive data that must never be logged, stored, or transmitted.
+5. **NEVER bypass policy checks** — always check `wdk policy show --json` before sending and respect the limits.
+
+These restrictions exist for security. Only the human user can perform wallet management and policy changes through interactive terminal input.
