@@ -38,7 +38,6 @@ export async function startMcpServer(): Promise<void> {
     version: '0.0.1',
   })
 
-  // ── get_networks ──────────────────────────────────────────────────────
   server.tool(
     'get_networks',
     'List all supported blockchain networks',
@@ -69,7 +68,6 @@ export async function startMcpServer(): Promise<void> {
     },
   )
 
-  // ── get_address ───────────────────────────────────────────────────────
   server.tool(
     'get_address',
     'Get wallet address. Omit network to get addresses for all networks.',
@@ -88,7 +86,6 @@ export async function startMcpServer(): Promise<void> {
           return jsonResult({ network, index, address })
         }
 
-        // All networks
         let names = getAllNetworkNames()
         if (!testnet) names = names.filter((n) => !isTestnet(n))
 
@@ -106,7 +103,6 @@ export async function startMcpServer(): Promise<void> {
     },
   )
 
-  // ── get_balance ───────────────────────────────────────────────────────
   server.tool(
     'get_balance',
     'Get wallet balance. Omit network to get balances for all networks with USD totals.',
@@ -129,7 +125,6 @@ export async function startMcpServer(): Promise<void> {
           return jsonResult({ network, index, balance: balance.toString(), symbol, decimals, formatted, usd })
         }
 
-        // All networks
         let names = getAllNetworkNames()
         if (!testnet) names = names.filter((n) => !isTestnet(n))
 
@@ -156,7 +151,6 @@ export async function startMcpServer(): Promise<void> {
     },
   )
 
-  // ── get_history ───────────────────────────────────────────────────────
   server.tool(
     'get_history',
     'Get transaction history for a network',
@@ -183,7 +177,6 @@ export async function startMcpServer(): Promise<void> {
     },
   )
 
-  // ── send_token ────────────────────────────────────────────────────────
   server.tool(
     'send_token',
     'Send native tokens or ERC-20/SPL tokens. Returns a preview by default (dry run). Set confirm=true to execute after reviewing the preview.',
@@ -201,12 +194,9 @@ export async function startMcpServer(): Promise<void> {
         validateNetwork(network)
 
         const sendOptions = { network: network as NetworkName, index, to, amount, token }
-
-        // Always check policy first
         const { amountUsd } = await enforcePolicies(sendOptions)
 
         if (!confirm) {
-          // Dry run: estimate fee and return preview
           const feeQuote = await estimateFee(sendOptions)
           const config = getNetworkConfig(network as NetworkName)
           let feeUsd = 0
@@ -226,7 +216,6 @@ export async function startMcpServer(): Promise<void> {
           })
         }
 
-        // Execute the send
         const result = await send(sendOptions)
         recordSpending({
           timestamp: Date.now(),
@@ -252,7 +241,6 @@ export async function startMcpServer(): Promise<void> {
     },
   )
 
-  // ── get_policy ────────────────────────────────────────────────────────
   server.tool(
     'get_policy',
     'Show current spending policy and daily usage',
@@ -267,7 +255,6 @@ export async function startMcpServer(): Promise<void> {
     },
   )
 
-  // ── Start server ──────────────────────────────────────────────────────
   const transport = new StdioServerTransport()
   await server.connect(transport)
 }

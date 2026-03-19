@@ -268,41 +268,109 @@ Additional networks can be added with `wdk network create`. See [Adding Custom N
 
 ## AI Agent Integration
 
-wdk-cli is designed to be operated by AI agents. Use `--json` for machine-parseable output and `--yes` to skip confirmation prompts.
+wdk-cli is designed to be operated by AI agents via the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) — AI models call structured wallet tools directly instead of parsing CLI output.
 
-### Quick Example
+**MCP Tools:** `get_networks`, `get_address`, `get_balance`, `get_history`, `send_token`, `get_policy`
+
+### Quick Setup
+
+One command to connect wdk-wallet to your AI platform:
 
 ```bash
-# Check balance
+# Claude Desktop
+wdk setup claude-desktop
+
+# Claude Code (global, works in all projects)
+wdk setup claude-code
+
+# OpenClaw
+wdk setup openclaw
+```
+
+Each command auto-detects the binary path, validates prerequisites, and writes the config for you. Use `--remove` to uninstall.
+
+Before using the wallet tools, unlock your wallet:
+```bash
+wdk wallet unlock --ttl 0
+```
+
+### Manual Setup
+
+If you prefer to configure manually, add `wdk-wallet` to your platform's MCP config:
+
+<details>
+<summary>Claude Desktop — <code>claude_desktop_config.json</code></summary>
+
+macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "wdk-wallet": {
+      "command": "wdk-mcp"
+    }
+  }
+}
+```
+
+Restart Claude Desktop after editing.
+</details>
+
+<details>
+<summary>Claude Code — <code>~/.claude.json</code></summary>
+
+```json
+{
+  "mcpServers": {
+    "wdk-wallet": {
+      "command": "wdk-mcp"
+    }
+  }
+}
+```
+
+Or add to `.mcp.json` in your project root for project-scoped access.
+</details>
+
+<details>
+<summary>OpenClaw — <code>~/.openclaw/openclaw.json</code></summary>
+
+```json
+{
+  "mcpServers": {
+    "wdk-wallet": {
+      "command": "wdk-mcp"
+    }
+  }
+}
+```
+
+Run `openclaw gateway restart` after editing.
+</details>
+
+<details>
+<summary>Start MCP server manually</summary>
+
+```bash
+wdk mcp
+```
+</details>
+
+### CLI Mode
+
+For agents that don't support MCP, use `--json` for machine-parseable output and `--yes` to skip confirmation prompts.
+
+```bash
 wdk get balance --network ethereum --json
-
-# Preview transaction (fee + USD estimate)
-wdk send --to 0xRECIPIENT --amount 1000000 --network ethereum --token 0xdAC17F958D2ee523a2206206994597C13D831ec7 --dry-run
-
-# Send tokens (after user confirms)
-wdk send --to 0xRECIPIENT --amount 1000000 --network ethereum --token 0xdAC17F958D2ee523a2206206994597C13D831ec7 --json --yes
-
-# Check policy and spending limits
+wdk send --to 0xRECIPIENT --amount 1000000 --network ethereum --dry-run
+wdk send --to 0xRECIPIENT --amount 1000000 --network ethereum --json --yes
 wdk policy show --json
 ```
 
-### OpenClaw Skill
+### Skill File
 
-An [OpenClaw](https://github.com/openclaw/openclaw) skill is included in the `wdk-wallet/` directory. Install it to let OpenClaw's AI agent manage your wallet with full policy protection.
-
-### Claude Code
-
-Add to your project's `CLAUDE.md`:
-
-```
-Use the `wdk` CLI for wallet operations. Always use --json flag for parseable output.
-Run `wdk policy show --json` before sending to check spending limits.
-See wdk-wallet/SKILL.md for full command reference.
-```
-
-### Any AI Agent
-
-The `wdk-wallet/SKILL.md` file contains complete instructions for any AI agent to operate the wallet. It covers commands, workflows, error handling, and amount conversions. Feed it as context to your agent.
+The `wdk-wallet/SKILL.md` file contains complete instructions for any AI agent to operate the wallet — commands, workflows, error handling, and amount conversions. Feed it as context to your agent.
 
 ## Development
 
