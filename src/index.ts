@@ -6,6 +6,7 @@ import { registerGetCommand } from './commands/get.js'
 import { registerSendCommand } from './commands/send.js'
 import { registerNetworkCommand } from './commands/network.js'
 import { registerPolicyCommand } from './commands/policy.js'
+import { registerSetupCommand } from './commands/setup.js'
 
 export function createProgram(): Command {
   const program = new Command()
@@ -26,9 +27,20 @@ export function createProgram(): Command {
   registerSendCommand(program)
   registerNetworkCommand(program)
   registerPolicyCommand(program)
+  registerSetupCommand(program)
+
+  program
+    .command('mcp')
+    .description('Start MCP server for AI model integration (Claude, Gemini, GPT)')
+    .action(async () => {
+      const { startMcpServer } = await import('./mcp/server.js')
+      await startMcpServer()
+    })
 
   return program
 }
+
+export { startMcpServer } from './mcp/server.js'
 
 export async function run(argv: string[]): Promise<void> {
   const program = createProgram()
