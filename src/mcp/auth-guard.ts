@@ -1,22 +1,30 @@
+import { daemonClient } from '../daemon/client.js'
 import { sessionService } from '../services/session-service.js'
+import { DEFAULT_WALLET } from '../config/constants.js'
 
-let seedPhraseCache: string | null = null
+const seedPhraseCache = new Map<string, string>()
 
-/**
- * Session-only auth for MCP server.
- * Unlike auth-service.ts, this NEVER prompts for password — it only uses
- * the existing session. The wallet must be unlocked before starting the MCP server.
- */
-export async function requireSession(): Promise<string> {
-  if (seedPhraseCache) return seedPhraseCache
+export async function requireSession(walletName: string = DEFAULT_WALLET): Promise<string> {
+  const cached = seedPhraseCache.get(walletName)
+  if (cached) return cached
 
-  const seedPhrase = await sessionService.get()
-  if (!seedPhrase) {
-    throw new McpAuthError('Wallet is locked. Please run `wdk wallet unlock` first, then restart the MCP server.')
+  // Try daemon first
+  try {
+    if (await daemonClient.isRunning()) {
+      const seed = await daemonClient.getSeed(walletName)
+      seedPhraseCache.set(walletName, seed)
+      return seed
+    }
+  } catch { /* daemon not available */ }
+
+  // Fallback to session files
+  const seedPhrase = await sessionService.get(walletName)
+  if (seedPhrase) {
+    seedPhraseCache.set(walletName, seedPhrase)
+    return seedPhrase
   }
 
-  seedPhraseCache = seedPhrase
-  return seedPhrase
+  throw new McpAuthError('Wallet is locked. Please run `wdk wallet unlock` first, then restart the MCP server.')
 }
 
 export class McpAuthError extends Error {

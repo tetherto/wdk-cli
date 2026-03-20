@@ -1,38 +1,50 @@
 import { KeyService } from './key-service.js'
-import { Keyring } from '../security/keyring.js'
+import { WalletKeyring } from '../security/keyring.js'
+import { daemonClient } from '../daemon/client.js'
 import { sessionService } from './session-service.js'
-import { getKeyringPath } from '../config/constants.js'
 import { KeyNotFoundError } from '../errors/index.js'
 import { promptPassword } from '../ui/prompts.js'
+import { DEFAULT_WALLET } from '../config/constants.js'
 
-const keyService = new KeyService(new Keyring(getKeyringPath()))
+const keyService = new KeyService(new WalletKeyring())
 
-// Process-scoped cache — avoids prompting for password multiple times in a single command
-let seedPhraseCache: string | null = null
+// Process-scoped cache — avoids repeated daemon/session calls in a single command
+const seedPhraseCache = new Map<string, string>()
 let seedPhrasePromise: Promise<string> | null = null
 
-export async function getSeedPhrase(): Promise<string> {
-  if (seedPhraseCache) return seedPhraseCache
+export async function getSeedPhrase(walletName: string = DEFAULT_WALLET): Promise<string> {
+  const cached = seedPhraseCache.get(walletName)
+  if (cached) return cached
 
   // Deduplicate concurrent calls — only the first caller runs the unlock flow
   if (seedPhrasePromise) return seedPhrasePromise
 
   seedPhrasePromise = (async () => {
-    if (!(await keyService.hasKey())) {
+    if (!(await keyService.hasAnyKey())) {
       throw new KeyNotFoundError()
     }
 
-    // Check active session first
-    const cached = await sessionService.get()
-    if (cached) {
-      seedPhraseCache = cached
-      return cached
+    // Try daemon first
+    try {
+      if (await daemonClient.isRunning()) {
+        const seed = await daemonClient.getSeed(walletName)
+        seedPhraseCache.set(walletName, seed)
+        return seed
+      }
+    } catch { /* daemon not available */ }
+
+    // Fallback to session files (backward compatibility)
+    const sessionSeed = await sessionService.get(walletName)
+    if (sessionSeed) {
+      seedPhraseCache.set(walletName, sessionSeed)
+      return sessionSeed
     }
 
-    // No session — prompt for password
+    // No daemon, no session — prompt for password
     const password = await promptPassword('Enter password to unlock wallet:')
-    const phrase = await keyService.unlock(password)
-    seedPhraseCache = phrase
+    await keyService.migrateLegacy(password)
+    const phrase = await keyService.unlock(password, walletName)
+    seedPhraseCache.set(walletName, phrase)
     return phrase
   })()
 
@@ -44,6 +56,6 @@ export async function getSeedPhrase(): Promise<string> {
 }
 
 export function clearSeedPhraseCache(): void {
-  seedPhraseCache = null
+  seedPhraseCache.clear()
   seedPhrasePromise = null
 }

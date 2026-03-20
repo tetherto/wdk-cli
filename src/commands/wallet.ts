@@ -1,15 +1,61 @@
 import { Command } from 'commander'
+import { spawn } from 'node:child_process'
+import { existsSync } from 'node:fs'
+import { join, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import chalk from 'chalk'
 import ora from 'ora'
 import { KeyService } from '../services/key-service.js'
-import { Keyring } from '../security/keyring.js'
-import { sessionService } from '../services/session-service.js'
-import { getKeyringPath, SESSION_TTL_MINUTES } from '../config/constants.js'
+import { WalletKeyring } from '../security/keyring.js'
+import { daemonClient } from '../daemon/client.js'
+import { DEFAULT_WALLET, SESSION_TTL_MINUTES } from '../config/constants.js'
 import { KeyNotFoundError, handleError } from '../errors/index.js'
 import { promptPassword, promptSeedPhrase, promptConfirm } from '../ui/prompts.js'
 
 function createKeyService(): KeyService {
-  return new KeyService(new Keyring(getKeyringPath()))
+  return new KeyService(new WalletKeyring())
+}
+
+function getDaemonScript(): string {
+  const thisFile = fileURLToPath(import.meta.url)
+  let dir = dirname(thisFile)
+  for (let i = 0; i < 5; i++) {
+    const candidate = join(dir, 'bin', 'wdk-daemon.mjs')
+    if (existsSync(candidate)) return candidate
+    dir = dirname(dir)
+  }
+  throw new Error('Cannot find wdk-daemon.mjs')
+}
+
+function spawnDaemon(password: string, ttl: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [getDaemonScript()], {
+      env: { ...process.env, WDK_DAEMON_PASSWORD: password, WDK_DAEMON_TTL: String(ttl) },
+      stdio: ['ignore', 'pipe', 'pipe'],
+      detached: true,
+    })
+
+    let stderr = ''
+    child.stderr!.on('data', (chunk: Buffer) => { stderr += chunk.toString() })
+
+    // Wait briefly for daemon to start or fail
+    const timeout = setTimeout(() => {
+      child.unref()
+      resolve()
+    }, 2000)
+
+    child.on('error', (err) => {
+      clearTimeout(timeout)
+      reject(new Error(`Failed to start daemon: ${err.message}`))
+    })
+
+    child.on('exit', (code) => {
+      clearTimeout(timeout)
+      if (code !== 0 && code !== null) {
+        reject(new Error(`Daemon exited with code ${code}: ${stderr.trim()}`))
+      }
+    })
+  })
 }
 
 export function registerWalletCommand(program: Command): void {
@@ -21,6 +67,7 @@ export function registerWalletCommand(program: Command): void {
     .command('create')
     .description('Generate a new BIP-39 seed phrase')
     .option('--words <count>', 'Word count: 12 or 24', '12')
+    .option('--name <name>', 'Wallet name', DEFAULT_WALLET)
     .action(async (options) => {
       try {
         const wordCount = parseInt(options.words, 10) as 12 | 24
@@ -29,11 +76,12 @@ export function registerWalletCommand(program: Command): void {
           process.exit(1)
         }
 
+        const walletName = options.name as string
         const keyService = createKeyService()
 
-        if (await keyService.hasKey()) {
+        if (await keyService.hasKey(walletName)) {
           const overwrite = await promptConfirm(
-            'A wallet already exists. Overwrite it?',
+            `Wallet '${walletName}' already exists. Overwrite it?`,
           )
           if (!overwrite) {
             console.log('Cancelled.')
@@ -45,7 +93,7 @@ export function registerWalletCommand(program: Command): void {
 
         const isJson = program.opts().json
         if (isJson) {
-          console.log(JSON.stringify({ seedPhrase, wordCount }))
+          console.log(JSON.stringify({ seedPhrase, wordCount, wallet: walletName }))
         } else {
           console.log()
           console.log(chalk.bold.yellow('WARNING: Store this seed phrase safely. It cannot be recovered!'))
@@ -72,8 +120,8 @@ export function registerWalletCommand(program: Command): void {
           }
 
           const spinner = ora('Encrypting and storing seed phrase...').start()
-          await keyService.store(seedPhrase, password)
-          spinner.succeed('Seed phrase encrypted and stored.')
+          await keyService.store(seedPhrase, password, walletName)
+          spinner.succeed(`Seed phrase encrypted and stored as '${walletName}'.`)
         }
       } catch (error) {
         handleError(error, program.opts().verbose, program.opts().json)
@@ -83,13 +131,15 @@ export function registerWalletCommand(program: Command): void {
   wallet
     .command('import')
     .description('Import an existing BIP-39 seed phrase')
-    .action(async () => {
+    .option('--name <name>', 'Wallet name', DEFAULT_WALLET)
+    .action(async (options) => {
       try {
+        const walletName = options.name as string
         const keyService = createKeyService()
 
-        if (await keyService.hasKey()) {
+        if (await keyService.hasKey(walletName)) {
           const overwrite = await promptConfirm(
-            'A wallet already exists. Overwrite it?',
+            `Wallet '${walletName}' already exists. Overwrite it?`,
           )
           if (!overwrite) {
             console.log('Import cancelled.')
@@ -114,8 +164,8 @@ export function registerWalletCommand(program: Command): void {
         }
 
         const spinner = ora('Encrypting and storing seed phrase...').start()
-        await keyService.store(seedPhrase, password)
-        spinner.succeed('Seed phrase imported and encrypted.')
+        await keyService.store(seedPhrase, password, walletName)
+        spinner.succeed(`Seed phrase imported and encrypted as '${walletName}'.`)
       } catch (error) {
         handleError(error, program.opts().verbose, program.opts().json)
       }
@@ -124,19 +174,21 @@ export function registerWalletCommand(program: Command): void {
   wallet
     .command('export')
     .description('Export seed phrase (decrypt and display)')
-    .action(async () => {
+    .option('--name <name>', 'Wallet name', DEFAULT_WALLET)
+    .action(async (options) => {
       try {
+        const walletName = options.name as string
         const keyService = createKeyService()
 
-        if (!(await keyService.hasKey())) {
+        if (!(await keyService.hasKey(walletName))) {
           throw new KeyNotFoundError()
         }
 
         const password = await promptPassword('Enter password to decrypt seed phrase:')
-        const seedPhrase = await keyService.unlock(password)
+        const seedPhrase = await keyService.unlock(password, walletName)
 
         if (program.opts().json) {
-          console.log(JSON.stringify({ seedPhrase }))
+          console.log(JSON.stringify({ seedPhrase, wallet: walletName }))
           return
         }
 
@@ -158,40 +210,141 @@ export function registerWalletCommand(program: Command): void {
     })
 
   wallet
-    .command('unlock')
-    .description('Unlock wallet session (skip password prompts for subsequent commands)')
-    .option('--ttl <minutes>', 'Session duration in minutes (0 = unlimited)', String(SESSION_TTL_MINUTES))
-    .action(async (options) => {
+    .command('list')
+    .description('List all wallets')
+    .action(async () => {
       try {
-        const keyService = new KeyService(new Keyring(getKeyringPath()))
-        if (!(await keyService.hasKey())) {
-          throw new KeyNotFoundError()
-        }
+        const keyService = createKeyService()
+        const wallets = await keyService.list()
 
-        if (await sessionService.isActive()) {
-          const remaining = await sessionService.ttlRemaining()
-          if (remaining === 0) {
-            console.log(chalk.yellow('  Wallet already unlocked (unlimited session)'))
-          } else {
-            const mins = Math.ceil(remaining / 60000)
-            console.log(chalk.yellow(`  Wallet already unlocked (${mins} min remaining)`))
-          }
+        if (wallets.length === 0) {
+          console.log(chalk.dim('  No wallets found. Run `wdk wallet create` to get started.'))
           return
         }
 
-        const password = await promptPassword('Enter password to unlock wallet:')
-        const seedPhrase = await keyService.unlock(password)
-        const ttl = parseInt(options.ttl, 10)
-        await sessionService.create(seedPhrase, ttl)
+        // Check which wallets are unlocked via daemon
+        let unlockedWallets: string[] = []
+        try {
+          if (await daemonClient.isRunning()) {
+            unlockedWallets = await daemonClient.listWallets()
+          }
+        } catch { /* daemon not running */ }
+
+        if (program.opts().json) {
+          console.log(JSON.stringify({ wallets: wallets.map((name) => ({ name, unlocked: unlockedWallets.includes(name) })) }))
+          return
+        }
 
         console.log()
-        console.log(chalk.green('  Wallet unlocked'))
+        console.log(chalk.bold('Wallets:'))
+        console.log()
+        for (const name of wallets) {
+          const isDefault = name === DEFAULT_WALLET ? chalk.dim(' (default)') : ''
+          const isUnlocked = unlockedWallets.includes(name) ? chalk.green(' ✓') : chalk.dim(' locked')
+          console.log(`  ${chalk.green('•')} ${name}${isDefault}${isUnlocked}`)
+        }
+        console.log()
+      } catch (error) {
+        handleError(error, program.opts().verbose, program.opts().json)
+      }
+    })
+
+  wallet
+    .command('delete <name>')
+    .description('Delete a wallet')
+    .action(async (name: string) => {
+      try {
+        const keyService = createKeyService()
+
+        if (!(await keyService.hasKey(name))) {
+          console.error(chalk.red(`Error: Wallet '${name}' not found.`))
+          process.exit(1)
+        }
+
+        const password = await promptPassword('Enter wallet password to confirm deletion:')
+        await keyService.unlock(password, name)
+
+        const confirm = await promptConfirm(`Delete wallet '${name}'? This cannot be undone.`)
+        if (!confirm) {
+          console.log('Cancelled.')
+          return
+        }
+
+        await keyService.destroy(name)
+        console.log(chalk.green(`  Wallet '${name}' deleted.`))
+      } catch (error) {
+        handleError(error, program.opts().verbose, program.opts().json)
+      }
+    })
+
+  wallet
+    .command('unlock')
+    .description('Unlock all wallets (starts background daemon)')
+    .option('--ttl <minutes>', 'Session duration in minutes (0 = unlimited)', String(SESSION_TTL_MINUTES))
+    .action(async (options) => {
+      try {
+        const keyService = createKeyService()
+        if (!(await keyService.hasAnyKey())) {
+          throw new KeyNotFoundError()
+        }
+
+        // Check if daemon is already running
+        if (await daemonClient.isRunning()) {
+          try {
+            const status = await daemonClient.status()
+            const walletList = status.wallets.join(', ')
+            if (status.ttlMs === 0) {
+              console.log(chalk.yellow(`  Wallet already unlocked: ${walletList} (unlimited session)`))
+            } else {
+              const mins = Math.ceil(status.ttlMs / 60000)
+              console.log(chalk.yellow(`  Wallet already unlocked: ${walletList} (${mins} min timeout)`))
+            }
+            return
+          } catch { /* daemon unreachable, continue */ }
+        }
+
+        const password = await promptPassword('Enter password to unlock wallet:')
+
+        // Migrate legacy keyring.enc if needed
+        await keyService.migrateLegacy(password)
+
+        // Validate password by trying to unlock all wallets
+        const spinner = ora('Unlocking wallets...').start()
+        const seeds = await keyService.unlockAll(password)
+        const walletNames = [...seeds.keys()]
+        spinner.text = 'Starting daemon...'
+
+        // Spawn daemon process
+        const ttl = parseInt(options.ttl, 10)
+        await spawnDaemon(password, ttl)
+
+        // Verify daemon started
+        let retries = 5
+        while (retries > 0) {
+          if (await daemonClient.isRunning()) {
+            try {
+              await daemonClient.status()
+              break
+            } catch { /* not ready yet */ }
+          }
+          await new Promise((r) => setTimeout(r, 500))
+          retries--
+        }
+
+        if (retries === 0) {
+          spinner.fail('Failed to start wallet daemon')
+          return
+        }
+
+        spinner.succeed(`Wallet${walletNames.length > 1 ? 's' : ''} unlocked: ${walletNames.join(', ')}`)
+
+        console.log()
         if (ttl === 0) {
           console.log(chalk.dim('  Session will not expire'))
         } else {
-          console.log(chalk.dim(`  Session expires in ${ttl} minutes`))
+          console.log(chalk.dim(`  Session expires after ${ttl} minutes of inactivity`))
         }
-        console.log(chalk.dim('  Run `wdk wallet lock` to end session early'))
+        console.log(chalk.dim('  Run `wdk wallet lock` to end session'))
         console.log()
       } catch (error) {
         handleError(error, program.opts().verbose, program.opts().json)
@@ -200,10 +353,17 @@ export function registerWalletCommand(program: Command): void {
 
   wallet
     .command('lock')
-    .description('Lock wallet and end active session')
+    .description('Lock all wallets and stop daemon')
     .action(async () => {
       try {
+        if (await daemonClient.isRunning()) {
+          await daemonClient.lock()
+        }
+
+        // Also clean up legacy session files
+        const { sessionService } = await import('../services/session-service.js')
         await sessionService.destroy()
+
         console.log()
         console.log(chalk.green('  Wallet locked'))
         console.log()

@@ -9,7 +9,8 @@
   ],
   "bin": {
     "wdk": "./bin/wdk.mjs",
-    "wdk-mcp": "./bin/wdk-mcp.mjs"
+    "wdk-mcp": "./bin/wdk-mcp.mjs",
+    "wdk-daemon": "./bin/wdk-daemon.mjs"
   },
   "scripts": {
     "build": "tsup",

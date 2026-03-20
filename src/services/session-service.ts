@@ -1,7 +1,7 @@
 import { readFile, writeFile, unlink, chmod, mkdir } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { randomBytes, createCipheriv, createDecipheriv } from 'node:crypto'
-import { getSessionPath, SESSION_TTL_MINUTES } from '../config/constants.js'
+import { getSessionPath, SESSION_TTL_MINUTES, DEFAULT_WALLET } from '../config/constants.js'
 
 const ALGORITHM = 'aes-256-gcm'
 const KEY_LEN = 32
@@ -18,12 +18,13 @@ class SessionService {
   private readonly path = getSessionPath()
   private readonly keyPath = getSessionPath() + '.key'
 
-  async create(seedPhrase: string, ttlMinutes: number = SESSION_TTL_MINUTES): Promise<void> {
+  async create(seeds: Map<string, string>, ttlMinutes: number = SESSION_TTL_MINUTES): Promise<void> {
     const key = randomBytes(KEY_LEN)
     const iv = randomBytes(IV_LEN)
     const cipher = createCipheriv(ALGORITHM, key, iv)
 
-    let ciphertext = cipher.update(seedPhrase, 'utf8', 'hex')
+    const payload = JSON.stringify(Object.fromEntries(seeds))
+    let ciphertext = cipher.update(payload, 'utf8', 'hex')
     ciphertext += cipher.final('hex')
     const tag = cipher.getAuthTag()
 
@@ -35,14 +36,19 @@ class SessionService {
     }
 
     await mkdir(dirname(this.path), { recursive: true })
-    // Store key in a separate file from the ciphertext
     await writeFile(this.keyPath, key.toString('hex'), 'utf8')
     await chmod(this.keyPath, 0o600)
     await writeFile(this.path, JSON.stringify(session), 'utf8')
     await chmod(this.path, 0o600)
   }
 
-  async get(): Promise<string | null> {
+  async get(walletName: string = DEFAULT_WALLET): Promise<string | null> {
+    const seeds = await this.getAll()
+    if (!seeds) return null
+    return seeds.get(walletName) || null
+  }
+
+  async getAll(): Promise<Map<string, string> | null> {
     try {
       const data = await readFile(this.path, 'utf8')
       const session: SessionData = JSON.parse(data)
@@ -61,7 +67,15 @@ class SessionService {
 
       let plaintext = decipher.update(session.ciphertext, 'hex', 'utf8')
       plaintext += decipher.final('utf8')
-      return plaintext
+
+      const parsed = JSON.parse(plaintext)
+
+      // Handle legacy format (plain string = single seed phrase)
+      if (typeof parsed === 'string') {
+        return new Map([[DEFAULT_WALLET, parsed]])
+      }
+
+      return new Map(Object.entries(parsed as Record<string, string>))
     } catch {
       return null
     }
@@ -73,8 +87,8 @@ class SessionService {
   }
 
   async isActive(): Promise<boolean> {
-    const seed = await this.get()
-    return seed !== null
+    const seeds = await this.getAll()
+    return seeds !== null && seeds.size > 0
   }
 
   async ttlRemaining(): Promise<number> {

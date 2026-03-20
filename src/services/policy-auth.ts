@@ -1,13 +1,12 @@
 import { password } from '@inquirer/prompts'
 import { KeyService } from './key-service.js'
-import { Keyring } from '../security/keyring.js'
-import { getKeyringPath } from '../config/constants.js'
+import { WalletKeyring } from '../security/keyring.js'
 import { WdkCliError, KeyNotFoundError } from '../errors/index.js'
 
-const keyService = new KeyService(new Keyring(getKeyringPath()))
+const keyService = new KeyService(new WalletKeyring())
 
 export async function requirePasswordForPolicy(): Promise<void> {
-  if (!(await keyService.hasKey())) {
+  if (!(await keyService.hasAnyKey())) {
     throw new KeyNotFoundError()
   }
 

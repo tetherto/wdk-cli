@@ -4,7 +4,7 @@ import { join, dirname } from 'node:path'
 import { homedir, platform } from 'node:os'
 import { execSync } from 'node:child_process'
 import chalk from 'chalk'
-import { getKeyringPath } from '../config/constants.js'
+import { getKeyringPath, getWalletsDir } from '../config/constants.js'
 import { handleError } from '../errors/index.js'
 
 function getClaudeDesktopConfigPath(): string | null {
@@ -138,7 +138,7 @@ function runSetup(target: SetupTarget, options: { remove?: boolean; skipVerify?:
   writeFileSync(target.configPath, JSON.stringify(config, null, 2) + '\n')
   console.log(chalk.green(`  ✓ Added wdk-wallet to ${target.name} config`))
 
-  const walletExists = existsSync(getKeyringPath())
+  const walletExists = existsSync(getWalletsDir()) || existsSync(getKeyringPath())
   if (!walletExists) {
     console.log(chalk.yellow('  ⚠ No wallet found'))
     console.log(chalk.dim('    Run: wdk wallet create --words 24'))

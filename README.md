@@ -4,7 +4,7 @@ A TypeScript CLI wallet for AI agents, built on [Wallet Development Kit (WDK)](h
 
 ## Features
 
-- **Wallet** — Generate or import BIP-39 seed phrases, encrypted at rest with AES-256-GCM. Session-based unlock to skip password on subsequent commands
+- **Wallet** — Multiple named wallets with BIP-39 seed phrases, encrypted at rest with AES-256-GCM. Background daemon holds keys in RAM after unlock — seeds never written to disk
 - **Network** — Bitcoin, Ethereum, Polygon, Arbitrum, BSC, Avalanche, Solana, Tron, Spark, Smart Account (ERC-4337) + testnets. Add custom networks with `network create`
 - **Get** — Derive wallet addresses and check balances for native and token assets with known token registry
 - **Send** — Native and token transfers with fee estimation and confirmation
@@ -31,7 +31,14 @@ npm link  # makes `wdk` available globally
 # Create a new wallet
 wdk wallet create --words 24
 
-# Unlock wallet session (default: 30 min, use --ttl 0 for unlimited)
+# Create additional named wallets
+wdk wallet create --name trading --words 24
+wdk wallet create --name savings --words 12
+
+# List all wallets
+wdk wallet list
+
+# Unlock all wallets (starts background daemon, default: 30 min timeout)
 wdk wallet unlock --ttl 0
 
 # Get all wallet addresses across networks
@@ -40,17 +47,20 @@ wdk get address
 # Get address for a specific network
 wdk get address --network ethereum
 
-# Get address at specific index
-wdk get address --network ethereum --index 1
+# Use a specific wallet
+wdk get address --network ethereum --wallet trading
 
 # Check all balances across networks (with USD totals)
 wdk get balance
 
-# Check balance for a specific network
-wdk get balance --network ethereum
+# Check balance for a specific wallet
+wdk get balance --wallet savings
 
 # Send ETH (amount in wei)
 wdk send --to 0x000000000000000000000000000000000000dEaD --amount 1000000000000000000 --network ethereum
+
+# Send from a specific wallet
+wdk send --to 0x... --amount 1000 --network ethereum --wallet trading
 
 # Show network details and config
 wdk network info --network ethereum
@@ -62,7 +72,7 @@ wdk network list
 wdk get address --network sepolia
 wdk get balance --network sepolia
 
-# Lock wallet when done
+# Lock all wallets when done
 wdk wallet lock
 ```
 
@@ -71,18 +81,24 @@ wdk wallet lock
 ### Wallet
 
 ```bash
-wdk wallet create [--words 12|24]       # Generate new BIP-39 seed phrase
-wdk wallet import                       # Import existing seed phrase (interactive)
-wdk wallet export                       # Export seed phrase (decrypt and display)
-wdk wallet unlock [--ttl <minutes>]     # Unlock wallet session (default: 30 min, 0 = unlimited)
-wdk wallet lock                         # Lock wallet and end session
+wdk wallet create [--words 12|24] [--name <name>]  # Generate new BIP-39 seed phrase
+wdk wallet import [--name <name>]                   # Import existing seed phrase (interactive)
+wdk wallet export [--name <name>]                   # Export seed phrase (decrypt and display)
+wdk wallet list                                     # List all wallets with lock status
+wdk wallet delete <name>                            # Delete a wallet (requires password)
+wdk wallet unlock [--ttl <minutes>]                 # Unlock all wallets (starts daemon)
+wdk wallet lock                                     # Lock all wallets (stops daemon)
 ```
 
-Seed phrases are encrypted with AES-256-GCM (scrypt KDF) and stored in `~/.config/wdk-cli/keyring.enc`. The password is prompted interactively and never stored.
+Supports **multiple named wallets**. Each wallet is an independently encrypted file stored in `~/.config/wdk-cli/wallets/`. If `--name` is omitted, the wallet is named `"default"`.
+
+Seed phrases are encrypted with AES-256-GCM (scrypt KDF). Each wallet has its own random salt, producing a unique derived key. One password encrypts all wallets.
 
 If a wallet already exists, `create` and `import` will ask for confirmation before overwriting.
 
-Unlock your wallet once with `wdk wallet unlock` to skip the password prompt on subsequent commands. The session auto-expires after 30 minutes by default (configurable with `--ttl`). Use `--ttl 0` for an unlimited session that never expires — ideal for AI agent environments.
+**Daemon-based unlock:** `wdk wallet unlock` starts a background daemon that holds derived keys in RAM. All wallets are unlocked at once with a single password. The daemon auto-locks after 30 minutes of inactivity by default (configurable with `--ttl`). Use `--ttl 0` for unlimited — ideal for AI agent environments. Seeds are never written to disk after unlock — the daemon decrypts on-the-fly per request.
+
+Use `--wallet <name>` on any command to target a specific wallet (defaults to `"default"`).
 
 ### Networks
 
@@ -260,10 +276,14 @@ Additional networks can be added with `wdk network create`. See [Adding Custom N
 ## Security
 
 - Seed phrases are **encrypted at rest** using AES-256-GCM with scrypt key derivation
+- Each wallet has a **unique random salt** — same password produces different derived keys per wallet
 - Seed phrases are **never accepted as CLI arguments** — only via interactive prompt
-- Passwords are **never stored** — prompted each time (or use `wdk wallet unlock` for sessions)
-- Wallet sessions are **encrypted** and **auto-expire** after 30 minutes by default (`--ttl 0` for unlimited)
+- Passwords are **never stored** — prompted each time (or use `wdk wallet unlock` for daemon)
+- **Daemon-based unlock** — derived keys held in RAM only, seeds decrypted on-the-fly and never written to disk after unlock
+- Daemon communicates via **Unix domain socket** with `0600` permissions (same-user only)
+- Daemon **auto-locks** after 30 minutes of inactivity by default (`--ttl 0` for unlimited). Only wallet operations reset the timer, not status checks
 - **Confirmation required** before overwriting an existing wallet or sending transactions
+- **Wallet deletion requires password** — prevents unauthorized removal
 - No telemetry, no analytics, no data sent to external services
 
 ## AI Agent Integration
@@ -271,6 +291,8 @@ Additional networks can be added with `wdk network create`. See [Adding Custom N
 wdk-cli is designed to be operated by AI agents via the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) — AI models call structured wallet tools directly instead of parsing CLI output.
 
 **MCP Tools:** `get_networks`, `get_address`, `get_balance`, `get_history`, `send_token`, `get_policy`
+
+All wallet-dependent tools accept an optional `wallet` parameter to target a specific wallet (defaults to `"default"`).
 
 ### Quick Setup
 

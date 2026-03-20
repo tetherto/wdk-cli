@@ -15,6 +15,7 @@ import {
   getNetworkConfig,
   isTestnet,
 } from '../config/networks.js'
+import { DEFAULT_WALLET } from '../config/constants.js'
 import type { NetworkName } from '../types/index.js'
 
 function errorResult(message: string) {
@@ -75,10 +76,11 @@ export async function startMcpServer(): Promise<void> {
       network: z.string().optional().describe('Network name (e.g. ethereum, bitcoin). Omit for all networks.'),
       index: z.number().optional().default(0).describe('Account index (default: 0)'),
       testnet: z.boolean().optional().default(false).describe('Include testnet addresses when getting all'),
+      wallet: z.string().optional().default(DEFAULT_WALLET).describe('Wallet name (default: "default")'),
     },
-    async ({ network, index, testnet }) => {
+    async ({ network, index, testnet, wallet }) => {
       try {
-        await requireSession()
+        await requireSession(wallet)
 
         if (network) {
           validateNetwork(network)
@@ -111,10 +113,11 @@ export async function startMcpServer(): Promise<void> {
       token: z.string().optional().describe('Token contract address for ERC-20/SPL balance'),
       index: z.number().optional().default(0).describe('Account index (default: 0)'),
       testnet: z.boolean().optional().default(false).describe('Include testnets when getting all'),
+      wallet: z.string().optional().default(DEFAULT_WALLET).describe('Wallet name (default: "default")'),
     },
-    async ({ network, token, index, testnet }) => {
+    async ({ network, token, index, testnet, wallet }) => {
       try {
-        await requireSession()
+        await requireSession(wallet)
 
         if (network) {
           validateNetwork(network)
@@ -158,10 +161,11 @@ export async function startMcpServer(): Promise<void> {
       network: z.string().describe('Network name (required)'),
       token: z.string().optional().describe('Token filter (e.g. usdt)'),
       limit: z.number().optional().default(20).describe('Max results (default: 20)'),
+      wallet: z.string().optional().default(DEFAULT_WALLET).describe('Wallet name (default: "default")'),
     },
-    async ({ network, token, limit }) => {
+    async ({ network, token, limit, wallet }) => {
       try {
-        await requireSession()
+        await requireSession(wallet)
         validateNetwork(network)
         const address = await getAddress(network as NetworkName, 0)
         const transfers = await getTokenTransfers(
@@ -187,10 +191,11 @@ export async function startMcpServer(): Promise<void> {
       token: z.string().optional().describe('Token contract address (for ERC-20/SPL transfers)'),
       index: z.number().optional().default(0).describe('Account index (default: 0)'),
       confirm: z.boolean().optional().default(false).describe('Set true to execute. Default false returns a preview only.'),
+      wallet: z.string().optional().default(DEFAULT_WALLET).describe('Wallet name (default: "default")'),
     },
-    async ({ to, amount, network, token, index, confirm }) => {
+    async ({ to, amount, network, token, index, confirm, wallet }) => {
       try {
-        await requireSession()
+        await requireSession(wallet)
         validateNetwork(network)
 
         const sendOptions = { network: network as NetworkName, index, to, amount, token }

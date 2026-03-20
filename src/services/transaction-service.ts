@@ -1,11 +1,12 @@
 import { wdkService } from './wdk-service.js'
 import { getSeedPhrase } from './auth-service.js'
+import { DEFAULT_WALLET } from '../config/constants.js'
 import { getNetworkConfig } from '../config/networks.js'
 import { InsufficientBalanceError, TransactionFailedError } from '../errors/index.js'
 import type { NetworkName, TxResult } from '../types/index.js'
 
-export async function ensureInitialized(network: NetworkName): Promise<void> {
-  const seedPhrase = await getSeedPhrase()
+export async function ensureInitialized(network: NetworkName, wallet: string = DEFAULT_WALLET): Promise<void> {
+  const seedPhrase = await getSeedPhrase(wallet)
   await wdkService.initialize(seedPhrase, network)
 }
 

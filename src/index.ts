@@ -41,6 +41,7 @@ export function createProgram(): Command {
 }
 
 export { startMcpServer } from './mcp/server.js'
+export { startDaemon } from './daemon/server.js'
 
 export async function run(argv: string[]): Promise<void> {
   const program = createProgram()
