@@ -26,7 +26,7 @@
   },
   "dependencies": {
     "@inquirer/prompts": "8.2.0",
-    "@modelcontextprotocol/sdk": "^1.27.1",
+    "@modelcontextprotocol/sdk": "1.27.1",
     "@tetherto/wdk": "1.0.0-beta.6",
     "@tetherto/wdk-wallet": "1.0.0-beta.7",
     "@tetherto/wdk-wallet-btc": "1.0.0-beta.6",
@@ -40,7 +40,7 @@
     "commander": "14.0.3",
     "conf": "15.1.0",
     "ora": "9.3.0",
-    "zod": "^3.25.76"
+    "zod": "3.25.76"
   },
   "devDependencies": {
     "@types/node": "22.19.11",

@@ -10,16 +10,17 @@ const keyService = new KeyService(new WalletKeyring())
 
 // Process-scoped cache — avoids repeated daemon/session calls in a single command
 const seedPhraseCache = new Map<string, string>()
-let seedPhrasePromise: Promise<string> | null = null
+const seedPhrasePromises = new Map<string, Promise<string>>()
 
 export async function getSeedPhrase(walletName: string = DEFAULT_WALLET): Promise<string> {
   const cached = seedPhraseCache.get(walletName)
   if (cached) return cached
 
-  // Deduplicate concurrent calls — only the first caller runs the unlock flow
-  if (seedPhrasePromise) return seedPhrasePromise
+  // Deduplicate concurrent calls per wallet
+  const pending = seedPhrasePromises.get(walletName)
+  if (pending) return pending
 
-  seedPhrasePromise = (async () => {
+  const promise = (async () => {
     if (!(await keyService.hasAnyKey())) {
       throw new KeyNotFoundError()
     }
@@ -48,14 +49,16 @@ export async function getSeedPhrase(walletName: string = DEFAULT_WALLET): Promis
     return phrase
   })()
 
+  seedPhrasePromises.set(walletName, promise)
+
   try {
-    return await seedPhrasePromise
+    return await promise
   } finally {
-    seedPhrasePromise = null
+    seedPhrasePromises.delete(walletName)
   }
 }
 
 export function clearSeedPhraseCache(): void {
   seedPhraseCache.clear()
-  seedPhrasePromise = null
+  seedPhrasePromises.clear()
 }

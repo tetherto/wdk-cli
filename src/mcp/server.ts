@@ -84,7 +84,7 @@ export async function startMcpServer(): Promise<void> {
 
         if (network) {
           validateNetwork(network)
-          const address = await getAddress(network as NetworkName, index)
+          const address = await getAddress(network as NetworkName, index, wallet)
           return jsonResult({ network, index, address })
         }
 
@@ -94,7 +94,7 @@ export async function startMcpServer(): Promise<void> {
         const addresses: { network: string; address: string }[] = []
         for (const name of names) {
           try {
-            const address = await getAddress(name as NetworkName, index)
+            const address = await getAddress(name as NetworkName, index, wallet)
             addresses.push({ network: name, address })
           } catch { /* skip networks that fail */ }
         }
@@ -121,7 +121,7 @@ export async function startMcpServer(): Promise<void> {
 
         if (network) {
           validateNetwork(network)
-          const { balance, symbol, decimals } = await getBalance(network as NetworkName, index, token)
+          const { balance, symbol, decimals } = await getBalance(network as NetworkName, index, token, wallet)
           const formatted = formatBalance(balance, decimals, symbol)
           let usd = 0
           try { usd = await convertToUsd(network as NetworkName, balance, token) } catch { /* no price */ }
@@ -137,8 +137,8 @@ export async function startMcpServer(): Promise<void> {
         await Promise.all(names.map(async (name) => {
           try {
             const config = getNetworkConfig(name)
-            const address = await getAddress(name as NetworkName, index)
-            const { balance, symbol, decimals } = await getBalance(name as NetworkName, index)
+            const address = await getAddress(name as NetworkName, index, wallet)
+            const { balance, symbol, decimals } = await getBalance(name as NetworkName, index, undefined, wallet)
             const formatted = formatBalance(balance, decimals, symbol)
             let usd = 0
             try { usd = await convertToUsd(name as NetworkName, balance) } catch { /* no price */ }
@@ -167,7 +167,7 @@ export async function startMcpServer(): Promise<void> {
       try {
         await requireSession(wallet)
         validateNetwork(network)
-        const address = await getAddress(network as NetworkName, 0)
+        const address = await getAddress(network as NetworkName, 0, wallet)
         const transfers = await getTokenTransfers(
           network as NetworkName,
           (token || getNetworkConfig(network as NetworkName).nativeSymbol.toLowerCase()) as 'usdt' | 'usat' | 'xaut' | 'btc',
@@ -198,7 +198,7 @@ export async function startMcpServer(): Promise<void> {
         await requireSession(wallet)
         validateNetwork(network)
 
-        const sendOptions = { network: network as NetworkName, index, to, amount, token }
+        const sendOptions = { network: network as NetworkName, index, to, amount, token, wallet }
         const { amountUsd } = await enforcePolicies(sendOptions)
 
         if (!confirm) {

@@ -16,6 +16,7 @@ export interface SendOptions {
   to: string
   amount: string
   token?: string
+  wallet?: string
 }
 
 export interface FeeQuote {
@@ -24,7 +25,7 @@ export interface FeeQuote {
 }
 
 export async function estimateFee(options: SendOptions): Promise<FeeQuote> {
-  await ensureInitialized(options.network)
+  await ensureInitialized(options.network, options.wallet)
   const networkConfig = getNetworkConfig(options.network)
   let fee: bigint
 

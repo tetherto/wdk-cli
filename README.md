@@ -275,16 +275,10 @@ Additional networks can be added with `wdk network create`. See [Adding Custom N
 
 ## Security
 
-- Seed phrases are **encrypted at rest** using AES-256-GCM with scrypt key derivation
-- Each wallet has a **unique random salt** — same password produces different derived keys per wallet
-- Seed phrases are **never accepted as CLI arguments** — only via interactive prompt
-- Passwords are **never stored** — prompted each time (or use `wdk wallet unlock` for daemon)
-- **Daemon-based unlock** — derived keys held in RAM only, seeds decrypted on-the-fly and never written to disk after unlock
-- Daemon communicates via **Unix domain socket** with `0600` permissions (same-user only)
-- Daemon **auto-locks** after 30 minutes of inactivity by default (`--ttl 0` for unlimited). Only wallet operations reset the timer, not status checks
-- **Confirmation required** before overwriting an existing wallet or sending transactions
-- **Wallet deletion requires password** — prevents unauthorized removal
-- No telemetry, no analytics, no data sent to external services
+- Seed phrases encrypted at rest (AES-256-GCM + scrypt), unique salt per wallet
+- Seeds and passwords never accepted as CLI arguments
+- Daemon holds keys in RAM only, auto-locks after inactivity
+- No telemetry, no analytics, no external data collection
 
 ## AI Agent Integration
 
