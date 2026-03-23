@@ -25,7 +25,6 @@ export async function getSeedPhrase(walletName: string = DEFAULT_WALLET): Promis
       throw new KeyNotFoundError()
     }
 
-    // Try daemon first
     try {
       if (await daemonClient.isRunning()) {
         const seed = await daemonClient.getSeed(walletName)
@@ -34,14 +33,13 @@ export async function getSeedPhrase(walletName: string = DEFAULT_WALLET): Promis
       }
     } catch { /* daemon not available */ }
 
-    // Fallback to session files (backward compatibility)
+    // Backward compatibility: session files
     const sessionSeed = await sessionService.get(walletName)
     if (sessionSeed) {
       seedPhraseCache.set(walletName, sessionSeed)
       return sessionSeed
     }
 
-    // No daemon, no session — prompt for password
     const password = await promptPassword('Enter password to unlock wallet:')
     await keyService.migrateLegacy(password)
     const phrase = await keyService.unlock(password, walletName)

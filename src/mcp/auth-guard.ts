@@ -8,7 +8,6 @@ export async function requireSession(walletName: string = DEFAULT_WALLET): Promi
   const cached = seedPhraseCache.get(walletName)
   if (cached) return cached
 
-  // Try daemon first
   try {
     if (await daemonClient.isRunning()) {
       const seed = await daemonClient.getSeed(walletName)
@@ -17,7 +16,6 @@ export async function requireSession(walletName: string = DEFAULT_WALLET): Promi
     }
   } catch { /* daemon not available */ }
 
-  // Fallback to session files
   const seedPhrase = await sessionService.get(walletName)
   if (seedPhrase) {
     seedPhraseCache.set(walletName, seedPhrase)

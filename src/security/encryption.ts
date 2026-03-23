@@ -29,16 +29,17 @@ export function encrypt(plaintext: string, password: string): EncryptedPayload {
   }
 }
 
-export function decrypt(payload: EncryptedPayload, password: string): string {
+export function deriveKey(password: string, salt: Buffer): Buffer {
+  return scryptSync(password, salt, KEY_LEN, { N: SCRYPT_N, r: SCRYPT_R, p: SCRYPT_P })
+}
+
+export function decryptWithKey(payload: EncryptedPayload, key: Buffer): string {
   if (payload.version !== 1) {
     throw new Error(`Unsupported keyring version: ${payload.version}`)
   }
 
-  const salt = Buffer.from(payload.salt, 'hex')
   const iv = Buffer.from(payload.iv, 'hex')
   const tag = Buffer.from(payload.tag, 'hex')
-  // Use same N value as encryption (may be lowered in test env)
-  const key = scryptSync(password, salt, KEY_LEN, { N: SCRYPT_N, r: SCRYPT_R, p: SCRYPT_P })
 
   const decipher = createDecipheriv(ALGORITHM, key, iv)
   decipher.setAuthTag(tag)
@@ -46,4 +47,14 @@ export function decrypt(payload: EncryptedPayload, password: string): string {
   let plaintext = decipher.update(payload.ciphertext, 'hex', 'utf8')
   plaintext += decipher.final('utf8')
   return plaintext
+}
+
+export function decrypt(payload: EncryptedPayload, password: string): string {
+  if (payload.version !== 1) {
+    throw new Error(`Unsupported keyring version: ${payload.version}`)
+  }
+
+  const salt = Buffer.from(payload.salt, 'hex')
+  const key = deriveKey(password, salt)
+  return decryptWithKey(payload, key)
 }

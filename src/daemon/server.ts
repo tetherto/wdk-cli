@@ -1,12 +1,15 @@
 import { createServer, type Server, type Socket } from 'node:net'
+import { readFileSync } from 'node:fs'
 import { writeFile, unlink, chmod, mkdir } from 'node:fs/promises'
 import { dirname } from 'node:path'
-import { getDaemonSocketPath, getDaemonPidPath } from '../config/constants.js'
+import { getDaemonSocketPath, getDaemonPidPath, getWalletPath } from '../config/constants.js'
 import { WalletKeyring } from '../security/keyring.js'
+import { deriveKey, decryptWithKey } from '../security/encryption.js'
 import type { DaemonRequest, DaemonResponse } from './protocol.js'
+import type { EncryptedPayload } from '../types/index.js'
 
 export class WalletDaemon {
-  private keys = new Map<string, Buffer>()
+  private derivedKeys = new Map<string, Buffer>()
   private server: Server | null = null
   private ttlTimer: ReturnType<typeof setTimeout> | null = null
   private ttlMs: number = 0
@@ -20,13 +23,17 @@ export class WalletDaemon {
       throw new Error('No wallets found')
     }
 
-    // Derive key for each wallet (scrypt is slow, so this takes a moment)
+    // Only the derived key is held in RAM — seeds are decrypted on-the-fly per request
     for (const name of walletNames) {
-      const seed = await walletKeyring.retrieve(password, name)
-      // Re-derive the scrypt key by reading the wallet file's salt
-      // Store the derived key (not the seed) — we'll decrypt on-the-fly per request
-      // For now, store seeds encrypted with a runtime key
-      this.keys.set(name, Buffer.from(seed, 'utf8'))
+      const walletPath = getWalletPath(name)
+      const data = readFileSync(walletPath, 'utf8')
+      const payload: EncryptedPayload = JSON.parse(data)
+      const salt = Buffer.from(payload.salt, 'hex')
+      const key = deriveKey(password, salt)
+
+      decryptWithKey(payload, key)
+
+      this.derivedKeys.set(name, key)
     }
 
     this.ttlMs = ttlMinutes === 0 ? 0 : ttlMinutes * 60 * 1000
@@ -35,7 +42,6 @@ export class WalletDaemon {
     const socketPath = getDaemonSocketPath()
     await mkdir(dirname(socketPath), { recursive: true })
 
-    // Clean up stale socket
     try { await unlink(socketPath) } catch { /* doesn't exist */ }
 
     this.server = createServer((socket) => this.handleConnection(socket))
@@ -48,7 +54,6 @@ export class WalletDaemon {
       })
     })
 
-    // Write PID file
     const pidPath = getDaemonPidPath()
     await writeFile(pidPath, String(process.pid), 'utf8')
     await chmod(pidPath, 0o600)
@@ -88,15 +93,23 @@ export class WalletDaemon {
       case 'get_seed': {
         this.resetTtl()
         const wallet = req.wallet || 'default'
-        const seed = this.keys.get(wallet)
-        if (!seed) {
+        const key = this.derivedKeys.get(wallet)
+        if (!key) {
           return { ok: false, error: `Wallet '${wallet}' is not unlocked` }
         }
-        return { ok: true, data: { seed: seed.toString('utf8') } }
+        // Decrypt on-the-fly — seed only exists in memory briefly
+        try {
+          const data = readFileSync(getWalletPath(wallet), 'utf8')
+          const payload: EncryptedPayload = JSON.parse(data)
+          const seed = decryptWithKey(payload, key)
+          return { ok: true, data: { seed } }
+        } catch (e) {
+          return { ok: false, error: `Failed to decrypt wallet '${wallet}'` }
+        }
       }
 
       case 'list_wallets': {
-        return { ok: true, data: { wallets: [...this.keys.keys()] } }
+        return { ok: true, data: { wallets: [...this.derivedKeys.keys()] } }
       }
 
       case 'status': {
@@ -107,8 +120,8 @@ export class WalletDaemon {
         return {
           ok: true,
           data: {
-            unlocked: this.keys.size > 0,
-            wallets: [...this.keys.keys()],
+            unlocked: this.derivedKeys.size > 0,
+            wallets: [...this.derivedKeys.keys()],
             ttlMs: this.ttlMs,
             ttlRemaining,
             pid: process.pid,
@@ -127,10 +140,10 @@ export class WalletDaemon {
   }
 
   private async shutdown(): Promise<void> {
-    // Clear all keys from memory
-    for (const [name, buf] of this.keys) {
+    // Zero-fill all derived keys before clearing
+    for (const [name, buf] of this.derivedKeys) {
       buf.fill(0)
-      this.keys.delete(name)
+      this.derivedKeys.delete(name)
     }
 
     if (this.ttlTimer) {
@@ -143,7 +156,6 @@ export class WalletDaemon {
       this.server = null
     }
 
-    // Clean up files
     try { await unlink(getDaemonSocketPath()) } catch { /* */ }
     try { await unlink(getDaemonPidPath()) } catch { /* */ }
 

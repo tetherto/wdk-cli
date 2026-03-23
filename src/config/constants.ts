@@ -36,7 +36,6 @@ export function getWalletsDir(): string {
 }
 
 export function getWalletPath(name: string = DEFAULT_WALLET): string {
-  // Sanitize wallet name to prevent path traversal
   const sanitized = name.replace(/[^a-zA-Z0-9_-]/g, '')
   if (!sanitized || sanitized !== name) {
     throw new Error(`Invalid wallet name: '${name}'. Use only letters, numbers, hyphens, and underscores.`)

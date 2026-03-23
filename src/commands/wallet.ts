@@ -38,7 +38,6 @@ function spawnDaemon(password: string, ttl: number): Promise<void> {
     let stderr = ''
     child.stderr!.on('data', (chunk: Buffer) => { stderr += chunk.toString() })
 
-    // Wait briefly for daemon to start or fail
     const timeout = setTimeout(() => {
       child.unref()
       resolve()
@@ -111,12 +110,27 @@ export function registerWalletCommand(program: Command): void {
 
         const shouldStore = isJson || await promptConfirm('Encrypt and store this seed phrase?')
         if (shouldStore) {
-          const password = await promptPassword('Create a password to encrypt your seed phrase:')
-          const confirmPw = await promptPassword('Confirm password:')
+          let password: string
+          const hasExisting = await keyService.hasAnyKey()
 
-          if (password !== confirmPw) {
-            console.error(chalk.red('Error: Passwords do not match.'))
-            process.exit(1)
+          if (hasExisting) {
+            password = await promptPassword('Enter your wallet password:')
+            const existingWallets = await keyService.list()
+            const testWallet = existingWallets[0]
+            try {
+              await keyService.unlock(password, testWallet)
+            } catch {
+              console.error(chalk.red('Error: Incorrect password.'))
+              process.exit(1)
+            }
+          } else {
+            password = await promptPassword('Create a password to encrypt your seed phrase:')
+            const confirmPw = await promptPassword('Confirm password:')
+
+            if (password !== confirmPw) {
+              console.error(chalk.red('Error: Passwords do not match.'))
+              process.exit(1)
+            }
           }
 
           const spinner = ora('Encrypting and storing seed phrase...').start()
@@ -155,12 +169,27 @@ export function registerWalletCommand(program: Command): void {
           process.exit(1)
         }
 
-        const password = await promptPassword('Create a password to encrypt your seed phrase:')
-        const confirmPw = await promptPassword('Confirm password:')
+        let password: string
+        const hasExisting = await keyService.hasAnyKey()
 
-        if (password !== confirmPw) {
-          console.error(chalk.red('Error: Passwords do not match.'))
-          process.exit(1)
+        if (hasExisting) {
+          password = await promptPassword('Enter your wallet password:')
+          const existingWallets = await keyService.list()
+          const testWallet = existingWallets[0]
+          try {
+            await keyService.unlock(password, testWallet)
+          } catch {
+            console.error(chalk.red('Error: Incorrect password.'))
+            process.exit(1)
+          }
+        } else {
+          password = await promptPassword('Create a password to encrypt your seed phrase:')
+          const confirmPw = await promptPassword('Confirm password:')
+
+          if (password !== confirmPw) {
+            console.error(chalk.red('Error: Passwords do not match.'))
+            process.exit(1)
+          }
         }
 
         const spinner = ora('Encrypting and storing seed phrase...').start()
@@ -222,7 +251,6 @@ export function registerWalletCommand(program: Command): void {
           return
         }
 
-        // Check which wallets are unlocked via daemon
         let unlockedWallets: string[] = []
         try {
           if (await daemonClient.isRunning()) {
@@ -288,7 +316,6 @@ export function registerWalletCommand(program: Command): void {
           throw new KeyNotFoundError()
         }
 
-        // Check if daemon is already running
         if (await daemonClient.isRunning()) {
           try {
             const status = await daemonClient.status()
@@ -305,20 +332,16 @@ export function registerWalletCommand(program: Command): void {
 
         const password = await promptPassword('Enter password to unlock wallet:')
 
-        // Migrate legacy keyring.enc if needed
         await keyService.migrateLegacy(password)
 
-        // Validate password by trying to unlock all wallets
         const spinner = ora('Unlocking wallets...').start()
         const seeds = await keyService.unlockAll(password)
         const walletNames = [...seeds.keys()]
         spinner.text = 'Starting daemon...'
 
-        // Spawn daemon process
         const ttl = parseInt(options.ttl, 10)
         await spawnDaemon(password, ttl)
 
-        // Verify daemon started
         let retries = 5
         while (retries > 0) {
           if (await daemonClient.isRunning()) {
