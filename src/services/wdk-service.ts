@@ -89,14 +89,26 @@ export class WdkService {
   private registeredNetworks = new Set<NetworkName>()
   private accountCache = new Map<string, WdkAccount>()
 
+  createInstance(seedPhrase: string): void {
+    if (!this.wdk) {
+      this.wdk = new WDKAny(seedPhrase)
+    }
+  }
+
+  isNetworkRegistered(network: NetworkName): boolean {
+    return this.registeredNetworks.has(network)
+  }
+
+  registerNetworkPublic(network: NetworkName): void {
+    this.registerNetwork(network)
+  }
+
   async initialize(seedPhrase: string, network: NetworkName): Promise<void> {
     if (!isValidNetwork(network)) {
       throw new NetworkNotSupportedError(network)
     }
 
-    if (!this.wdk) {
-      this.wdk = new WDKAny(seedPhrase)
-    }
+    this.createInstance(seedPhrase)
 
     if (!this.registeredNetworks.has(network)) {
       this.registerNetwork(network)

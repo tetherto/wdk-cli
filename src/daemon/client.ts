@@ -15,7 +15,6 @@ export class DaemonClient {
         process.kill(pid, 0)
         return true
       } catch {
-        // PID doesn't exist, clean up stale files
         try { await unlink(this.socketPath) } catch { /* */ }
         try { await unlink(pidPath) } catch { /* */ }
         return false
@@ -25,7 +24,7 @@ export class DaemonClient {
     }
   }
 
-  async request(req: DaemonRequest): Promise<DaemonResponse> {
+  async request(req: DaemonRequest, timeoutMs: number = 5000): Promise<DaemonResponse> {
     return new Promise((resolve, reject) => {
       const socket = connect(this.socketPath)
       let buffer = ''
@@ -52,34 +51,80 @@ export class DaemonClient {
         reject(new Error(`Cannot connect to wallet daemon: ${err.message}`))
       })
 
-      socket.setTimeout(5000, () => {
+      socket.setTimeout(timeoutMs, () => {
         socket.destroy()
         reject(new Error('Daemon request timed out'))
       })
     })
   }
 
-  async getSeed(wallet: string = 'default'): Promise<string> {
-    const resp = await this.request({ action: 'get_seed', wallet })
-    if (!resp.ok) {
-      throw new Error(resp.error || 'Failed to get seed from daemon')
-    }
-    return (resp.data as { seed: string }).seed
+  private assertOk(resp: DaemonResponse, fallbackMsg: string): void {
+    if (!resp.ok) throw new Error(resp.error || fallbackMsg)
+  }
+
+  async getAddress(network: string, index: number = 0, wallet?: string): Promise<string> {
+    const resp = await this.request({ action: 'get_address', network, index, wallet }, 30000)
+    this.assertOk(resp, 'Failed to get address')
+    return (resp.data as { address: string }).address
+  }
+
+  async getBalance(
+    network: string,
+    index: number = 0,
+    token?: string,
+    wallet?: string,
+  ): Promise<{ balance: string; symbol: string; decimals: number }> {
+    const resp = await this.request({ action: 'get_balance', network, index, token, wallet }, 30000)
+    this.assertOk(resp, 'Failed to get balance')
+    return resp.data as { balance: string; symbol: string; decimals: number }
+  }
+
+  async getHistory(
+    network: string,
+    token?: string,
+    limit?: number,
+    wallet?: string,
+  ): Promise<{ address: string; transfers: unknown[]; count: number }> {
+    const resp = await this.request({ action: 'get_history', network, token, limit, wallet }, 30000)
+    this.assertOk(resp, 'Failed to get history')
+    return resp.data as { address: string; transfers: unknown[]; count: number }
+  }
+
+  async estimateFee(
+    network: string,
+    index: number,
+    to: string,
+    amount: string,
+    token?: string,
+    wallet?: string,
+  ): Promise<{ fee: string; feeFormatted: string }> {
+    const resp = await this.request({ action: 'estimate_fee', network, index, to, amount, token, wallet }, 30000)
+    this.assertOk(resp, 'Failed to estimate fee')
+    return resp.data as { fee: string; feeFormatted: string }
+  }
+
+  async send(
+    network: string,
+    index: number,
+    to: string,
+    amount: string,
+    token?: string,
+    wallet?: string,
+  ): Promise<{ txHash: string; network: string; from: string; to: string; amount: string; fee?: string }> {
+    const resp = await this.request({ action: 'send', network, index, to, amount, token, wallet }, 60000)
+    this.assertOk(resp, 'Failed to send transaction')
+    return resp.data as { txHash: string; network: string; from: string; to: string; amount: string; fee?: string }
   }
 
   async listWallets(): Promise<string[]> {
     const resp = await this.request({ action: 'list_wallets' })
-    if (!resp.ok) {
-      throw new Error(resp.error || 'Failed to list wallets')
-    }
+    this.assertOk(resp, 'Failed to list wallets')
     return (resp.data as { wallets: string[] }).wallets
   }
 
   async status(): Promise<{ unlocked: boolean; wallets: string[]; ttlMs: number; pid: number }> {
     const resp = await this.request({ action: 'status' })
-    if (!resp.ok) {
-      throw new Error(resp.error || 'Failed to get daemon status')
-    }
+    this.assertOk(resp, 'Failed to get daemon status')
     return resp.data as { unlocked: boolean; wallets: string[]; ttlMs: number; pid: number }
   }
 

@@ -43,7 +43,7 @@ export function getSpendingRecord(): SpendingRecord {
 function saveSpendingRecord(record: SpendingRecord): void {
   const path = getSpendingPath()
   mkdirSync(dirname(path), { recursive: true })
-  writeFileSync(path, JSON.stringify(record, null, 2))
+  writeFileSync(path, JSON.stringify(record, null, 2), { mode: 0o600 })
 }
 
 export function recordSpending(tx: SpendingTransaction): void {

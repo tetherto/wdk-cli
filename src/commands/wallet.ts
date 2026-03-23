@@ -30,10 +30,13 @@ function getDaemonScript(): string {
 function spawnDaemon(password: string, ttl: number): Promise<void> {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [getDaemonScript()], {
-      env: { ...process.env, WDK_DAEMON_PASSWORD: password, WDK_DAEMON_TTL: String(ttl) },
-      stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, WDK_DAEMON_TTL: String(ttl) },
+      stdio: ['pipe', 'pipe', 'pipe'],
       detached: true,
     })
+
+    child.stdin!.write(password)
+    child.stdin!.end()
 
     let stderr = ''
     child.stderr!.on('data', (chunk: Buffer) => { stderr += chunk.toString() })

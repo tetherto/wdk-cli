@@ -1,13 +1,14 @@
 import { Command } from 'commander'
 import chalk from 'chalk'
-import { getAddress, getBalance, resolveNetwork, resolveIndex } from '../services/wallet-service.js'
-import { isValidNetwork, getAllNetworkNames, getNetworkConfig, isTestnet } from '../config/networks.js'
+import { resolveNetwork, resolveIndex } from '../services/wallet-service.js'
+import { isValidNetwork, getAllNetworkNames, isTestnet } from '../config/networks.js'
 import { NetworkNotSupportedError, handleError } from '../errors/index.js'
 import { networkColor, formatNetworkLabel, formatAmount, formatAddress, formatTxHash } from '../ui/formatters.js'
-import { getTokenTransfers, isIndexerSupported, INDEXER_TOKENS } from '../services/indexer-service.js'
+import { isIndexerSupported, INDEXER_TOKENS } from '../services/indexer-service.js'
 import type { IndexerToken } from '../services/indexer-service.js'
 import { createTable } from '../ui/tables.js'
 import { convertToUsd } from '../services/price-service.js'
+import { daemonClient } from '../daemon/client.js'
 import type { NetworkName } from '../types/index.js'
 
 export function registerGetCommand(program: Command): void {
@@ -20,17 +21,19 @@ export function registerGetCommand(program: Command): void {
     .description('Derive wallet address for a network. Omit --network to show all.')
     .option('--network <network>', 'Blockchain network (omit for all)')
     .option('--index <n>', 'Account index')
+    .option('--wallet <name>', 'Wallet name')
     .option('--testnet', 'Include testnet networks (for all-network mode)')
     .action(async (options) => {
       try {
         const index = resolveIndex(options.index ?? program.opts().index)
         const networkOpt = options.network ?? program.opts().network
+        const wallet = options.wallet ?? program.opts().wallet
 
         if (networkOpt) {
           const network = resolveNetwork(networkOpt)
           if (!isValidNetwork(network)) throw new NetworkNotSupportedError(network)
 
-          const address = await getAddress(network, index)
+          const address = await daemonClient.getAddress(network, index, wallet)
 
           if (program.opts().json) {
             console.log(JSON.stringify({ network, index, address }))
@@ -51,7 +54,7 @@ export function registerGetCommand(program: Command): void {
 
         const tasks = allNames.map(async (network) => {
           try {
-            const address = await getAddress(network as NetworkName, index)
+            const address = await daemonClient.getAddress(network, index, wallet)
             return { network, address }
           } catch {
             return null
@@ -87,24 +90,26 @@ export function registerGetCommand(program: Command): void {
     .description('Check wallet balance (native, ERC-20, or SPL token). Omit --network to show all.')
     .option('--network <network>', 'Blockchain network (omit for all)')
     .option('--index <n>', 'Account index')
+    .option('--wallet <name>', 'Wallet name')
     .option('--token <address>', 'Token contract address (ERC-20 or SPL mint)')
     .option('--testnet', 'Include testnet networks (for all-network mode)')
     .action(async (options) => {
       try {
         const index = resolveIndex(options.index ?? program.opts().index)
         const networkOpt = options.network ?? program.opts().network
+        const wallet = options.wallet ?? program.opts().wallet
 
         if (networkOpt) {
           const network = resolveNetwork(networkOpt)
           if (!isValidNetwork(network)) throw new NetworkNotSupportedError(network)
 
-          const result = await getBalance(network, index, options.token)
+          const result = await daemonClient.getBalance(network, index, options.token, wallet)
 
           if (program.opts().json) {
             console.log(JSON.stringify({
               network,
               index,
-              balance: result.balance.toString(),
+              balance: result.balance,
               symbol: result.symbol,
               decimals: result.decimals,
               ...(options.token ? { token: options.token } : {}),
@@ -113,7 +118,7 @@ export function registerGetCommand(program: Command): void {
           }
 
           const color = networkColor(network)
-          const formatted = formatAmount(result.balance, result.decimals, result.symbol)
+          const formatted = formatAmount(BigInt(result.balance), result.decimals, result.symbol)
 
           console.log()
           console.log(`  ${color(formatNetworkLabel(network))} ${chalk.dim(`(index: ${index})`)}`)
@@ -133,14 +138,15 @@ export function registerGetCommand(program: Command): void {
 
         const tasks = allNames.map(async (network) => {
           try {
-            const address = await getAddress(network as NetworkName, index)
-            const result = await getBalance(network as NetworkName, index)
-            const formatted = formatAmount(result.balance, result.decimals, result.symbol)
+            const address = await daemonClient.getAddress(network, index, wallet)
+            const result = await daemonClient.getBalance(network, index, undefined, wallet)
+            const balanceBigInt = BigInt(result.balance)
+            const formatted = formatAmount(balanceBigInt, result.decimals, result.symbol)
             let usd = 0
-            if (result.balance > 0n) {
-              try { usd = await convertToUsd(network as NetworkName, result.balance) } catch { /* */ }
+            if (balanceBigInt > 0n) {
+              try { usd = await convertToUsd(network as NetworkName, balanceBigInt) } catch { /* */ }
             }
-            return { network, address, balance: result.balance.toString(), formatted, usd }
+            return { network, address, balance: result.balance, formatted, usd }
           } catch {
             return null
           }
@@ -181,6 +187,7 @@ export function registerGetCommand(program: Command): void {
     .description('Get token transfer history (requires indexer API key)')
     .option('--network <network>', 'Blockchain network')
     .option('--index <n>', 'Account index')
+    .option('--wallet <name>', 'Wallet name')
     .option('--token <token>', `Token: ${INDEXER_TOKENS.join(', ')} (default: usdt)`)
     .option('--limit <n>', 'Number of transfers (default: 10, max: 1000)')
     .action(async (options) => {
@@ -194,6 +201,7 @@ export function registerGetCommand(program: Command): void {
         }
 
         const index = resolveIndex(options.index ?? program.opts().index)
+        const wallet = options.wallet ?? program.opts().wallet
         const token = (options.token || 'usdt') as IndexerToken
         if (!INDEXER_TOKENS.includes(token)) {
           console.error(chalk.red(`Error: Invalid token '${token}'. Valid: ${INDEXER_TOKENS.join(', ')}`))
@@ -201,8 +209,9 @@ export function registerGetCommand(program: Command): void {
         }
 
         const limit = options.limit ? parseInt(options.limit, 10) : 10
-        const address = await getAddress(network, index)
-        const transfers = await getTokenTransfers(network, token, address, { limit })
+        const result = await daemonClient.getHistory(network, token, limit, wallet)
+        const address = result.address
+        const transfers = result.transfers as { timestamp: number; from: string; to: string; amount: string; transactionHash: string }[]
 
         if (program.opts().json) {
           console.log(JSON.stringify({ network, index, address, token, transfers }))

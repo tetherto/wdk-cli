@@ -1,12 +1,8 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
-import { requireSession, McpAuthError } from './auth-guard.js'
-import { getAddress, getBalance } from '../services/wallet-service.js'
-import { estimateFee, send } from '../services/transaction-service.js'
-import { enforcePolicies, getPolicy } from '../services/policy-service.js'
-import { recordSpending } from '../services/spending-service.js'
-import { getTokenTransfers } from '../services/indexer-service.js'
+import { daemonClient } from '../daemon/client.js'
+import { getPolicy } from '../services/policy-service.js'
 import { convertToUsd } from '../services/price-service.js'
 import {
   getAllNetworks,
@@ -16,6 +12,7 @@ import {
   isTestnet,
 } from '../config/networks.js'
 import { DEFAULT_WALLET } from '../config/constants.js'
+import { APP_VERSION } from '../config/constants.js'
 import type { NetworkName } from '../types/index.js'
 
 function errorResult(message: string) {
@@ -33,10 +30,16 @@ function validateNetwork(network: string): network is NetworkName {
   return true
 }
 
+async function requireDaemon(): Promise<void> {
+  if (!(await daemonClient.isRunning())) {
+    throw new Error('Wallet is locked. Please run `wdk wallet unlock` first, then restart the MCP server.')
+  }
+}
+
 export async function startMcpServer(): Promise<void> {
   const server = new McpServer({
     name: 'wdk-wallet',
-    version: '0.0.1',
+    version: APP_VERSION,
   })
 
   server.tool(
@@ -80,11 +83,11 @@ export async function startMcpServer(): Promise<void> {
     },
     async ({ network, index, testnet, wallet }) => {
       try {
-        await requireSession(wallet)
+        await requireDaemon()
 
         if (network) {
           validateNetwork(network)
-          const address = await getAddress(network as NetworkName, index, wallet)
+          const address = await daemonClient.getAddress(network, index, wallet)
           return jsonResult({ network, index, address })
         }
 
@@ -94,7 +97,7 @@ export async function startMcpServer(): Promise<void> {
         const addresses: { network: string; address: string }[] = []
         for (const name of names) {
           try {
-            const address = await getAddress(name as NetworkName, index, wallet)
+            const address = await daemonClient.getAddress(name, index, wallet)
             addresses.push({ network: name, address })
           } catch { /* skip networks that fail */ }
         }
@@ -117,15 +120,15 @@ export async function startMcpServer(): Promise<void> {
     },
     async ({ network, token, index, testnet, wallet }) => {
       try {
-        await requireSession(wallet)
+        await requireDaemon()
 
         if (network) {
           validateNetwork(network)
-          const { balance, symbol, decimals } = await getBalance(network as NetworkName, index, token, wallet)
-          const formatted = formatBalance(balance, decimals, symbol)
+          const result = await daemonClient.getBalance(network, index, token, wallet)
+          const formatted = formatBalance(BigInt(result.balance), result.decimals, result.symbol)
           let usd = 0
-          try { usd = await convertToUsd(network as NetworkName, balance, token) } catch { /* no price */ }
-          return jsonResult({ network, index, balance: balance.toString(), symbol, decimals, formatted, usd })
+          try { usd = await convertToUsd(network as NetworkName, BigInt(result.balance), token) } catch { /* no price */ }
+          return jsonResult({ network, index, balance: result.balance, symbol: result.symbol, decimals: result.decimals, formatted, usd })
         }
 
         let names = getAllNetworkNames()
@@ -134,18 +137,17 @@ export async function startMcpServer(): Promise<void> {
         const balances: unknown[] = []
         let totalUsd = 0
 
-        await Promise.all(names.map(async (name) => {
+        for (const name of names) {
           try {
-            const config = getNetworkConfig(name)
-            const address = await getAddress(name as NetworkName, index, wallet)
-            const { balance, symbol, decimals } = await getBalance(name as NetworkName, index, undefined, wallet)
-            const formatted = formatBalance(balance, decimals, symbol)
+            const address = await daemonClient.getAddress(name, index, wallet)
+            const result = await daemonClient.getBalance(name, index, undefined, wallet)
+            const formatted = formatBalance(BigInt(result.balance), result.decimals, result.symbol)
             let usd = 0
-            try { usd = await convertToUsd(name as NetworkName, balance) } catch { /* no price */ }
+            try { usd = await convertToUsd(name as NetworkName, BigInt(result.balance)) } catch { /* no price */ }
             totalUsd += usd
-            balances.push({ network: name, address, balance: balance.toString(), symbol, decimals, formatted, usd })
+            balances.push({ network: name, address, balance: result.balance, symbol: result.symbol, decimals: result.decimals, formatted, usd })
           } catch { /* skip */ }
-        }))
+        }
 
         return jsonResult({ index, balances, totalUsd: Math.round(totalUsd * 100) / 100 })
       } catch (e) {
@@ -165,16 +167,10 @@ export async function startMcpServer(): Promise<void> {
     },
     async ({ network, token, limit, wallet }) => {
       try {
-        await requireSession(wallet)
+        await requireDaemon()
         validateNetwork(network)
-        const address = await getAddress(network as NetworkName, 0, wallet)
-        const transfers = await getTokenTransfers(
-          network as NetworkName,
-          (token || getNetworkConfig(network as NetworkName).nativeSymbol.toLowerCase()) as 'usdt' | 'usat' | 'xaut' | 'btc',
-          address,
-          { limit },
-        )
-        return jsonResult({ network, address, transfers, count: transfers.length })
+        const result = await daemonClient.getHistory(network, token, limit, wallet)
+        return jsonResult({ network, ...result })
       } catch (e) {
         return errorResult(e instanceof Error ? e.message : String(e))
       }
@@ -195,17 +191,16 @@ export async function startMcpServer(): Promise<void> {
     },
     async ({ to, amount, network, token, index, confirm, wallet }) => {
       try {
-        await requireSession(wallet)
+        await requireDaemon()
         validateNetwork(network)
 
-        const sendOptions = { network: network as NetworkName, index, to, amount, token, wallet }
-        const { amountUsd } = await enforcePolicies(sendOptions)
-
         if (!confirm) {
-          const feeQuote = await estimateFee(sendOptions)
+          const feeQuote = await daemonClient.estimateFee(network, index, to, amount, token, wallet)
           const config = getNetworkConfig(network as NetworkName)
+          let amountUsd = 0
           let feeUsd = 0
-          try { feeUsd = await convertToUsd(network as NetworkName, feeQuote.fee) } catch { /* no price */ }
+          try { amountUsd = await convertToUsd(network as NetworkName, BigInt(amount), token) } catch { /* no price */ }
+          try { feeUsd = await convertToUsd(network as NetworkName, BigInt(feeQuote.fee)) } catch { /* no price */ }
 
           return jsonResult({
             preview: true,
@@ -214,22 +209,14 @@ export async function startMcpServer(): Promise<void> {
             to,
             amount,
             amountUsd: Math.round(amountUsd * 100) / 100,
-            estimatedFee: feeQuote.fee.toString(),
+            estimatedFee: feeQuote.fee,
             estimatedFeeFormatted: feeQuote.feeFormatted,
             estimatedFeeUsd: Math.round(feeUsd * 100) / 100,
             message: 'This is a preview. Call send_token again with confirm=true to execute.',
           })
         }
 
-        const result = await send(sendOptions)
-        recordSpending({
-          timestamp: Date.now(),
-          network,
-          to,
-          amountUsd,
-          token,
-          txHash: result.txHash,
-        })
+        const result = await daemonClient.send(network, index, to, amount, token, wallet)
 
         return jsonResult({
           success: true,
@@ -265,8 +252,9 @@ export async function startMcpServer(): Promise<void> {
 }
 
 function formatBalance(balance: bigint, decimals: number, symbol: string): string {
-  const whole = balance / BigInt(10 ** decimals)
-  const frac = balance % BigInt(10 ** decimals)
+  const divisor = 10n ** BigInt(decimals)
+  const whole = balance / divisor
+  const frac = balance % divisor
   const fracStr = frac.toString().padStart(decimals, '0').replace(/0+$/, '')
   const formatted = fracStr ? `${whole}.${fracStr}` : whole.toString()
   return `${formatted} ${symbol}`

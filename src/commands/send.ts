@@ -1,15 +1,14 @@
 import { Command } from 'commander'
 import chalk from 'chalk'
 import ora from 'ora'
-import { ensureInitialized, estimateFee, send, type SendOptions } from '../services/transaction-service.js'
 import { resolveNetwork, resolveIndex } from '../services/wallet-service.js'
 import { isValidNetwork, isEvmNetwork, getNetworkConfig } from '../config/networks.js'
 import { NetworkNotSupportedError, WdkCliError, handleError } from '../errors/index.js'
 import { promptConfirm } from '../ui/prompts.js'
 import { formatAddress, networkColor, formatNetworkLabel, formatAmount } from '../ui/formatters.js'
 import { getTokenConfig } from '../config/tokens.js'
-import { enforcePolicies, recordTransaction } from '../services/policy-service.js'
 import { convertToUsd } from '../services/price-service.js'
+import { daemonClient } from '../daemon/client.js'
 import type { NetworkName } from '../types/index.js'
 
 const EVM_ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/
@@ -33,6 +32,7 @@ export function registerSendCommand(program: Command): void {
     .option('--network <network>', 'Blockchain network')
     .option('--index <n>', 'Account index')
     .option('--token <address>', 'Token contract address (ERC-20 or SPL mint)')
+    .option('--wallet <name>', 'Wallet name')
     .option('--yes', 'Skip confirmation prompt')
     .option('--dry-run', 'Estimate fees and show summary without sending')
     .action(async (options) => {
@@ -40,6 +40,7 @@ export function registerSendCommand(program: Command): void {
         const network = resolveNetwork(options.network ?? program.opts().network)
         if (!isValidNetwork(network)) throw new NetworkNotSupportedError(network)
         const index = resolveIndex(options.index ?? program.opts().index)
+        const wallet = options.wallet ?? program.opts().wallet
 
         if (!/^\d+$/.test(options.amount) || options.amount === '0') {
           throw new WdkCliError(
@@ -57,21 +58,14 @@ export function registerSendCommand(program: Command): void {
           )
         }
 
-        const sendOptions: SendOptions = {
-          network,
-          index,
-          to: options.to,
-          amount: options.amount,
-          token: options.token,
-        }
-
-        await ensureInitialized(network)
-        const { amountUsd } = await enforcePolicies(sendOptions)
-
         const spinner = ora('Estimating fee...').start()
         let feeQuote
         try {
-          feeQuote = await withTimeout(estimateFee(sendOptions), 30_000, 'Fee estimation')
+          feeQuote = await withTimeout(
+            daemonClient.estimateFee(network, index, options.to, options.amount, options.token, wallet),
+            30_000,
+            'Fee estimation',
+          )
           spinner.stop()
         } catch (error) {
           spinner.stop()
@@ -96,7 +90,7 @@ export function registerSendCommand(program: Command): void {
           let amountUsdValue: number | undefined
           let feeUsdValue: number | undefined
           try { amountUsdValue = await convertToUsd(network as NetworkName, amountBigInt, options.token) } catch { /* */ }
-          try { feeUsdValue = await convertToUsd(network as NetworkName, feeQuote.fee) } catch { /* */ }
+          try { feeUsdValue = await convertToUsd(network as NetworkName, BigInt(feeQuote.fee)) } catch { /* */ }
 
           const summary = {
             network,
@@ -107,7 +101,7 @@ export function registerSendCommand(program: Command): void {
             amountUsd: amountUsdValue,
             token: options.token,
             tokenSymbol,
-            estimatedFee: feeQuote.fee.toString(),
+            estimatedFee: feeQuote.fee,
             estimatedFeeFormatted: feeQuote.feeFormatted,
             estimatedFeeUsd: feeUsdValue,
           }
@@ -142,7 +136,7 @@ export function registerSendCommand(program: Command): void {
           }
           let feeUsdDisplay = ''
           try {
-            const feeUsd = await convertToUsd(network as NetworkName, feeQuote.fee)
+            const feeUsd = await convertToUsd(network as NetworkName, BigInt(feeQuote.fee))
             if (feeUsd > 0) feeUsdDisplay = ` (~$${feeUsd.toFixed(2)})`
           } catch { /* price unavailable */ }
           console.log(`  Est. Fee:  ${feeQuote.feeFormatted}${feeUsdDisplay}`)
@@ -159,10 +153,8 @@ export function registerSendCommand(program: Command): void {
 
         const sendSpinner = ora('Broadcasting transaction...').start()
         try {
-          const result = await send(sendOptions)
+          const result = await daemonClient.send(network, index, options.to, options.amount, options.token, wallet)
           sendSpinner.succeed('Transaction sent!')
-
-          recordTransaction(sendOptions, result.txHash, amountUsd)
 
           if (program.opts().json) {
             console.log(JSON.stringify(result))

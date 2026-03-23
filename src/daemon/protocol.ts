@@ -1,6 +1,22 @@
+export type DaemonAction =
+  | 'get_address'
+  | 'get_balance'
+  | 'get_history'
+  | 'estimate_fee'
+  | 'send'
+  | 'list_wallets'
+  | 'status'
+  | 'lock'
+
 export interface DaemonRequest {
-  action: 'get_seed' | 'list_wallets' | 'status' | 'lock'
+  action: DaemonAction
   wallet?: string
+  network?: string
+  index?: number
+  token?: string
+  to?: string
+  amount?: string
+  limit?: number
 }
 
 export interface DaemonResponse {
@@ -8,6 +24,3 @@ export interface DaemonResponse {
   data?: unknown
   error?: string
 }
-
-export const DAEMON_SOCKET_NAME = 'daemon.sock'
-export const DAEMON_PID_NAME = 'daemon.pid'

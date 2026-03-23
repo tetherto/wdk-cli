@@ -5,11 +5,18 @@ import { dirname } from 'node:path'
 import { getDaemonSocketPath, getDaemonPidPath, getWalletPath } from '../config/constants.js'
 import { WalletKeyring } from '../security/keyring.js'
 import { deriveKey, decryptWithKey } from '../security/encryption.js'
+import { WdkService } from '../services/wdk-service.js'
+import { isValidNetwork, getNetworkConfig } from '../config/networks.js'
+import { getTokenConfig } from '../config/tokens.js'
+import { getTokenTransfers } from '../services/indexer-service.js'
+import { enforcePolicies, recordTransaction } from '../services/policy-service.js'
 import type { DaemonRequest, DaemonResponse } from './protocol.js'
 import type { EncryptedPayload } from '../types/index.js'
+import type { NetworkName } from '../types/index.js'
 
 export class WalletDaemon {
-  private derivedKeys = new Map<string, Buffer>()
+  private walletNames: string[] = []
+  private wdkInstances = new Map<string, WdkService>()
   private server: Server | null = null
   private ttlTimer: ReturnType<typeof setTimeout> | null = null
   private ttlMs: number = 0
@@ -23,18 +30,21 @@ export class WalletDaemon {
       throw new Error('No wallets found')
     }
 
-    // Only the derived key is held in RAM — seeds are decrypted on-the-fly per request
+    // Decrypt seeds and create WDK instances — keys are discarded immediately
     for (const name of walletNames) {
       const walletPath = getWalletPath(name)
       const data = readFileSync(walletPath, 'utf8')
       const payload: EncryptedPayload = JSON.parse(data)
       const salt = Buffer.from(payload.salt, 'hex')
       const key = deriveKey(password, salt)
+      const seed = decryptWithKey(payload, key)
+      key.fill(0)
 
-      decryptWithKey(payload, key)
-
-      this.derivedKeys.set(name, key)
+      const wdk = new WdkService()
+      wdk.createInstance(seed)
+      this.wdkInstances.set(name, wdk)
     }
+    this.walletNames = walletNames
 
     this.ttlMs = ttlMinutes === 0 ? 0 : ttlMinutes * 60 * 1000
     this.resetTtl()
@@ -46,10 +56,11 @@ export class WalletDaemon {
 
     this.server = createServer((socket) => this.handleConnection(socket))
 
+    const oldUmask = process.umask(0o077)
     await new Promise<void>((resolve, reject) => {
       this.server!.on('error', reject)
-      this.server!.listen(socketPath, async () => {
-        await chmod(socketPath, 0o600)
+      this.server!.listen(socketPath, () => {
+        process.umask(oldUmask)
         resolve()
       })
     })
@@ -68,10 +79,25 @@ export class WalletDaemon {
     }
   }
 
+  private async ensureInitialized(network: NetworkName, wallet: string): Promise<WdkService> {
+    const wdk = this.wdkInstances.get(wallet)
+    if (!wdk) throw new Error(`Wallet '${wallet}' is not unlocked`)
+
+    if (!wdk.isNetworkRegistered(network)) {
+      wdk.registerNetworkPublic(network)
+    }
+    return wdk
+  }
+
   private handleConnection(socket: Socket): void {
     let buffer = ''
     socket.on('data', (chunk) => {
       buffer += chunk.toString()
+      if (buffer.length > 65536) {
+        socket.write(JSON.stringify({ ok: false, error: 'Message too large' }) + '\n')
+        socket.destroy()
+        return
+      }
       const lines = buffer.split('\n')
       buffer = lines.pop() || ''
 
@@ -79,8 +105,11 @@ export class WalletDaemon {
         if (!line.trim()) continue
         try {
           const request: DaemonRequest = JSON.parse(line)
-          const response = this.handleRequest(request)
-          socket.write(JSON.stringify(response) + '\n')
+          this.handleRequest(request).then((response) => {
+            socket.write(JSON.stringify(response) + '\n')
+          }).catch(() => {
+            socket.write(JSON.stringify({ ok: false, error: 'Internal error' }) + '\n')
+          })
         } catch {
           socket.write(JSON.stringify({ ok: false, error: 'Invalid request' }) + '\n')
         }
@@ -88,28 +117,192 @@ export class WalletDaemon {
     })
   }
 
-  private handleRequest(req: DaemonRequest): DaemonResponse {
+  private async handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
+    const wallet = req.wallet || 'default'
+
     switch (req.action) {
-      case 'get_seed': {
+      case 'get_address': {
         this.resetTtl()
-        const wallet = req.wallet || 'default'
-        const key = this.derivedKeys.get(wallet)
-        if (!key) {
-          return { ok: false, error: `Wallet '${wallet}' is not unlocked` }
+        if (!req.network || !isValidNetwork(req.network)) {
+          return { ok: false, error: `Invalid network: ${req.network}` }
         }
-        // Decrypt on-the-fly — seed only exists in memory briefly
         try {
-          const data = readFileSync(getWalletPath(wallet), 'utf8')
-          const payload: EncryptedPayload = JSON.parse(data)
-          const seed = decryptWithKey(payload, key)
-          return { ok: true, data: { seed } }
+          const wdk = await this.ensureInitialized(req.network as NetworkName, wallet)
+          const account = await wdk.getAccount(req.network as NetworkName, req.index ?? 0)
+          const address = await account.getAddress()
+          return { ok: true, data: { address } }
         } catch (e) {
-          return { ok: false, error: `Failed to decrypt wallet '${wallet}'` }
+          return { ok: false, error: e instanceof Error ? e.message : String(e) }
+        }
+      }
+
+      case 'get_balance': {
+        this.resetTtl()
+        if (!req.network || !isValidNetwork(req.network)) {
+          return { ok: false, error: `Invalid network: ${req.network}` }
+        }
+        try {
+          const wdk = await this.ensureInitialized(req.network as NetworkName, wallet)
+          const networkConfig = getNetworkConfig(req.network as NetworkName)
+          const account = await wdk.getAccount(req.network as NetworkName, req.index ?? 0)
+
+          if (req.token) {
+            const balance: bigint = await account.getTokenBalance(req.token)
+            const config = getTokenConfig(req.network as NetworkName, req.token)
+            return {
+              ok: true,
+              data: {
+                balance: balance.toString(),
+                symbol: config?.symbol || 'tokens',
+                decimals: config?.decimals || 0,
+              },
+            }
+          }
+
+          const balance: bigint = await account.getBalance()
+          return {
+            ok: true,
+            data: {
+              balance: balance.toString(),
+              symbol: networkConfig.nativeSymbol,
+              decimals: networkConfig.decimals,
+            },
+          }
+        } catch (e) {
+          return { ok: false, error: e instanceof Error ? e.message : String(e) }
+        }
+      }
+
+      case 'get_history': {
+        this.resetTtl()
+        if (!req.network || !isValidNetwork(req.network)) {
+          return { ok: false, error: `Invalid network: ${req.network}` }
+        }
+        try {
+          const wdk = await this.ensureInitialized(req.network as NetworkName, wallet)
+          const account = await wdk.getAccount(req.network as NetworkName, req.index ?? 0)
+          const address = await account.getAddress()
+          const networkConfig = getNetworkConfig(req.network as NetworkName)
+          const token = (req.token || networkConfig.nativeSymbol.toLowerCase()) as 'usdt' | 'usat' | 'xaut' | 'btc'
+          const transfers = await getTokenTransfers(req.network as NetworkName, token, address, { limit: req.limit ?? 20 })
+          return { ok: true, data: { address, transfers, count: transfers.length } }
+        } catch (e) {
+          return { ok: false, error: e instanceof Error ? e.message : String(e) }
+        }
+      }
+
+      case 'estimate_fee': {
+        this.resetTtl()
+        if (!req.network || !isValidNetwork(req.network) || !req.to || !req.amount) {
+          return { ok: false, error: 'Missing required fields: network, to, amount' }
+        }
+        try {
+          const wdk = await this.ensureInitialized(req.network as NetworkName, wallet)
+          const networkConfig = getNetworkConfig(req.network as NetworkName)
+          const account = await wdk.getAccount(req.network as NetworkName, req.index ?? 0)
+
+          let fee: bigint
+          if (req.token) {
+            const quote = await account.quoteTransfer({
+              token: req.token,
+              recipient: req.to,
+              amount: BigInt(req.amount),
+            })
+            fee = quote.fee
+          } else {
+            const quote = await account.quoteSendTransaction({
+              to: req.to,
+              value: BigInt(req.amount),
+            })
+            fee = quote.fee
+          }
+
+          const decimals = networkConfig.decimals
+          const divisor = 10n ** BigInt(decimals)
+          const whole = fee / divisor
+          const remainder = fee % divisor
+          const decimal = remainder.toString().padStart(decimals, '0').replace(/0+$/, '') || '0'
+          const feeFormatted = `${whole}.${decimal.slice(0, 8)} ${networkConfig.nativeSymbol}`
+
+          return { ok: true, data: { fee: fee.toString(), feeFormatted } }
+        } catch (e) {
+          return { ok: false, error: e instanceof Error ? e.message : String(e) }
+        }
+      }
+
+      case 'send': {
+        this.resetTtl()
+        if (!req.network || !isValidNetwork(req.network) || !req.to || !req.amount) {
+          return { ok: false, error: 'Missing required fields: network, to, amount' }
+        }
+        try {
+          const sendOptions = {
+            network: req.network as NetworkName,
+            index: req.index ?? 0,
+            to: req.to,
+            amount: req.amount,
+            token: req.token,
+            wallet,
+          }
+          const { amountUsd } = await enforcePolicies(sendOptions)
+
+          const wdk = await this.ensureInitialized(req.network as NetworkName, wallet)
+          const networkConfig = getNetworkConfig(req.network as NetworkName)
+          const account = await wdk.getAccount(req.network as NetworkName, req.index ?? 0)
+          const sendAmount = BigInt(req.amount)
+
+          let txHash: string
+          let from: string
+          let fee: string | undefined
+
+          if (req.token) {
+            const tokenBalance = await account.getTokenBalance(req.token)
+            if (tokenBalance < sendAmount) {
+              return { ok: false, error: `Insufficient token balance: ${tokenBalance} < ${sendAmount}` }
+            }
+            const result = await account.transfer({
+              token: req.token,
+              recipient: req.to,
+              amount: sendAmount,
+            })
+            txHash = result.hash
+            from = await account.getAddress()
+            fee = result.fee?.toString()
+          } else {
+            const balance = await account.getBalance()
+            if (balance < sendAmount) {
+              return { ok: false, error: `Insufficient balance: ${balance} ${networkConfig.nativeSymbol} < ${sendAmount}` }
+            }
+
+            const result = await account.sendTransaction({
+              to: req.to,
+              value: sendAmount,
+            })
+            txHash = result.hash
+            from = await account.getAddress()
+            fee = result.fee?.toString()
+          }
+
+          recordTransaction(sendOptions, txHash, amountUsd)
+
+          return {
+            ok: true,
+            data: {
+              txHash,
+              network: req.network,
+              from,
+              to: req.to,
+              amount: req.amount,
+              fee,
+            },
+          }
+        } catch (e) {
+          return { ok: false, error: e instanceof Error ? e.message : String(e) }
         }
       }
 
       case 'list_wallets': {
-        return { ok: true, data: { wallets: [...this.derivedKeys.keys()] } }
+        return { ok: true, data: { wallets: this.walletNames } }
       }
 
       case 'status': {
@@ -120,8 +313,8 @@ export class WalletDaemon {
         return {
           ok: true,
           data: {
-            unlocked: this.derivedKeys.size > 0,
-            wallets: [...this.derivedKeys.keys()],
+            unlocked: this.walletNames.length > 0,
+            wallets: this.walletNames,
             ttlMs: this.ttlMs,
             ttlRemaining,
             pid: process.pid,
@@ -130,7 +323,7 @@ export class WalletDaemon {
       }
 
       case 'lock': {
-        this.shutdown()
+        setTimeout(() => this.shutdown(), 100)
         return { ok: true, data: { message: 'Wallet locked' } }
       }
 
@@ -140,11 +333,10 @@ export class WalletDaemon {
   }
 
   private async shutdown(): Promise<void> {
-    // Zero-fill all derived keys before clearing
-    for (const [name, buf] of this.derivedKeys) {
-      buf.fill(0)
-      this.derivedKeys.delete(name)
+    for (const [, wdk] of this.wdkInstances) {
+      wdk.dispose()
     }
+    this.wdkInstances.clear()
 
     if (this.ttlTimer) {
       clearTimeout(this.ttlTimer)

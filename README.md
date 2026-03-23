@@ -1,19 +1,60 @@
 # wdk-cli
 
-A TypeScript CLI wallet for AI agents, built on [Wallet Development Kit (WDK)](https://wallet.tether.io/). Designed to be installed on a machine and operated by AI agents (e.g. OpenClaw, Claude) for multi-chain wallet operations, with user-controlled spending policies to keep agents safe.
+A multi-chain crypto wallet for AI agents, built on [Wallet Development Kit (WDK)](https://wallet.tether.io/). Designed to be operated by AI agents (e.g. OpenClaw, Claude) with user-controlled spending policies.
+
+## Architecture
+
+```
+┌───────────┐        ┌───────────────────────────────────┐
+│  wdk-cli  │──IPC──▶│          wdk-daemon               │
+│  (CLI)    │        │        (wallet daemon)             │
+└───────────┘        │                                   │
+                     │  Holds WDK instances in memory    │
+┌───────────┐        │  Handles all crypto operations:   │
+│  wdk-mcp  │──IPC──▶│  derivation, signing, balances    │
+│  (MCP)    │        │  Auto-exits after timeout         │
+└───────────┘        │                                   │
+                     │  Signs tx locally, then submits   │
+                     └───────────┬───────────────────────┘
+                                 │
+                                 │  submits signed tx
+                                 ▼
+                          ┌──────────────┐
+                          │  Blockchain  │
+                          │   (RPC/P2P)  │
+                          └──────────────┘
+```
+
+**wdk-daemon** (Wallet Daemon):
+- Holds WDK instances in memory — owns all cryptographic operations
+- Enforces spending policies (limits, whitelist) before executing transactions
+- Listens on a Unix socket (`daemon.sock`, 0600 permissions)
+- Exposes: `get_address`, `get_balance`, `get_history`, `estimate_fee`, `send`, `list_wallets`, `status`, `lock`
+- Auto-exits after configurable timeout (default: 30 min, `--ttl 0` for unlimited)
+- Clients send requests → daemon enforces policy → performs crypto → returns results
+
+**wdk-cli** (CLI):
+- Thin client — no crypto, no keys
+- Parses user commands, sends requests to daemon, formats and displays results
+- Only interface for password-protected operations: unlock wallet, export seed, manage spending policies, delete wallet
+
+**wdk-mcp** (MCP Server):
+- Thin client — no crypto, no keys
+- Exposes structured wallet tools to AI agents via [Model Context Protocol](https://modelcontextprotocol.io/)
+- Routes all operations through the daemon
 
 ## Features
 
-- **Wallet** — Multiple named wallets with BIP-39 seed phrases, encrypted at rest with AES-256-GCM. Background daemon holds keys in RAM after unlock — seeds never written to disk
-- **Network** — Bitcoin, Ethereum, Polygon, Arbitrum, BSC, Avalanche, Solana, Tron, Spark, Smart Account (ERC-4337) + testnets. Add custom networks with `network create`
-- **Get** — Derive wallet addresses and check balances for native and token assets with known token registry
-- **Send** — Native and token transfers with fee estimation and confirmation
-- **Policy** — Spending limits and address whitelists for AI agent safety (password-protected)
+- **Wallet** — Multiple named wallets with BIP-39 seed phrases, encrypted at rest with AES-256-GCM. Background daemon holds keys in memory after unlock
+- **Network** — Bitcoin, Ethereum, Polygon, Arbitrum, Base, BSC, Avalanche, Solana, Tron, Spark, Smart Account (ERC-4337) + testnets. Add custom networks with `network create`
+- **Get** — Derive wallet addresses, check balances, and view transaction history across all networks
+- **Send** — Native and token transfers with fee estimation, confirmation, and dry-run preview
+- **Policy** — Spending limits and address whitelists enforced at the daemon level. Policy changes require user password — AI agents cannot modify policies
 - **Config** — Per-network configuration with env var overrides
 
 ## Requirements
 
-- Node.js >= 20
+- Node.js >= 22
 
 ## Install
 
@@ -96,7 +137,7 @@ Seed phrases are encrypted with AES-256-GCM (scrypt KDF). Each wallet has its ow
 
 If a wallet already exists, `create` and `import` will ask for confirmation before overwriting.
 
-**Daemon-based unlock:** `wdk wallet unlock` starts a background daemon that holds derived keys in RAM. All wallets are unlocked at once with a single password. The daemon auto-locks after 30 minutes of inactivity by default (configurable with `--ttl`). Use `--ttl 0` for unlimited — ideal for AI agent environments. Seeds are never written to disk after unlock — the daemon decrypts on-the-fly per request.
+**Daemon-based unlock:** `wdk wallet unlock` starts a background daemon that holds derived keys in RAM and handles all cryptographic operations. All wallets are unlocked at once with a single password. The daemon auto-locks after 30 minutes of inactivity by default (configurable with `--ttl`). Use `--ttl 0` for unlimited — ideal for AI agent environments. Seeds never leave the daemon process.
 
 Use `--wallet <name>` on any command to target a specific wallet (defaults to `"default"`).
 
@@ -273,11 +314,28 @@ Additional networks can be added with `wdk network create`. See [Adding Custom N
 | `WDK_INDEXER_BASE_URL` | WDK Indexer API URL |
 | `WDK_INDEXER_API_KEY` | WDK Indexer API key |
 
+### Data flow
+
+1. **Unlock**: User enters password → daemon decrypts seeds via scrypt + AES-256-GCM → initializes WDK instances in RAM → discards derived keys
+2. **Request**: CLI/MCP sends operation (e.g. `get_address`) over Unix socket → daemon performs crypto operation → returns result only
+3. **Lock**: WDK instances disposed and cleared → daemon exits
+
+### Encrypted wallet files
+
+Each wallet is stored as an independent `.enc` file in `~/.config/wdk-cli/wallets/`:
+
+```json
+{ "version": 1, "salt": "...", "iv": "...", "tag": "...", "ciphertext": "..." }
+```
+
+Same password, unique random salt per wallet → unique derived key per wallet.
+
 ## Security
 
 - Seed phrases encrypted at rest (AES-256-GCM + scrypt), unique salt per wallet
 - Seeds and passwords never accepted as CLI arguments
-- Daemon holds keys in RAM only, auto-locks after inactivity
+- Private keys and seeds never leave the daemon process
+- Unix socket with 0600 permissions (same-user access only, like ssh-agent)
 - No telemetry, no analytics, no external data collection
 
 ## AI Agent Integration

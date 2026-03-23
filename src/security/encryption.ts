@@ -14,18 +14,23 @@ export function encrypt(plaintext: string, password: string): EncryptedPayload {
   const salt = randomBytes(SALT_LEN)
   const key = scryptSync(password, salt, KEY_LEN, { N: SCRYPT_N, r: SCRYPT_R, p: SCRYPT_P })
   const iv = randomBytes(IV_LEN)
-  const cipher = createCipheriv(ALGORITHM, key, iv)
 
-  let ciphertext = cipher.update(plaintext, 'utf8', 'hex')
-  ciphertext += cipher.final('hex')
-  const tag = cipher.getAuthTag()
+  try {
+    const cipher = createCipheriv(ALGORITHM, key, iv)
 
-  return {
-    version: 1,
-    salt: salt.toString('hex'),
-    iv: iv.toString('hex'),
-    tag: tag.toString('hex'),
-    ciphertext,
+    let ciphertext = cipher.update(plaintext, 'utf8', 'hex')
+    ciphertext += cipher.final('hex')
+    const tag = cipher.getAuthTag()
+
+    return {
+      version: 1,
+      salt: salt.toString('hex'),
+      iv: iv.toString('hex'),
+      tag: tag.toString('hex'),
+      ciphertext,
+    }
+  } finally {
+    key.fill(0)
   }
 }
 
@@ -56,5 +61,9 @@ export function decrypt(payload: EncryptedPayload, password: string): string {
 
   const salt = Buffer.from(payload.salt, 'hex')
   const key = deriveKey(password, salt)
-  return decryptWithKey(payload, key)
+  try {
+    return decryptWithKey(payload, key)
+  } finally {
+    key.fill(0)
+  }
 }
