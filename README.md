@@ -1,6 +1,6 @@
 # wdk-cli
 
-A multi-chain crypto wallet for AI agents, built on [Wallet Development Kit (WDK)](https://wallet.tether.io/). Designed to be operated by AI agents (e.g. OpenClaw, Claude) with user-controlled spending policies.
+A multi-chain crypto wallet for AI agents, built on [Wallet Development Kit (WDK)](https://wallet.tether.io/). Designed to be operated by AI agents (e.g. Claude, ChatGPT, OpenClaw) with user-controlled spending policies.
 
 ## Architecture
 
@@ -54,7 +54,7 @@ A multi-chain crypto wallet for AI agents, built on [Wallet Development Kit (WDK
 
 ## Requirements
 
-- Node.js >= 22
+- Node.js >= 20
 
 ## Install
 
@@ -131,15 +131,9 @@ wdk wallet unlock [--ttl <minutes>]                 # Unlock all wallets (starts
 wdk wallet lock                                     # Lock all wallets (stops daemon)
 ```
 
-Supports **multiple named wallets**. Each wallet is an independently encrypted file stored in `~/.config/wdk-cli/wallets/`. If `--name` is omitted, the wallet is named `"default"`.
+Supports **multiple named wallets**, each stored as an independently encrypted file in `~/.config/wdk-cli/wallets/`. If `--name` is omitted, the wallet is named `"default"`. Use `--wallet <name>` on any command to target a specific wallet.
 
-Seed phrases are encrypted with AES-256-GCM (scrypt KDF). Each wallet has its own random salt, producing a unique derived key. One password encrypts all wallets.
-
-If a wallet already exists, `create` and `import` will ask for confirmation before overwriting.
-
-**Daemon-based unlock:** `wdk wallet unlock` starts a background daemon that holds derived keys in RAM and handles all cryptographic operations. All wallets are unlocked at once with a single password. The daemon auto-locks after 30 minutes of inactivity by default (configurable with `--ttl`). Use `--ttl 0` for unlimited — ideal for AI agent environments. Seeds never leave the daemon process.
-
-Use `--wallet <name>` on any command to target a specific wallet (defaults to `"default"`).
+`wdk wallet unlock` starts the daemon with all wallets unlocked at once. Use `--ttl 0` for unlimited timeout — ideal for AI agent environments.
 
 ### Networks
 
@@ -270,6 +264,7 @@ BTC networks use the [Electrum protocol](https://electrumx.readthedocs.io/). Def
 |------|-------------|
 | `--network <network>` | Override default network |
 | `--index <n>` | Account index (default: 0) |
+| `--wallet <name>` | Wallet name (default: "default") |
 | `--json` | Machine-readable JSON output |
 | `--no-color` | Disable colored output |
 | `--verbose` | Debug logging |
@@ -314,6 +309,14 @@ Additional networks can be added with `wdk network create`. See [Adding Custom N
 | `WDK_INDEXER_BASE_URL` | WDK Indexer API URL |
 | `WDK_INDEXER_API_KEY` | WDK Indexer API key |
 
+## Security
+
+- Seed phrases encrypted at rest (AES-256-GCM + scrypt), unique salt per wallet
+- Seeds and passwords never accepted as CLI arguments
+- Private keys and seeds never leave the daemon process
+- Unix socket with 0600 permissions (same-user access only, like ssh-agent)
+- No telemetry, no analytics, no external data collection
+
 ### Data flow
 
 1. **Unlock**: User enters password → daemon decrypts seeds via scrypt + AES-256-GCM → initializes WDK instances in RAM → discards derived keys
@@ -330,110 +333,39 @@ Each wallet is stored as an independent `.enc` file in `~/.config/wdk-cli/wallet
 
 Same password, unique random salt per wallet → unique derived key per wallet.
 
-## Security
-
-- Seed phrases encrypted at rest (AES-256-GCM + scrypt), unique salt per wallet
-- Seeds and passwords never accepted as CLI arguments
-- Private keys and seeds never leave the daemon process
-- Unix socket with 0600 permissions (same-user access only, like ssh-agent)
-- No telemetry, no analytics, no external data collection
-
 ## AI Agent Integration
 
-wdk-cli is designed to be operated by AI agents via the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) — AI models call structured wallet tools directly instead of parsing CLI output.
+AI agents can interact with wdk-wallet in two ways:
+
+**MCP (Model Context Protocol)** — AI models call structured wallet tools directly. Supported by Claude Desktop, Claude Code, ChatGPT Desktop, and other MCP-compatible platforms.
+
+**CLI with `--json`** — For agents that don't support MCP. Use `--json` for machine-parseable output and `--yes` to skip confirmation prompts.
+
+Both modes route through the daemon — the agent never has access to keys or seeds.
+
+### MCP Setup
+
+One command to connect wdk-wallet to your AI platform:
+
+```bash
+wdk setup claude-desktop    # Claude Desktop
+wdk setup claude-code       # Claude Code (global, works in all projects)
+wdk setup chatgpt           # ChatGPT Desktop
+wdk setup openclaw          # OpenClaw
+```
+
+Each command auto-detects the Node.js binary path, validates prerequisites, and writes the config. Use `--remove` to uninstall.
+
+Before using wallet tools, unlock your wallet:
+```bash
+wdk wallet unlock --ttl 0
+```
 
 **MCP Tools:** `get_networks`, `get_address`, `get_balance`, `get_history`, `send_token`, `get_policy`
 
 All wallet-dependent tools accept an optional `wallet` parameter to target a specific wallet (defaults to `"default"`).
 
-### Quick Setup
-
-One command to connect wdk-wallet to your AI platform:
-
-```bash
-# Claude Desktop
-wdk setup claude-desktop
-
-# Claude Code (global, works in all projects)
-wdk setup claude-code
-
-# OpenClaw
-wdk setup openclaw
-```
-
-Each command auto-detects the binary path, validates prerequisites, and writes the config for you. Use `--remove` to uninstall.
-
-Before using the wallet tools, unlock your wallet:
-```bash
-wdk wallet unlock --ttl 0
-```
-
-### Manual Setup
-
-If you prefer to configure manually, add `wdk-wallet` to your platform's MCP config:
-
-<details>
-<summary>Claude Desktop — <code>claude_desktop_config.json</code></summary>
-
-macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
-Windows: `%APPDATA%\Claude\claude_desktop_config.json`
-
-```json
-{
-  "mcpServers": {
-    "wdk-wallet": {
-      "command": "wdk-mcp"
-    }
-  }
-}
-```
-
-Restart Claude Desktop after editing.
-</details>
-
-<details>
-<summary>Claude Code — <code>~/.claude.json</code></summary>
-
-```json
-{
-  "mcpServers": {
-    "wdk-wallet": {
-      "command": "wdk-mcp"
-    }
-  }
-}
-```
-
-Or add to `.mcp.json` in your project root for project-scoped access.
-</details>
-
-<details>
-<summary>OpenClaw — <code>~/.openclaw/openclaw.json</code></summary>
-
-```json
-{
-  "mcpServers": {
-    "wdk-wallet": {
-      "command": "wdk-mcp"
-    }
-  }
-}
-```
-
-Run `openclaw gateway restart` after editing.
-</details>
-
-<details>
-<summary>Start MCP server manually</summary>
-
-```bash
-wdk mcp
-```
-</details>
-
 ### CLI Mode
-
-For agents that don't support MCP, use `--json` for machine-parseable output and `--yes` to skip confirmation prompts.
 
 ```bash
 wdk get balance --network ethereum --json

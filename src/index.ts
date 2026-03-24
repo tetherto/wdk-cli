@@ -30,14 +30,6 @@ export function createProgram(): Command {
   registerPolicyCommand(program)
   registerSetupCommand(program)
 
-  program
-    .command('mcp')
-    .description('Start MCP server for AI model integration (Claude, Gemini, GPT)')
-    .action(async () => {
-      const { startMcpServer } = await import('./mcp/server.js')
-      await startMcpServer()
-    })
-
   return program
 }
 

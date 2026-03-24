@@ -20,19 +20,22 @@ function getClaudeCodeConfigPath(): string {
   return join(homedir(), '.claude.json')
 }
 
+function getChatGptConfigPath(): string | null {
+  const home = homedir()
+  const os = platform()
+  if (os === 'darwin') return join(home, 'Library', 'Application Support', 'com.openai.chat', 'mcp.json')
+  if (os === 'win32') return join(process.env.APPDATA || join(home, 'AppData', 'Roaming'), 'com.openai.chat', 'mcp.json')
+  return null
+}
+
 function getOpenClawConfigPath(): string {
   return join(homedir(), '.openclaw', 'openclaw.json')
 }
 
 function getWdkMcpCommand(): { command: string; args?: string[] } {
-  try {
-    const whichCmd = platform() === 'win32' ? 'where wdk-mcp 2>nul' : 'which wdk-mcp 2>/dev/null'
-    const binPath = execSync(whichCmd, { encoding: 'utf8', timeout: 5000 }).trim()
-    if (binPath) return { command: binPath }
-  } catch { /* not found globally */ }
-
   const nodePath = process.execPath
-  const scriptPath = join(dirname(new URL(import.meta.url).pathname), '..', '..', 'bin', 'wdk-mcp.mjs')
+  const distDir = dirname(new URL(import.meta.url).pathname)
+  const scriptPath = join(distDir, '..', 'bin', 'wdk-mcp.mjs')
   if (existsSync(scriptPath)) return { command: nodePath, args: [scriptPath] }
 
   return { command: 'npx', args: ['-y', '-p', 'wdk-cli', 'wdk-mcp'] }
@@ -111,7 +114,7 @@ function runSetup(target: SetupTarget, options: { remove?: boolean; skipVerify?:
 
   if ('wdk-wallet' in config.mcpServers) {
     console.log(chalk.yellow('  ⚠ wdk-wallet is already configured'))
-    console.log(chalk.dim(`    Config: ${target.configPath}`))
+    console.log(chalk.dim(`    Config: "${target.configPath}"`))
     console.log(chalk.dim('    Use --remove to reconfigure'))
     return
   }
@@ -153,7 +156,7 @@ function runSetup(target: SetupTarget, options: { remove?: boolean; skipVerify?:
   steps.push(target.restartMessage)
   steps.forEach((s, i) => console.log(chalk.dim(`  ${i + 1}. ${s}`)))
   console.log()
-  console.log(chalk.dim(`Config: ${target.configPath}`))
+  console.log(chalk.dim(`Config: "${target.configPath}"`))
   console.log()
 }
 
@@ -220,6 +223,34 @@ export function registerSetupCommand(program: Command): void {
             'Or visit: https://claude.ai/code',
           ],
           restartMessage: 'Start a new Claude Code session to use wdk-wallet tools',
+        },
+        options,
+      )
+    } catch (e) {
+      handleError(e, program.opts().verbose, program.opts().json)
+    }
+  })
+
+  setupOptions(
+    setup
+      .command('chatgpt')
+      .description('Configure wdk-wallet MCP server for ChatGPT Desktop app'),
+  ).action(async (options: { remove?: boolean; skipVerify?: boolean }) => {
+    try {
+      const configPath = getChatGptConfigPath()
+      if (!configPath) {
+        console.log(chalk.red(`\n  ✗ Unsupported platform: ${platform()}`))
+        console.log(chalk.dim('    ChatGPT Desktop is available on macOS and Windows'))
+        process.exit(1)
+      }
+
+      runSetup(
+        {
+          name: 'ChatGPT Desktop',
+          configPath,
+          checkInstalled: () => existsSync(dirname(configPath)),
+          notInstalledMessage: ['Download from https://openai.com/chatgpt/desktop/'],
+          restartMessage: 'Restart ChatGPT Desktop (Cmd+Q, then reopen)',
         },
         options,
       )

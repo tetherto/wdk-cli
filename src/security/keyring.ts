@@ -32,9 +32,7 @@ export class Keyring {
   async destroy(): Promise<void> {
     try {
       await unlink(this.path)
-    } catch {
-      // File doesn't exist, nothing to destroy
-    }
+    } catch { /* */ }
   }
 }
 

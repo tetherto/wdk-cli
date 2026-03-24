@@ -30,21 +30,28 @@ export class WalletDaemon {
       throw new Error('No wallets found')
     }
 
-    // Decrypt seeds and create WDK instances — keys are discarded immediately
     for (const name of walletNames) {
       const walletPath = getWalletPath(name)
       const data = readFileSync(walletPath, 'utf8')
       const payload: EncryptedPayload = JSON.parse(data)
       const salt = Buffer.from(payload.salt, 'hex')
       const key = deriveKey(password, salt)
-      const seed = decryptWithKey(payload, key)
-      key.fill(0)
-
-      const wdk = new WdkService()
-      wdk.createInstance(seed)
-      this.wdkInstances.set(name, wdk)
+      try {
+        const seed = decryptWithKey(payload, key)
+        const wdk = new WdkService()
+        wdk.createInstance(seed)
+        this.wdkInstances.set(name, wdk)
+        this.walletNames.push(name)
+      } catch {
+        process.stderr.write(`Warning: Failed to decrypt wallet '${name}' — wrong password or corrupted file\n`)
+      } finally {
+        key.fill(0)
+      }
     }
-    this.walletNames = walletNames
+
+    if (this.walletNames.length === 0) {
+      throw new Error('Failed to decrypt any wallets. Check your password.')
+    }
 
     this.ttlMs = ttlMinutes === 0 ? 0 : ttlMinutes * 60 * 1000
     this.resetTtl()

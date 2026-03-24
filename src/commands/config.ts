@@ -49,7 +49,6 @@ export function registerConfigCommand(program: Command): void {
 
         if (network) {
           validateNetwork(network)
-          // Per-network config
           if (key) {
             const value = configService.get(`networks.${network}.${key}`)
             if (value === undefined) {
@@ -72,7 +71,6 @@ export function registerConfigCommand(program: Command): void {
             }
           }
         } else if (key) {
-          // Global key
           const value = configService.get(key)
           if (value === undefined) {
             console.log(chalk.yellow(`Key '${key}' is not set.`))
@@ -80,7 +78,6 @@ export function registerConfigCommand(program: Command): void {
             console.log(typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value))
           }
         } else {
-          // Show global config
           const all = configService.list()
           const global: Record<string, unknown> = {}
           for (const [k, v] of Object.entries(all)) {
