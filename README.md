@@ -335,37 +335,28 @@ Same password, unique random salt per wallet → unique derived key per wallet.
 
 ## AI Agent Integration
 
-AI agents can interact with wdk-wallet in two ways:
+AI agents interact with wdk-wallet in two ways, depending on their environment:
 
-**MCP (Model Context Protocol)** — AI models call structured wallet tools directly. Supported by Claude Desktop, Claude Code, ChatGPT Desktop, and other MCP-compatible platforms.
+### MCP — for sandboxed AI models
 
-**CLI with `--json`** — For agents that don't support MCP. Use `--json` for machine-parseable output and `--yes` to skip confirmation prompts.
-
-Both modes route through the daemon — the agent never has access to keys or seeds.
-
-### MCP Setup
-
-One command to connect wdk-wallet to your AI platform:
+For AI models that run as applications with limited system access (Claude Desktop, ChatGPT Desktop, etc.). The model can only interact with the wallet through structured MCP tools — it cannot run commands or access the filesystem.
 
 ```bash
 wdk setup claude-desktop    # Claude Desktop
-wdk setup claude-code       # Claude Code (global, works in all projects)
+wdk setup claude-code       # Claude Code
 wdk setup chatgpt           # ChatGPT Desktop
 wdk setup openclaw          # OpenClaw
 ```
 
-Each command auto-detects the Node.js binary path, validates prerequisites, and writes the config. Use `--remove` to uninstall.
-
-Before using wallet tools, unlock your wallet:
-```bash
-wdk wallet unlock --ttl 0
-```
+Each command auto-detects the Node.js path, validates prerequisites, and writes the config. Use `--remove` to uninstall.
 
 **MCP Tools:** `get_networks`, `get_address`, `get_balance`, `get_history`, `send_token`, `get_policy`
 
-All wallet-dependent tools accept an optional `wallet` parameter to target a specific wallet (defaults to `"default"`).
+All wallet-dependent tools accept an optional `wallet` parameter (defaults to `"default"`).
 
-### CLI Mode
+### CLI — for local AI agents
+
+For AI agents with full system access (Claude Code, OpenClaw, custom agents). The agent runs `wdk` commands directly with `--json` for machine-parseable output.
 
 ```bash
 wdk get balance --network ethereum --json
@@ -374,9 +365,16 @@ wdk send --to 0xRECIPIENT --amount 1000000 --network ethereum --json --yes
 wdk policy show --json
 ```
 
-### Skill File
+The `wdk-wallet/SKILL.md` file contains complete instructions for AI agents — commands, workflows, error handling, and amount conversions. Feed it as context to your agent.
 
-The `wdk-wallet/SKILL.md` file contains complete instructions for any AI agent to operate the wallet — commands, workflows, error handling, and amount conversions. Feed it as context to your agent.
+### Before using either mode
+
+Unlock the wallet first:
+```bash
+wdk wallet unlock --ttl 0
+```
+
+Both MCP and CLI route through the daemon — the agent never has access to keys or seeds.
 
 ## Development
 
