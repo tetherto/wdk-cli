@@ -1,6 +1,6 @@
 ---
 name: wdk-wallet
-description: "Manage a multi-chain crypto wallet via the wdk CLI. Use when: user asks to check wallet balance, get wallet address, send crypto/tokens, check transaction history, or manage spending policies. Supports Bitcoin, Ethereum, Polygon, Arbitrum, Base, BSC, Avalanche, Solana, Tron, Spark, and Smart Accounts (ERC-4337). Triggers on: 'send ETH', 'check balance', 'wallet address', 'transfer USDT', 'crypto balance', 'send tokens', 'transaction history'."
+description: "Manage a multi-chain crypto wallet via the wdk CLI. Supports multiple named wallets. Use when: user asks to check wallet balance, get wallet address, send crypto/tokens, check transaction history, or manage spending policies. Supports Bitcoin, Ethereum, Polygon, Arbitrum, Base, BSC, Avalanche, Solana, Tron, Spark, and Smart Accounts (ERC-4337). Triggers on: 'send ETH', 'check balance', 'wallet address', 'transfer USDT', 'crypto balance', 'send tokens', 'transaction history'."
 metadata:
   openclaw:
     requires:
@@ -30,11 +30,24 @@ Operate a self-custody multi-chain wallet through the `wdk` CLI. All commands ru
 
 The user must complete these steps before the AI agent can operate the wallet:
 
-1. **Create wallet**: `wdk wallet create --words 24`
+1. **Create wallet**: `wdk wallet create --words 24` (optionally `--name trading` for named wallets)
 2. **Unlock session**: `wdk wallet unlock --ttl 0` (unlimited session, or `--ttl 480` for 8 hours; default: 30 min)
 3. **Configure policy** (optional): `wdk policy set enabled true`, `wdk policy set maxPerCallUsd 100`, etc.
 
 These require interactive password input — the AI agent cannot perform them.
+
+## Multi-Wallet
+
+Users can create multiple named wallets. Use `--wallet <name>` on any command to target a specific wallet (defaults to `"default"`).
+
+```bash
+wdk wallet list --json
+# Lists all wallets with lock status
+
+wdk get address --network ethereum --wallet trading --json
+wdk get balance --network ethereum --wallet savings --json
+wdk send --to 0x... --amount 1000 --network ethereum --wallet trading --json --yes
+```
 
 ## Commands
 
