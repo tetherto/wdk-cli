@@ -154,7 +154,7 @@ Use `wdk network create` to define the network identity, then `wdk config set` t
 wdk network create \
   --name base \
   --display-name "Base Mainnet" \
-  --wallet-type wdk-wallet-evm \
+  --wallet-type @tetherto/wdk-wallet-evm \
   --symbol ETH
 
 # 2. Configure the provider
@@ -165,7 +165,7 @@ wdk config set provider https://mainnet.base.org --network base
 |------|----------|-------------|
 | `--name <name>` | Yes | Network identifier (lowercase, e.g. `base`) |
 | `--display-name <name>` | Yes | Human-readable name (e.g. `Base Mainnet`) |
-| `--wallet-type <type>` | Yes | `wdk-wallet-evm`, `wdk-wallet-btc`, `wdk-wallet-solana`, `wdk-wallet-spark`, `wdk-wallet-tron`, `wdk-wallet-evm-erc-4337` |
+| `--wallet-type <type>` | Yes | `@tetherto/wdk-wallet-evm`, `@tetherto/wdk-wallet-btc`, `@tetherto/wdk-wallet-solana`, `@tetherto/wdk-wallet-spark`, `@tetherto/wdk-wallet-tron`, `@tetherto/wdk-wallet-evm-erc-4337` |
 | `--symbol <symbol>` | Yes | Native token symbol (e.g. `ETH`) |
 | `--decimals <n>` | No | Token decimals (default: 18 for EVM, 8 for BTC/Spark, 9 for Solana, 6 for Tron) |
 | `--testnet` | No | Mark as testnet |
@@ -250,11 +250,13 @@ wdk config path                                                     # Config fil
 | Network Type | Config Keys | Description |
 |-------------|-------------|-------------|
 | EVM | `provider`, `transferMaxFee` | JSON-RPC URL, max gas fee (wei) |
-| Solana | `provider` | JSON-RPC URL |
+| Solana | `rpcUrl` | JSON-RPC URL |
 | BTC | `host`, `port`, `protocol`, `network`, `bip` | Electrum server settings |
-| Spark | `sparkNetwork`, `sparkScanApiKey` | Network (MAINNET/REGTEST), API key |
+| Spark | `network` | Network (MAINNET/REGTEST) |
 | Tron | `provider`, `transferMaxFee` | JSON-RPC URL, max fee (sun) |
-| Smart Account | `chainId`, `provider`, `bundlerUrl`, `entryPointAddress`, `safeModulesVersion`, `mode`, `paymasterUrl`, `paymasterAddress`, `paymasterToken`, `transferMaxFee` | ERC-4337 account abstraction |
+| Smart Account | `chainId`, `blockchain`, `provider`, `bundlerUrl`, `entryPointAddress`, `safeModulesVersion`, `paymasterUrl`, `paymasterAddress`, `paymasterToken`, `transferMaxFee` | ERC-4337 account abstraction |
+
+All network configuration is defined in `wdk-config.json` and passed directly to the wallet SDK. Config field names must match SDK expectations exactly. Users can override per-network config at runtime with `wdk config set <key> <value> --network <network>` or replace the full network config with `wdk config set '{"key":"value",...}' --network <network>`.
 
 BTC networks use the [Electrum protocol](https://electrumx.readthedocs.io/). Default: `tcp` on standard ports. Set `protocol` to `tls` or `ssl` for encrypted connections. `bip` controls address type: `84` (native SegWit, default) or `44` (legacy P2PKH).
 
@@ -273,30 +275,30 @@ BTC networks use the [Electrum protocol](https://electrumx.readthedocs.io/). Def
 
 ### Built-in
 
-| Network | Name | Type | Native Symbol |
-|---------|------|------|---------------|
-| `bitcoin` | Bitcoin | wdk-wallet-btc | BTC |
-| `bitcoin-testnet3` | Bitcoin Testnet3 | wdk-wallet-btc | tBTC |
-| `ethereum` | Ethereum | wdk-wallet-evm | ETH |
-| `sepolia` | Sepolia Testnet | wdk-wallet-evm | ETH |
-| `polygon` | Polygon | wdk-wallet-evm | POL |
-| `arbitrum` | Arbitrum One | wdk-wallet-evm | ETH |
-| `base` | Base | wdk-wallet-evm | ETH |
-| `bsc` | BNB Smart Chain | wdk-wallet-evm | BNB |
-| `avalanche` | Avalanche C-Chain | wdk-wallet-evm | AVAX |
-| `solana` | Solana | wdk-wallet-solana | SOL |
-| `solana-testnet` | Solana Testnet | wdk-wallet-solana | SOL |
-| `solana-devnet` | Solana Devnet | wdk-wallet-solana | SOL |
-| `spark` | Spark | wdk-wallet-spark | BTC |
-| `spark-regtest` | Spark Regtest | wdk-wallet-spark | BTC |
-| `tron` | Tron | wdk-wallet-tron | TRX |
-| `tron-testnet` | Tron Testnet (Shasta) | wdk-wallet-tron | TRX |
-| `smart-account-ethereum` | Smart Account Ethereum | wdk-wallet-evm-erc-4337 | ETH |
-| `smart-account-sepolia` | Smart Account Sepolia | wdk-wallet-evm-erc-4337 | ETH |
-| `smart-account-polygon` | Smart Account Polygon | wdk-wallet-evm-erc-4337 | POL |
-| `smart-account-arbitrum` | Smart Account Arbitrum | wdk-wallet-evm-erc-4337 | ETH |
-| `smart-account-base` | Smart Account Base | wdk-wallet-evm-erc-4337 | ETH |
-| `smart-account-plasma` | Smart Account Plasma | wdk-wallet-evm-erc-4337 | ETH |
+| Network | Name | Module | Native Symbol |
+|---------|------|--------|---------------|
+| `bitcoin` | Bitcoin | @tetherto/wdk-wallet-btc | BTC |
+| `bitcoin-testnet3` | Bitcoin Testnet3 | @tetherto/wdk-wallet-btc | tBTC |
+| `ethereum` | Ethereum | @tetherto/wdk-wallet-evm | ETH |
+| `sepolia` | Sepolia Testnet | @tetherto/wdk-wallet-evm | ETH |
+| `polygon` | Polygon | @tetherto/wdk-wallet-evm | POL |
+| `arbitrum` | Arbitrum One | @tetherto/wdk-wallet-evm | ETH |
+| `base` | Base | @tetherto/wdk-wallet-evm | ETH |
+| `bsc` | BNB Smart Chain | @tetherto/wdk-wallet-evm | BNB |
+| `avalanche` | Avalanche C-Chain | @tetherto/wdk-wallet-evm | AVAX |
+| `solana` | Solana | @tetherto/wdk-wallet-solana | SOL |
+| `solana-testnet` | Solana Testnet | @tetherto/wdk-wallet-solana | SOL |
+| `solana-devnet` | Solana Devnet | @tetherto/wdk-wallet-solana | SOL |
+| `spark` | Spark | @tetherto/wdk-wallet-spark | BTC |
+| `spark-regtest` | Spark Regtest | @tetherto/wdk-wallet-spark | BTC |
+| `tron` | Tron | @tetherto/wdk-wallet-tron | TRX |
+| `tron-testnet` | Tron Testnet (Shasta) | @tetherto/wdk-wallet-tron | TRX |
+| `smart-account-ethereum` | Smart Account Ethereum | @tetherto/wdk-wallet-evm-erc-4337 | ETH |
+| `smart-account-sepolia` | Smart Account Sepolia | @tetherto/wdk-wallet-evm-erc-4337 | ETH |
+| `smart-account-polygon` | Smart Account Polygon | @tetherto/wdk-wallet-evm-erc-4337 | POL |
+| `smart-account-arbitrum` | Smart Account Arbitrum | @tetherto/wdk-wallet-evm-erc-4337 | ETH |
+| `smart-account-base` | Smart Account Base | @tetherto/wdk-wallet-evm-erc-4337 | ETH |
+| `smart-account-plasma` | Smart Account Plasma | @tetherto/wdk-wallet-evm-erc-4337 | ETH |
 
 Additional networks can be added with `wdk network create`. See [Adding Custom Networks](#adding-custom-networks).
 

@@ -1,169 +1,24 @@
 import type { NetworkName, NetworkConfig } from '../types/index.js'
 import { configService } from '../services/config-service.js'
+import walletsFile from '../../wdk-config.json' with { type: 'json' }
 
-export const NETWORKS: Record<NetworkName, NetworkConfig> = {
-  bitcoin: {
-    name: 'bitcoin',
-    displayName: 'Bitcoin',
-    type: 'wdk-wallet-btc',
-    nativeSymbol: 'BTC',
-    decimals: 8,
-  },
-  'bitcoin-testnet3': {
-    name: 'bitcoin-testnet3',
-    displayName: 'Bitcoin Testnet3',
-    type: 'wdk-wallet-btc',
-    nativeSymbol: 'tBTC',
-    decimals: 8,
-  },
-  ethereum: {
-    name: 'ethereum',
-    displayName: 'Ethereum',
-    type: 'wdk-wallet-evm',
-    nativeSymbol: 'ETH',
-    decimals: 18,
-  },
-  sepolia: {
-    name: 'sepolia',
-    displayName: 'Sepolia Testnet',
-    type: 'wdk-wallet-evm',
-    nativeSymbol: 'ETH',
-    decimals: 18,
-  },
-  polygon: {
-    name: 'polygon',
-    displayName: 'Polygon',
-    type: 'wdk-wallet-evm',
-    nativeSymbol: 'POL',
-    decimals: 18,
-  },
-  arbitrum: {
-    name: 'arbitrum',
-    displayName: 'Arbitrum One',
-    type: 'wdk-wallet-evm',
-    nativeSymbol: 'ETH',
-    decimals: 18,
-  },
-  base: {
-    name: 'base',
-    displayName: 'Base',
-    type: 'wdk-wallet-evm',
-    nativeSymbol: 'ETH',
-    decimals: 18,
-  },
-  bsc: {
-    name: 'bsc',
-    displayName: 'BNB Smart Chain',
-    type: 'wdk-wallet-evm',
-    nativeSymbol: 'BNB',
-    decimals: 18,
-  },
-  avalanche: {
-    name: 'avalanche',
-    displayName: 'Avalanche C-Chain',
-    type: 'wdk-wallet-evm',
-    nativeSymbol: 'AVAX',
-    decimals: 18,
-  },
-  solana: {
-    name: 'solana',
-    displayName: 'Solana',
-    type: 'wdk-wallet-solana',
-    nativeSymbol: 'SOL',
-    decimals: 9,
-  },
-  'solana-testnet': {
-    name: 'solana-testnet',
-    displayName: 'Solana Testnet',
-    type: 'wdk-wallet-solana',
-    nativeSymbol: 'SOL',
-    decimals: 9,
-  },
-  'solana-devnet': {
-    name: 'solana-devnet',
-    displayName: 'Solana Devnet',
-    type: 'wdk-wallet-solana',
-    nativeSymbol: 'SOL',
-    decimals: 9,
-  },
-  spark: {
-    name: 'spark',
-    displayName: 'Spark',
-    type: 'wdk-wallet-spark',
-    nativeSymbol: 'BTC',
-    decimals: 8,
-  },
-  'spark-regtest': {
-    name: 'spark-regtest',
-    displayName: 'Spark Regtest',
-    type: 'wdk-wallet-spark',
-    nativeSymbol: 'BTC',
-    decimals: 8,
-    testnet: true,
-  },
-  tron: {
-    name: 'tron',
-    displayName: 'Tron',
-    type: 'wdk-wallet-tron',
-    nativeSymbol: 'TRX',
-    decimals: 6,
-  },
-  'tron-testnet': {
-    name: 'tron-testnet',
-    displayName: 'Tron Testnet (Shasta)',
-    type: 'wdk-wallet-tron',
-    nativeSymbol: 'TRX',
-    decimals: 6,
-    testnet: true,
-  },
-  'smart-account-ethereum': {
-    name: 'smart-account-ethereum',
-    displayName: 'Smart Account Ethereum',
-    type: 'wdk-wallet-evm-erc-4337',
-    nativeSymbol: 'ETH',
-    decimals: 18,
-  },
-  'smart-account-sepolia': {
-    name: 'smart-account-sepolia',
-    displayName: 'Smart Account Sepolia',
-    type: 'wdk-wallet-evm-erc-4337',
-    nativeSymbol: 'ETH',
-    decimals: 18,
-    testnet: true,
-  },
-  'smart-account-polygon': {
-    name: 'smart-account-polygon',
-    displayName: 'Smart Account Polygon',
-    type: 'wdk-wallet-evm-erc-4337',
-    nativeSymbol: 'POL',
-    decimals: 18,
-  },
-  'smart-account-arbitrum': {
-    name: 'smart-account-arbitrum',
-    displayName: 'Smart Account Arbitrum',
-    type: 'wdk-wallet-evm-erc-4337',
-    nativeSymbol: 'ETH',
-    decimals: 18,
-  },
-  'smart-account-base': {
-    name: 'smart-account-base',
-    displayName: 'Smart Account Base',
-    type: 'wdk-wallet-evm-erc-4337',
-    nativeSymbol: 'ETH',
-    decimals: 18,
-  },
-  'smart-account-plasma': {
-    name: 'smart-account-plasma',
-    displayName: 'Smart Account Plasma',
-    type: 'wdk-wallet-evm-erc-4337',
-    nativeSymbol: 'ETH',
-    decimals: 18,
-  },
+const NETWORKS: Record<string, NetworkConfig> = {}
+for (const [name, entry] of Object.entries(walletsFile.networks)) {
+  const net = entry as Record<string, unknown>
+  NETWORKS[name] = {
+    name,
+    displayName: net.displayName as string,
+    type: net.module as string,
+    module: net.module as string,
+    nativeSymbol: net.nativeSymbol as string,
+    decimals: net.decimals as number,
+    testnet: (net.testnet as boolean) ?? false,
+  }
 }
 
-export const NETWORK_NAMES = Object.keys(NETWORKS) as NetworkName[]
+export { NETWORKS }
 
-const BUILTIN_TESTNETS: readonly string[] = ['bitcoin-testnet3', 'sepolia', 'solana-testnet', 'solana-devnet', 'spark-regtest', 'tron-testnet', 'smart-account-sepolia']
+export const NETWORK_NAMES = Object.keys(NETWORKS)
 
 export function getCustomNetworks(): Record<string, NetworkConfig> {
   const custom = configService.get('customNetworks') as Record<string, NetworkConfig> | undefined
@@ -183,7 +38,7 @@ export function getAllNetworkNames(): string[] {
   return Object.keys(getAllNetworks())
 }
 
-export function isBuiltinNetwork(name: string): name is NetworkName {
+export function isBuiltinNetwork(name: string): boolean {
   return name in NETWORKS
 }
 
@@ -194,39 +49,17 @@ export function getNetworkConfig(name: string): NetworkConfig {
   return config
 }
 
-export function isEvmNetwork(name: string): boolean {
-  const config = getNetworkConfig(name)
-  return config?.type === 'wdk-wallet-evm'
-}
-
-export function isBtcNetwork(name: string): boolean {
-  const config = getNetworkConfig(name)
-  return config?.type === 'wdk-wallet-btc'
-}
-
-export function isSolanaNetwork(name: string): boolean {
-  const config = getNetworkConfig(name)
-  return config?.type === 'wdk-wallet-solana'
-}
-
-export function isSparkNetwork(name: string): boolean {
-  const config = getNetworkConfig(name)
-  return config?.type === 'wdk-wallet-spark'
-}
-
-export function isEvmErc4337Network(name: string): boolean {
-  const config = getNetworkConfig(name)
-  return config?.type === 'wdk-wallet-evm-erc-4337'
-}
-
-export function isValidNetwork(name: string): name is NetworkName {
+export function isValidNetwork(name: string): boolean {
   return name in NETWORKS || name in getCustomNetworks()
 }
 
 export function isTestnet(name: string): boolean {
-  if (BUILTIN_TESTNETS.includes(name)) return true
-  const config = getNetworkConfig(name)
-  return config?.testnet === true
+  try {
+    const config = getNetworkConfig(name)
+    return config?.testnet === true
+  } catch {
+    return false
+  }
 }
 
 export function isCustomNetwork(name: string): boolean {

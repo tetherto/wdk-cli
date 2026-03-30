@@ -1,31 +1,31 @@
 import { describe, it, expect } from 'vitest'
-import { formatBalance, formatAddress, formatTxHash, formatNetworkLabel } from '../../../src/ui/formatters.js'
+import { formatAmount, formatAddress, formatTxHash, formatNetworkLabel } from '../../../src/ui/formatters.js'
 
 describe('formatters', () => {
-  describe('formatBalance', () => {
-    it('formats ETH balance (18 decimals)', () => {
-      const result = formatBalance('1500000000000000000', 'ethereum')
+  describe('formatAmount', () => {
+    it('formats ETH amount (18 decimals)', () => {
+      const result = formatAmount(1500000000000000000n, 18, 'ETH')
       expect(result).toBe('1.5 ETH')
     })
 
-    it('formats zero balance', () => {
-      const result = formatBalance('0', 'ethereum')
-      expect(result).toBe('0.0 ETH')
+    it('formats zero amount', () => {
+      const result = formatAmount(0n, 18, 'ETH')
+      expect(result).toBe('0 ETH')
     })
 
-    it('formats BTC balance (8 decimals)', () => {
-      const result = formatBalance('50000', 'bitcoin')
+    it('formats BTC amount (8 decimals)', () => {
+      const result = formatAmount(50000n, 8, 'BTC')
       expect(result).toBe('0.0005 BTC')
     })
 
-    it('formats large balance', () => {
-      const result = formatBalance('100000000000000000000', 'ethereum')
-      expect(result).toBe('100.0 ETH')
+    it('formats large amount', () => {
+      const result = formatAmount(100000000000000000000n, 18, 'ETH')
+      expect(result).toBe('100 ETH')
     })
 
-    it('handles number input', () => {
-      const result = formatBalance(1000000000000000000, 'ethereum')
-      expect(result).toContain('ETH')
+    it('formats USDT amount (6 decimals)', () => {
+      const result = formatAmount(1000000n, 6, 'USDT')
+      expect(result).toBe('1 USDT')
     })
   })
 

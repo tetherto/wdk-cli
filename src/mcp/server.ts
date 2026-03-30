@@ -13,6 +13,7 @@ import {
 } from '../config/networks.js'
 import { DEFAULT_WALLET } from '../config/constants.js'
 import { APP_VERSION } from '../config/constants.js'
+import { formatAmount } from '../ui/formatters.js'
 import type { NetworkName } from '../types/index.js'
 
 function errorResult(message: string) {
@@ -125,7 +126,7 @@ export async function startMcpServer(): Promise<void> {
         if (network) {
           validateNetwork(network)
           const result = await daemonClient.getBalance(network, index, token, wallet)
-          const formatted = formatBalance(BigInt(result.balance), result.decimals, result.symbol)
+          const formatted = formatAmount(BigInt(result.balance), result.decimals, result.symbol)
           let usd = 0
           try { usd = await convertToUsd(network as NetworkName, BigInt(result.balance), token) } catch { /* no price */ }
           return jsonResult({ network, index, balance: result.balance, symbol: result.symbol, decimals: result.decimals, formatted, usd })
@@ -141,7 +142,7 @@ export async function startMcpServer(): Promise<void> {
           try {
             const address = await daemonClient.getAddress(name, index, wallet)
             const result = await daemonClient.getBalance(name, index, undefined, wallet)
-            const formatted = formatBalance(BigInt(result.balance), result.decimals, result.symbol)
+            const formatted = formatAmount(BigInt(result.balance), result.decimals, result.symbol)
             let usd = 0
             try { usd = await convertToUsd(name as NetworkName, BigInt(result.balance)) } catch { /* no price */ }
             totalUsd += usd
@@ -251,11 +252,3 @@ export async function startMcpServer(): Promise<void> {
   await server.connect(transport)
 }
 
-function formatBalance(balance: bigint, decimals: number, symbol: string): string {
-  const divisor = 10n ** BigInt(decimals)
-  const whole = balance / divisor
-  const frac = balance % divisor
-  const fracStr = frac.toString().padStart(decimals, '0').replace(/0+$/, '')
-  const formatted = fracStr ? `${whole}.${fracStr}` : whole.toString()
-  return `${formatted} ${symbol}`
-}

@@ -1,215 +1,62 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { transformConfig } from '../../../src/services/wdk-service.js'
-import { configService } from '../../../src/services/config-service.js'
+import { describe, it, expect } from 'vitest'
+import { CONFIG_DEFAULTS } from '../../../src/config/constants.js'
 
-describe('transformConfig', () => {
-  beforeEach(() => {
-    vi.spyOn(configService, 'getProviderUrl').mockReturnValue('https://mock-provider.com')
+describe('network config from wdk-config.json', () => {
+  const networks = CONFIG_DEFAULTS.networks as Record<string, Record<string, unknown>>
+
+  it('bitcoin config uses SDK field names directly', () => {
+    expect(networks.bitcoin.host).toBe('electrum.blockstream.info')
+    expect(networks.bitcoin.port).toBe(50001)
+    expect(networks.bitcoin.network).toBe('bitcoin')
+    expect(networks.bitcoin.bip).toBe(84)
   })
 
-  afterEach(() => {
-    vi.restoreAllMocks()
+  it('ethereum config uses provider field', () => {
+    expect(networks.ethereum.provider).toBe('https://ethereum-rpc.publicnode.com')
+    expect(networks.ethereum.transferMaxFee).toBe(5000000000000000)
   })
 
-  it('removes empty string values', () => {
-    const result = transformConfig('wdk-wallet-btc', {
-      host: 'electrum.blockstream.info',
-      port: 50001,
-      transferMaxFee: '',
-      network: 'bitcoin',
-    }, 'bitcoin')
-
-    expect(result).not.toHaveProperty('transferMaxFee')
-    expect(result.host).toBe('electrum.blockstream.info')
+  it('solana config uses rpcUrl (not provider)', () => {
+    expect(networks.solana.rpcUrl).toBe('https://api.mainnet-beta.solana.com')
+    expect(networks.solana).not.toHaveProperty('provider')
   })
 
-  it('converts transferMaxFee to BigInt', () => {
-    const result = transformConfig('wdk-wallet-evm', {
-      provider: 'https://eth.drpc.org',
-      transferMaxFee: '1000000',
-    }, 'ethereum')
-
-    expect(result.transferMaxFee).toBe(BigInt('1000000'))
+  it('spark config uses network (not sparkNetwork)', () => {
+    expect(networks.spark.network).toBe('MAINNET')
+    expect(networks.spark).not.toHaveProperty('sparkNetwork')
   })
 
-  it('wraps paymasterToken string into { address } object', () => {
-    const result = transformConfig('wdk-wallet-evm-erc-4337', {
-      chainId: 1,
-      provider: 'https://eth.drpc.org',
-      paymasterToken: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
-    }, 'smart-account-ethereum')
-
-    expect(result.paymasterToken).toEqual({ address: '0xdAC17F958D2ee523a2206206994597C13D831ec7' })
+  it('smart account config has paymasterToken as object', () => {
+    const sa = networks['smart-account-ethereum']
+    expect(sa.paymasterToken).toEqual({ address: '0xdAC17F958D2ee523a2206206994597C13D831ec7' })
   })
 
-  it('does not wrap paymasterToken if already an object', () => {
-    const tokenObj = { address: '0xabc' }
-    const result = transformConfig('wdk-wallet-evm-erc-4337', {
-      chainId: 1,
-      provider: 'https://eth.drpc.org',
-      paymasterToken: tokenObj,
-    }, 'smart-account-ethereum')
-
-    expect(result.paymasterToken).toEqual({ address: '0xabc' })
+  it('smart account config has no mode field', () => {
+    const sa = networks['smart-account-ethereum']
+    expect(sa).not.toHaveProperty('mode')
   })
 
-  it('renames provider to rpcUrl for Solana', () => {
-    const result = transformConfig('wdk-wallet-solana', {
-      provider: 'https://api.mainnet-beta.solana.com',
-    }, 'solana')
-
-    expect(result.rpcUrl).toBe('https://mock-provider.com')
-    expect(result).not.toHaveProperty('provider')
+  it('smart account config passes through all fields', () => {
+    const sa = networks['smart-account-ethereum']
+    expect(sa.chainId).toBe(1)
+    expect(sa.provider).toBeTruthy()
+    expect(sa.bundlerUrl).toBeTruthy()
+    expect(sa.entryPointAddress).toBeTruthy()
+    expect(sa.safeModulesVersion).toBe('0.3.0')
+    expect(sa.paymasterUrl).toBeTruthy()
+    expect(sa.paymasterAddress).toBeTruthy()
   })
 
-  it('renames sparkNetwork to network for Spark', () => {
-    const result = transformConfig('wdk-wallet-spark', {
-      sparkNetwork: 'MAINNET',
-    }, 'spark')
-
-    expect(result.network).toBe('MAINNET')
-    expect(result).not.toHaveProperty('sparkNetwork')
+  it('tron config has provider and transferMaxFee', () => {
+    expect(networks.tron.provider).toBe('https://api.trongrid.io')
+    expect(networks.tron.transferMaxFee).toBe(30000000)
   })
 
-  it('resolves provider URL for EVM networks', () => {
-    const result = transformConfig('wdk-wallet-evm', {
-      provider: 'https://eth.drpc.org',
-    }, 'ethereum')
-
-    expect(result.provider).toBe('https://mock-provider.com')
-  })
-
-  it('resolves provider URL for ERC-4337 networks', () => {
-    const result = transformConfig('wdk-wallet-evm-erc-4337', {
-      chainId: 11155111,
-      provider: 'https://sepolia.drpc.org',
-      bundlerUrl: 'https://bundler.example.com',
-    }, 'smart-account-sepolia')
-
-    expect(result.provider).toBe('https://mock-provider.com')
-    expect(result.bundlerUrl).toBe('https://bundler.example.com')
-  })
-
-  it('passes through unknown fields unchanged', () => {
-    const result = transformConfig('wdk-wallet-evm-erc-4337', {
-      chainId: 1,
-      provider: 'https://eth.drpc.org',
-      isSponsored: true,
-      sponsorshipPolicyId: 'policy-123',
-      useNativeCoins: false,
-      mode: 'sponsored',
-    }, 'smart-account-ethereum')
-
-    expect(result.isSponsored).toBe(true)
-    expect(result.sponsorshipPolicyId).toBe('policy-123')
-    expect(result.useNativeCoins).toBeUndefined()
-  })
-
-  it('removes empty sponsorshipPolicyId but keeps boolean false', () => {
-    const result = transformConfig('wdk-wallet-evm-erc-4337', {
-      chainId: 1,
-      provider: 'https://eth.drpc.org',
-      isSponsored: false,
-      sponsorshipPolicyId: '',
-      useNativeCoins: false,
-    }, 'smart-account-ethereum')
-
-    expect(result).not.toHaveProperty('sponsorshipPolicyId')
-  })
-
-  it('strips mode field and sets isSponsored for sponsored mode', () => {
-    const result = transformConfig('wdk-wallet-evm-erc-4337', {
-      chainId: 1,
-      provider: 'https://eth.drpc.org',
-      bundlerUrl: 'https://bundler.example.com',
-      paymasterUrl: 'https://paymaster.example.com',
-      paymasterAddress: '0xabc',
-      paymasterToken: '0xdef',
-      mode: 'sponsored',
-      isSponsored: false,
-      useNativeCoins: false,
-      sponsorshipPolicyId: 'policy-123',
-    }, 'smart-account-ethereum')
-
-    expect(result.mode).toBeUndefined()
-    expect(result.isSponsored).toBe(true)
-    expect(result.paymasterToken).toBeUndefined()
-    expect(result.paymasterAddress).toBeUndefined()
-    expect(result.sponsorshipPolicyId).toBe('policy-123')
-    expect(result.paymasterUrl).toBe('https://paymaster.example.com')
-  })
-
-  it('strips mode field and sets useNativeCoins for nativeCoins mode', () => {
-    const result = transformConfig('wdk-wallet-evm-erc-4337', {
-      chainId: 1,
-      provider: 'https://eth.drpc.org',
-      bundlerUrl: 'https://bundler.example.com',
-      paymasterUrl: 'https://paymaster.example.com',
-      paymasterAddress: '0xabc',
-      paymasterToken: '0xdef',
-      mode: 'nativeCoins',
-      isSponsored: false,
-      useNativeCoins: false,
-      transferMaxFee: '1000000',
-    }, 'smart-account-ethereum')
-
-    expect(result.mode).toBeUndefined()
-    expect(result.useNativeCoins).toBe(true)
-    expect(result.isSponsored).toBeUndefined()
-    expect(result.paymasterToken).toBeUndefined()
-    expect(result.paymasterAddress).toBeUndefined()
-    expect(result.paymasterUrl).toBeUndefined()
-    expect(result.sponsorshipPolicyId).toBeUndefined()
-    expect(result.transferMaxFee).toBe(BigInt('1000000'))
-  })
-
-  it('strips mode field and keeps paymasterToken fields for paymasterToken mode', () => {
-    const result = transformConfig('wdk-wallet-evm-erc-4337', {
-      chainId: 1,
-      provider: 'https://eth.drpc.org',
-      bundlerUrl: 'https://bundler.example.com',
-      paymasterUrl: 'https://paymaster.example.com',
-      paymasterAddress: '0xabc',
-      paymasterToken: '0xdef',
-      mode: 'paymasterToken',
-      isSponsored: false,
-      useNativeCoins: false,
-      sponsorshipPolicyId: 'policy-123',
-    }, 'smart-account-ethereum')
-
-    expect(result.mode).toBeUndefined()
-    expect(result.isSponsored).toBeUndefined()
-    expect(result.useNativeCoins).toBeUndefined()
-    expect(result.sponsorshipPolicyId).toBeUndefined()
-    expect(result.paymasterToken).toEqual({ address: '0xdef' })
-    expect(result.paymasterAddress).toBe('0xabc')
-    expect(result.paymasterUrl).toBe('https://paymaster.example.com')
-  })
-
-  it('defaults to paymasterToken mode when mode is not set', () => {
-    const result = transformConfig('wdk-wallet-evm-erc-4337', {
-      chainId: 1,
-      provider: 'https://eth.drpc.org',
-      bundlerUrl: 'https://bundler.example.com',
-      paymasterUrl: 'https://paymaster.example.com',
-      paymasterAddress: '0xabc',
-      paymasterToken: '0xdef',
-    }, 'smart-account-ethereum')
-
-    expect(result.mode).toBeUndefined()
-    expect(result.isSponsored).toBeUndefined()
-    expect(result.useNativeCoins).toBeUndefined()
-    expect(result.paymasterToken).toEqual({ address: '0xdef' })
-  })
-
-  it('does not mutate the input object', () => {
-    const input = {
-      provider: 'https://eth.drpc.org',
-      transferMaxFee: '500',
+  it('no network config has empty string values', () => {
+    for (const [name, config] of Object.entries(networks)) {
+      for (const [key, value] of Object.entries(config)) {
+        expect(value, `${name}.${key} should not be empty string`).not.toBe('')
+      }
     }
-    const inputCopy = { ...input }
-    transformConfig('wdk-wallet-evm', input, 'ethereum')
-
-    expect(input).toEqual(inputCopy)
   })
 })

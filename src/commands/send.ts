@@ -2,16 +2,14 @@ import { Command } from 'commander'
 import chalk from 'chalk'
 import ora from 'ora'
 import { resolveNetwork, resolveIndex } from '../services/wallet-service.js'
-import { isValidNetwork, isEvmNetwork, getNetworkConfig } from '../config/networks.js'
+import { isValidNetwork, getNetworkConfig } from '../config/networks.js'
 import { NetworkNotSupportedError, WdkCliError, handleError } from '../errors/index.js'
 import { promptConfirm } from '../ui/prompts.js'
-import { formatAddress, networkColor, formatNetworkLabel, formatAmount } from '../ui/formatters.js'
+import { formatAddress, formatNetworkLabel, formatAmount } from '../ui/formatters.js'
 import { getTokenConfig } from '../config/tokens.js'
 import { convertToUsd } from '../services/price-service.js'
 import { daemonClient } from '../daemon/client.js'
 import type { NetworkName } from '../types/index.js'
-
-const EVM_ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/
 
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   let timer: ReturnType<typeof setTimeout>
@@ -47,14 +45,6 @@ export function registerSendCommand(program: Command): void {
             'Invalid amount. Must be a positive integer in base units (wei/satoshis/lamports).',
             'INVALID_AMOUNT',
             'Do not use decimal points. Example: 1000000 for 1 USDT (6 decimals).',
-          )
-        }
-
-        if (isEvmNetwork(network) && !EVM_ADDRESS_RE.test(options.to)) {
-          throw new WdkCliError(
-            `Invalid EVM address: ${options.to}`,
-            'INVALID_ADDRESS',
-            'Address must be 0x followed by 40 hex characters.',
           )
         }
 
@@ -109,12 +99,10 @@ export function registerSendCommand(program: Command): void {
           return
         }
 
-        const color = networkColor(network)
-
         if (!program.opts().json) {
           console.log()
           console.log(chalk.bold('Transaction Summary:'))
-          console.log(`  Network:   ${color(formatNetworkLabel(network))}`)
+          console.log(`  Network:   ${formatNetworkLabel(network)}`)
           console.log(`  To:        ${formatAddress(options.to)}`)
           let amountFormatted: string
           if (options.token) {

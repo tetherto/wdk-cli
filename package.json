@@ -13,6 +13,8 @@
     "wdk-daemon": "./bin/wdk-daemon.mjs"
   },
   "scripts": {
+    "postinstall": "node scripts/install-wallets.mjs",
+    "install-wallets": "node scripts/install-wallets.mjs",
     "build": "tsup",
     "dev": "tsup --watch",
     "lint": "eslint src/",
@@ -29,12 +31,6 @@
     "@modelcontextprotocol/sdk": "1.27.1",
     "@tetherto/wdk": "1.0.0-beta.6",
     "@tetherto/wdk-wallet": "1.0.0-beta.7",
-    "@tetherto/wdk-wallet-btc": "1.0.0-beta.6",
-    "@tetherto/wdk-wallet-evm": "1.0.0-beta.8",
-    "@tetherto/wdk-wallet-evm-erc-4337": "1.0.0-beta.5",
-    "@tetherto/wdk-wallet-solana": "1.0.0-beta.5",
-    "@tetherto/wdk-wallet-spark": "1.0.0-beta.11",
-    "@tetherto/wdk-wallet-tron": "1.0.0-beta.4",
     "chalk": "5.6.2",
     "cli-table3": "0.6.5",
     "commander": "14.0.3",

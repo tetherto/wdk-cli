@@ -1,8 +1,8 @@
 import { Command } from 'commander'
 import chalk from 'chalk'
 import { configService } from '../services/config-service.js'
-import { validateKey, CONFIG_DEFAULTS, getVisibleFields, getMissingFields, isFieldRequired } from '../config/schema.js'
-import { isValidNetwork, getNetworkConfig } from '../config/networks.js'
+import { CONFIG_DEFAULTS } from '../config/constants.js'
+import { isValidNetwork } from '../config/networks.js'
 import { handleError, NetworkNotSupportedError } from '../errors/index.js'
 
 function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
@@ -91,24 +91,37 @@ export function registerConfigCommand(program: Command): void {
     })
 
   config
-    .command('set <key> <value>')
-    .description('Set config value (add --network for per-network config)')
-    .action((key: string, value: string) => {
+    .command('set <key> [value]')
+    .description('Set config value or full network config with JSON (add --network for per-network config)')
+    .action((key: string, value: string | undefined) => {
       try {
         const network = program.opts().network
+
+        // If key is a JSON object and --network is set, replace full network config
+        if (network && key.startsWith('{')) {
+          validateNetwork(network)
+          let jsonConfig: unknown
+          try {
+            jsonConfig = JSON.parse(key)
+          } catch {
+            console.log(chalk.red('Error: Invalid JSON'))
+            return
+          }
+          configService.set(`networks.${network}`, jsonConfig)
+          console.log(chalk.green(`Updated config for ${network}`))
+          return
+        }
+
+        if (value === undefined) {
+          console.log(chalk.red('Error: <value> is required'))
+          return
+        }
 
         if (network) validateNetwork(network)
 
         let fullKey = key
         if (network) {
           fullKey = `networks.${network}.${key}`
-        }
-
-        const networkType = network ? getNetworkConfig(network)?.type : undefined
-        const error = validateKey(key, value, networkType)
-        if (error) {
-          console.log(chalk.red(error))
-          return
         }
 
         let parsed: unknown = value
@@ -119,31 +132,6 @@ export function registerConfigCommand(program: Command): void {
           console.log(chalk.green(`Set ${key} = ${value} (${network})`))
         } else {
           console.log(chalk.green(`Set ${key} = ${value}`))
-        }
-
-        // Show mode guidance for ERC-4337 when setting mode
-        if (network && key === 'mode' && networkType === 'wdk-wallet-evm-erc-4337') {
-          const currentConf = configService.get(`networks.${network}`) as Record<string, unknown> || {}
-          const missing = getMissingFields('wdk-wallet-evm-erc-4337', { ...currentConf, mode: parsed })
-          const visible = getVisibleFields('wdk-wallet-evm-erc-4337', { ...currentConf, mode: parsed })
-
-          console.log()
-          if (missing.length === 0) {
-            console.log(chalk.green('All required fields are configured.'))
-          } else {
-            console.log(chalk.yellow('Required fields to configure:'))
-            for (const field of missing) {
-              console.log(chalk.yellow(`  - ${field.key}: ${field.description}`))
-            }
-          }
-          console.log()
-          console.log(chalk.dim('Configurable fields for this mode:'))
-          for (const field of visible) {
-            const val = currentConf[field.key]
-            const req = isFieldRequired(field, { ...currentConf, mode: parsed }) ? '*' : ' '
-            const display = (val === '' || val === undefined || val === null) ? chalk.dim('(not set)') : String(val)
-            console.log(chalk.dim(`  ${req} ${field.key.padEnd(22)} ${display}`))
-          }
         }
       } catch (error) {
         handleError(error, false, program.opts().json)
@@ -196,37 +184,19 @@ export function registerConfigCommand(program: Command): void {
 
         if (network) {
           validateNetwork(network)
-          const netConfig = getNetworkConfig(network)
           const netConf = configService.get(`networks.${network}`) as Record<string, unknown> || {}
-          const fields = getVisibleFields(netConfig.type, netConf)
 
           console.log()
-          if (netConf.mode) {
-            console.log(chalk.bold(`  Configurable fields for ${network} (mode: ${netConf.mode}):`))
-          } else {
-            console.log(chalk.bold(`  Configurable fields for ${network}:`))
-          }
+          console.log(chalk.bold(`  Configuration for ${network}:`))
           console.log()
 
-          if (fields.length === 0) {
-            console.log(chalk.dim('  No configurable fields.'))
+          const entries = flatten(netConf)
+          if (entries.length === 0) {
+            console.log(chalk.dim('  No configuration set.'))
           } else {
-            for (const field of fields) {
-              const value = netConf[field.key]
-              const req = isFieldRequired(field, netConf) ? chalk.dim(' *') : '  '
-              let display: string
-              if (value === '' || value === null || value === undefined) {
-                display = chalk.dim('(not set)')
-              } else if (field.secret && value) {
-                display = chalk.dim('***')
-              } else {
-                display = String(value)
-              }
-              console.log(`    ${field.key.padEnd(22)} ${display}${req}  ${chalk.dim(field.description)}`)
-            }
+            printEntries(entries)
           }
           console.log()
-          console.log(chalk.dim(`  * = required`))
           console.log(chalk.dim(`  Set with: wdk config set <key> <value> --network ${network}`))
         } else {
           printEntries(flatten(all))

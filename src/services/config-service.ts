@@ -1,5 +1,5 @@
 import Conf from 'conf'
-import { CONFIG_DEFAULTS } from '../config/schema.js'
+import { CONFIG_DEFAULTS } from '../config/constants.js'
 const ENV_MAP: Record<string, string> = {
   'indexer.baseUrl': 'WDK_INDEXER_BASE_URL',
   'indexer.apiKey': 'WDK_INDEXER_API_KEY',
@@ -13,7 +13,6 @@ class ConfigService {
       projectName: 'wdk-cli',
       defaults: CONFIG_DEFAULTS as Record<string, unknown>,
     })
-    this.migrate()
   }
 
   get(key: string): unknown {
@@ -53,24 +52,6 @@ class ConfigService {
 
   get configPath(): string {
     return this.conf.path
-  }
-
-  private migrate(): void {
-    // Conf uses shallow merge for defaults — since `networks` exists in the
-    // store, per-network defaults are never applied. Write them explicitly.
-    const networkDefaults = (CONFIG_DEFAULTS as Record<string, unknown>).networks as Record<string, Record<string, unknown>>
-    for (const [net, expected] of Object.entries(networkDefaults)) {
-      const stored = this.conf.get(`networks.${net}`) as Record<string, unknown> | undefined
-      if (!stored) {
-        this.conf.set(`networks.${net}`, expected)
-      } else {
-        for (const [key, value] of Object.entries(expected)) {
-          if (!(key in stored)) {
-            this.conf.set(`networks.${net}.${key}`, value)
-          }
-        }
-      }
-    }
   }
 
   private setNestedValue(obj: Record<string, unknown>, path: string, value: unknown): void {

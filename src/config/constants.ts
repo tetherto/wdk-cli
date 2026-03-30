@@ -1,12 +1,23 @@
 import { join } from 'node:path'
 import { homedir } from 'node:os'
+import walletsFile from '../../wdk-config.json' with { type: 'json' }
+
+const networkDefaults: Record<string, Record<string, unknown>> = {}
+for (const [name, entry] of Object.entries(walletsFile.networks)) {
+  networkDefaults[name] = (entry as Record<string, unknown>).config as Record<string, unknown> ?? {}
+}
+
+export const CONFIG_DEFAULTS: Record<string, unknown> = {
+  ...walletsFile.defaults,
+  networks: networkDefaults,
+}
 
 export const APP_NAME = 'wdk-cli'
 export const APP_VERSION = '0.0.1'
 export const CONFIG_DIR = APP_NAME
 export const KEYRING_FILENAME = 'keyring.enc'
 export const WALLETS_DIR = 'wallets'
-export const DEFAULT_WALLET = 'default'
+export const DEFAULT_WALLET = (CONFIG_DEFAULTS.defaultWallet as string) || 'default'
 
 function getConfigDir(): string {
   const xdgConfig = process.env.XDG_CONFIG_HOME

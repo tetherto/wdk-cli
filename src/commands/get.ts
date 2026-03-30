@@ -3,7 +3,7 @@ import chalk from 'chalk'
 import { resolveNetwork, resolveIndex } from '../services/wallet-service.js'
 import { isValidNetwork, getAllNetworkNames, isTestnet } from '../config/networks.js'
 import { NetworkNotSupportedError, handleError } from '../errors/index.js'
-import { networkColor, formatNetworkLabel, formatAmount, formatAddress, formatTxHash } from '../ui/formatters.js'
+import { formatNetworkLabel, formatAmount, formatAddress, formatTxHash } from '../ui/formatters.js'
 import { isIndexerSupported, INDEXER_TOKENS } from '../services/indexer-service.js'
 import type { IndexerToken } from '../services/indexer-service.js'
 import { createTable } from '../ui/tables.js'
@@ -38,9 +38,8 @@ export function registerGetCommand(program: Command): void {
           if (program.opts().json) {
             console.log(JSON.stringify({ network, index, address }))
           } else {
-            const color = networkColor(network)
             console.log()
-            console.log(`  Network: ${color(formatNetworkLabel(network))}`)
+            console.log(`  Network: ${formatNetworkLabel(network)}`)
             console.log(`  Address: ${address}`)
             console.log()
           }
@@ -117,11 +116,10 @@ export function registerGetCommand(program: Command): void {
             return
           }
 
-          const color = networkColor(network)
           const formatted = formatAmount(BigInt(result.balance), result.decimals, result.symbol)
 
           console.log()
-          console.log(`  ${color(formatNetworkLabel(network))} ${chalk.dim(`(index: ${index})`)}`)
+          console.log(`  ${formatNetworkLabel(network)} ${chalk.dim(`(index: ${index})`)}`)
           console.log(`  Balance: ${chalk.bold(formatted)}`)
           if (options.token) {
             console.log(`  Token:   ${chalk.dim(options.token)}`)
@@ -218,9 +216,8 @@ export function registerGetCommand(program: Command): void {
           return
         }
 
-        const color = networkColor(network)
         console.log()
-        console.log(`  ${color(formatNetworkLabel(network))} ${chalk.dim(`(index: ${index})`)}`)
+        console.log(`  ${formatNetworkLabel(network)} ${chalk.dim(`(index: ${index})`)}`)
         console.log(`  Address: ${formatAddress(address)}`)
         console.log(`  Token:   ${token.toUpperCase()}`)
         console.log()

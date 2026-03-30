@@ -1,20 +1,13 @@
 import { configService } from './config-service.js'
 import type { NetworkName } from '../types/index.js'
+import walletsFile from '../../wdk-config.json' with { type: 'json' }
 
-const BLOCKCHAIN_MAP: Partial<Record<NetworkName, string>> = {
-  ethereum: 'ethereum',
-  sepolia: 'sepolia',
-  polygon: 'polygon',
-  arbitrum: 'arbitrum',
-  tron: 'tron',
-  bitcoin: 'bitcoin',
-  spark: 'spark',
-  'smart-account-ethereum': 'ethereum',
-  'smart-account-sepolia': 'sepolia',
-  'smart-account-polygon': 'polygon',
-  'smart-account-arbitrum': 'arbitrum',
-  'smart-account-plasma': 'plasma',
-  'smart-account-base': 'base',
+const BLOCKCHAIN_MAP: Record<string, string> = {}
+for (const [name, entry] of Object.entries(walletsFile.networks)) {
+  const net = entry as Record<string, unknown>
+  if (net.indexerBlockchain) {
+    BLOCKCHAIN_MAP[name] = net.indexerBlockchain as string
+  }
 }
 
 export type IndexerToken = 'usdt' | 'usat' | 'xaut' | 'btc'

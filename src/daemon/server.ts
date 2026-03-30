@@ -91,7 +91,7 @@ export class WalletDaemon {
     if (!wdk) throw new Error(`Wallet '${wallet}' is not unlocked`)
 
     if (!wdk.isNetworkRegistered(network)) {
-      wdk.registerNetworkPublic(network)
+      await wdk.registerNetworkPublic(network)
     }
     return wdk
   }

@@ -1,0 +1,333 @@
+{
+  "version": 1,
+  "defaults": {
+    "defaultIndex": 0,
+    "defaultWallet": "default",
+    "indexer": {
+      "baseUrl": "https://wdk-api.tether.io",
+      "apiKey": ""
+    },
+    "output": {
+      "json": false
+    }
+  },
+  "networks": {
+    "bitcoin": {
+      "module": "@tetherto/wdk-wallet-btc",
+      "displayName": "Bitcoin",
+      "nativeSymbol": "BTC",
+      "decimals": 8,
+      "indexerBlockchain": "bitcoin",
+      "config": {
+        "host": "electrum.blockstream.info",
+        "port": 50001,
+        "protocol": "tcp",
+        "network": "bitcoin",
+        "bip": 84
+      }
+    },
+    "bitcoin-testnet3": {
+      "module": "@tetherto/wdk-wallet-btc",
+      "displayName": "Bitcoin Testnet3",
+      "nativeSymbol": "tBTC",
+      "decimals": 8,
+      "testnet": true,
+      "config": {
+        "host": "electrum.blockstream.info",
+        "port": 60001,
+        "protocol": "tcp",
+        "network": "testnet",
+        "bip": 84
+      }
+    },
+    "ethereum": {
+      "module": "@tetherto/wdk-wallet-evm",
+      "displayName": "Ethereum",
+      "nativeSymbol": "ETH",
+      "decimals": 18,
+      "indexerBlockchain": "ethereum",
+      "config": {
+        "provider": "https://ethereum-rpc.publicnode.com",
+        "transferMaxFee": 5000000000000000
+      },
+      "tokens": [
+        { "address": "0xdAC17F958D2ee523a2206206994597C13D831ec7", "symbol": "USDT", "decimals": 6 },
+        { "address": "0x68749665FF8D2d112Fa859AA293F07A622782F38", "symbol": "XAUT", "decimals": 6 }
+      ]
+    },
+    "sepolia": {
+      "module": "@tetherto/wdk-wallet-evm",
+      "displayName": "Sepolia Testnet",
+      "nativeSymbol": "ETH",
+      "decimals": 18,
+      "testnet": true,
+      "indexerBlockchain": "sepolia",
+      "config": {
+        "provider": "https://ethereum-sepolia-rpc.publicnode.com",
+        "transferMaxFee": 5000000000000000
+      },
+      "tokens": [
+        { "address": "0xd077A400968890Eacc75cdc901F0356c943e4fDb", "symbol": "USDT", "decimals": 6 }
+      ]
+    },
+    "polygon": {
+      "module": "@tetherto/wdk-wallet-evm",
+      "displayName": "Polygon",
+      "nativeSymbol": "POL",
+      "decimals": 18,
+      "indexerBlockchain": "polygon",
+      "config": {
+        "provider": "https://polygon.drpc.org",
+        "transferMaxFee": 5000000000000000
+      },
+      "tokens": [
+        { "address": "0xc2132D05D31c914a87C6611C10748AEb04B58e8F", "symbol": "USDT", "decimals": 6 }
+      ]
+    },
+    "arbitrum": {
+      "module": "@tetherto/wdk-wallet-evm",
+      "displayName": "Arbitrum One",
+      "nativeSymbol": "ETH",
+      "decimals": 18,
+      "indexerBlockchain": "arbitrum",
+      "config": {
+        "provider": "https://arb1.arbitrum.io/rpc",
+        "transferMaxFee": 1000000000000000
+      },
+      "tokens": [
+        { "address": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9", "symbol": "USDT", "decimals": 6 }
+      ]
+    },
+    "base": {
+      "module": "@tetherto/wdk-wallet-evm",
+      "displayName": "Base",
+      "nativeSymbol": "ETH",
+      "decimals": 18,
+      "config": {
+        "provider": "https://mainnet.base.org",
+        "transferMaxFee": 1000000000000000
+      },
+      "tokens": [
+        { "address": "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2", "symbol": "USDT", "decimals": 6 }
+      ]
+    },
+    "bsc": {
+      "module": "@tetherto/wdk-wallet-evm",
+      "displayName": "BNB Smart Chain",
+      "nativeSymbol": "BNB",
+      "decimals": 18,
+      "config": {
+        "provider": "https://bsc-dataseed.binance.org",
+        "transferMaxFee": 5000000000000000
+      },
+      "tokens": [
+        { "address": "0x55d398326f99059fF775485246999027B3197955", "symbol": "USDT", "decimals": 18 }
+      ]
+    },
+    "avalanche": {
+      "module": "@tetherto/wdk-wallet-evm",
+      "displayName": "Avalanche C-Chain",
+      "nativeSymbol": "AVAX",
+      "decimals": 18,
+      "config": {
+        "provider": "https://api.avax.network/ext/bc/C/rpc",
+        "transferMaxFee": 5000000000000000
+      },
+      "tokens": [
+        { "address": "0x9702230A8Ea53601f5cD2dc00fDBc13d4dF4A8c7", "symbol": "USDT", "decimals": 6 }
+      ]
+    },
+    "solana": {
+      "module": "@tetherto/wdk-wallet-solana",
+      "displayName": "Solana",
+      "nativeSymbol": "SOL",
+      "decimals": 9,
+      "config": {
+        "rpcUrl": "https://api.mainnet-beta.solana.com"
+      },
+      "tokens": [
+        { "address": "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB", "symbol": "USDT", "decimals": 6 }
+      ]
+    },
+    "solana-testnet": {
+      "module": "@tetherto/wdk-wallet-solana",
+      "displayName": "Solana Testnet",
+      "nativeSymbol": "SOL",
+      "decimals": 9,
+      "testnet": true,
+      "config": {
+        "rpcUrl": "https://api.testnet.solana.com"
+      }
+    },
+    "solana-devnet": {
+      "module": "@tetherto/wdk-wallet-solana",
+      "displayName": "Solana Devnet",
+      "nativeSymbol": "SOL",
+      "decimals": 9,
+      "testnet": true,
+      "config": {
+        "rpcUrl": "https://api.devnet.solana.com"
+      }
+    },
+    "spark": {
+      "module": "@tetherto/wdk-wallet-spark",
+      "displayName": "Spark",
+      "nativeSymbol": "BTC",
+      "decimals": 8,
+      "indexerBlockchain": "spark",
+      "config": {
+        "network": "MAINNET"
+      }
+    },
+    "spark-regtest": {
+      "module": "@tetherto/wdk-wallet-spark",
+      "displayName": "Spark Regtest",
+      "nativeSymbol": "BTC",
+      "decimals": 8,
+      "testnet": true,
+      "config": {
+        "network": "REGTEST"
+      }
+    },
+    "tron": {
+      "module": "@tetherto/wdk-wallet-tron",
+      "displayName": "Tron",
+      "nativeSymbol": "TRX",
+      "decimals": 6,
+      "indexerBlockchain": "tron",
+      "config": {
+        "provider": "https://api.trongrid.io",
+        "transferMaxFee": 30000000
+      },
+      "tokens": [
+        { "address": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t", "symbol": "USDT", "decimals": 6 }
+      ]
+    },
+    "tron-testnet": {
+      "module": "@tetherto/wdk-wallet-tron",
+      "displayName": "Tron Testnet (Shasta)",
+      "nativeSymbol": "TRX",
+      "decimals": 6,
+      "testnet": true,
+      "config": {
+        "provider": "https://api.shasta.trongrid.io",
+        "transferMaxFee": 30000000
+      }
+    },
+    "smart-account-ethereum": {
+      "module": "@tetherto/wdk-wallet-evm-erc-4337",
+      "displayName": "Smart Account Ethereum",
+      "nativeSymbol": "ETH",
+      "decimals": 18,
+      "indexerBlockchain": "ethereum",
+      "config": {
+        "chainId": 1,
+        "blockchain": "ethereum",
+        "provider": "https://wallet-ap7ha02ezs.rumble.com/eth",
+        "bundlerUrl": "https://api.candide.dev/public/v3/ethereum",
+        "entryPointAddress": "0x0000000071727De22E5E9d8BAf0edAc6f37da032",
+        "safeModulesVersion": "0.3.0",
+        "paymasterUrl": "https://api.candide.dev/public/v3/ethereum",
+        "paymasterAddress": "0x8b1f6cb5d062aa2ce8d581942bbb960420d875ba",
+        "paymasterToken": { "address": "0xdAC17F958D2ee523a2206206994597C13D831ec7" },
+        "transferMaxFee": 100000
+      }
+    },
+    "smart-account-sepolia": {
+      "module": "@tetherto/wdk-wallet-evm-erc-4337",
+      "displayName": "Smart Account Sepolia",
+      "nativeSymbol": "ETH",
+      "decimals": 18,
+      "testnet": true,
+      "indexerBlockchain": "sepolia",
+      "config": {
+        "chainId": 11155111,
+        "blockchain": "sepolia",
+        "provider": "https://sepolia.gateway.tenderly.co",
+        "bundlerUrl": "https://api.candide.dev/public/v3/sepolia",
+        "entryPointAddress": "0x0000000071727De22E5E9d8BAf0edAc6f37da032",
+        "safeModulesVersion": "0.3.0",
+        "paymasterUrl": "https://api.candide.dev/public/v3/sepolia",
+        "paymasterAddress": "0x8b1f6cb5d062aa2ce8d581942bbb960420d875ba",
+        "paymasterToken": { "address": "0xd077A400968890Eacc75cdc901F0356c943e4fDb" },
+        "transferMaxFee": 100000
+      }
+    },
+    "smart-account-polygon": {
+      "module": "@tetherto/wdk-wallet-evm-erc-4337",
+      "displayName": "Smart Account Polygon",
+      "nativeSymbol": "POL",
+      "decimals": 18,
+      "indexerBlockchain": "polygon",
+      "config": {
+        "chainId": 137,
+        "blockchain": "polygon",
+        "provider": "https://wallet-ap7ha02ezs.rumble.com/pol",
+        "bundlerUrl": "https://api.candide.dev/public/v3/polygon",
+        "entryPointAddress": "0x0000000071727De22E5E9d8BAf0edAc6f37da032",
+        "safeModulesVersion": "0.3.0",
+        "paymasterUrl": "https://api.candide.dev/public/v3/polygon",
+        "paymasterAddress": "0x8b1f6cb5d062aa2ce8d581942bbb960420d875ba",
+        "paymasterToken": { "address": "0xc2132D05D31c914a87C6611C10748AEb04B58e8F" },
+        "transferMaxFee": 100000
+      }
+    },
+    "smart-account-arbitrum": {
+      "module": "@tetherto/wdk-wallet-evm-erc-4337",
+      "displayName": "Smart Account Arbitrum",
+      "nativeSymbol": "ETH",
+      "decimals": 18,
+      "indexerBlockchain": "arbitrum",
+      "config": {
+        "chainId": 42161,
+        "blockchain": "arbitrum",
+        "provider": "https://wallet-ap7ha02ezs.rumble.com/arb",
+        "bundlerUrl": "https://public.pimlico.io/v2/42161/rpc",
+        "entryPointAddress": "0x0000000071727De22E5E9d8BAf0edAc6f37da032",
+        "safeModulesVersion": "0.3.0",
+        "paymasterUrl": "https://public.pimlico.io/v2/42161/rpc",
+        "paymasterAddress": "0x777777777777AeC03fd955926DbF81597e66834C",
+        "paymasterToken": { "address": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9" },
+        "transferMaxFee": 100000
+      }
+    },
+    "smart-account-base": {
+      "module": "@tetherto/wdk-wallet-evm-erc-4337",
+      "displayName": "Smart Account Base",
+      "nativeSymbol": "ETH",
+      "decimals": 18,
+      "indexerBlockchain": "base",
+      "config": {
+        "chainId": 8453,
+        "blockchain": "base",
+        "provider": "https://mainnet.base.org",
+        "bundlerUrl": "https://api.candide.dev/public/v3/base",
+        "entryPointAddress": "0x0000000071727De22E5E9d8BAf0edAc6f37da032",
+        "safeModulesVersion": "0.3.0",
+        "paymasterUrl": "https://api.candide.dev/public/v3/base",
+        "paymasterAddress": "0x8b1f6cb5d062aa2ce8d581942bbb960420d875ba",
+        "paymasterToken": { "address": "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2" },
+        "transferMaxFee": 100000
+      }
+    },
+    "smart-account-plasma": {
+      "module": "@tetherto/wdk-wallet-evm-erc-4337",
+      "displayName": "Smart Account Plasma",
+      "nativeSymbol": "ETH",
+      "decimals": 18,
+      "indexerBlockchain": "plasma",
+      "config": {
+        "chainId": 9745,
+        "blockchain": "plasma",
+        "provider": "https://rpc.plasma.to",
+        "bundlerUrl": "https://api.candide.dev/public/v3/9745",
+        "entryPointAddress": "0x0000000071727De22E5E9d8BAf0edAc6f37da032",
+        "safeModulesVersion": "0.3.0",
+        "paymasterUrl": "https://api.candide.dev/public/v3/9745",
+        "paymasterAddress": "0x8b1f6cb5d062aa2ce8d581942bbb960420d875ba",
+        "paymasterToken": { "address": "0xB8CE59FC3717ada4C02eaDF9682A9e934F625ebb" },
+        "transferMaxFee": 100000
+      }
+    }
+  }
+}
