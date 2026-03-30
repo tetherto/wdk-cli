@@ -255,20 +255,7 @@ wdk config reset provider --network ethereum                        # Reset to d
 wdk config path                                                     # Config file location
 ```
 
-#### Network Configuration
-
-| Network Type | Config Keys | Description |
-|-------------|-------------|-------------|
-| EVM | `provider`, `transferMaxFee` | JSON-RPC URL, max gas fee (wei) |
-| Solana | `rpcUrl` | JSON-RPC URL |
-| BTC | `host`, `port`, `protocol`, `network`, `bip` | Electrum server settings |
-| Spark | `network` | Network (MAINNET/REGTEST) |
-| Tron | `provider`, `transferMaxFee` | JSON-RPC URL, max fee (sun) |
-| Smart Account | `chainId`, `blockchain`, `provider`, `bundlerUrl`, `entryPointAddress`, `safeModulesVersion`, `paymasterUrl`, `paymasterAddress`, `paymasterToken`, `transferMaxFee` | ERC-4337 account abstraction |
-
-All network configuration is defined in `wdk-config.json` and passed directly to the wallet SDK. Config field names must match SDK expectations exactly. Users can override per-network config at runtime with `wdk config set <key> <value> --network <network>` or replace the full network config with `wdk config set '{"key":"value",...}' --network <network>`.
-
-BTC networks use the [Electrum protocol](https://electrumx.readthedocs.io/). Default: `tcp` on standard ports. Set `protocol` to `tls` or `ssl` for encrypted connections. `bip` controls address type: `84` (native SegWit, default) or `44` (legacy P2PKH).
+Network configuration is passed directly to the wallet SDK. Refer to each [wallet module's documentation](https://docs.wdk.tether.io/sdk/wallet-modules) for supported config keys. Default values are in [`wdk-config.json`](wdk-config.json).
 
 ### Global Flags
 
