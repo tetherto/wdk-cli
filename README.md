@@ -147,30 +147,40 @@ wdk network delete <name>     # Delete a custom network
 
 #### Adding Custom Networks
 
-Use `wdk network create` to define the network identity, then `wdk config set` to configure the provider:
+Use `wdk network create` with `--name` and `--network-data` (JSON):
 
 ```bash
-# 1. Create the network
-wdk network create \
-  --name base \
-  --display-name "Base Mainnet" \
-  --wallet-type @tetherto/wdk-wallet-evm \
-  --symbol ETH
-
-# 2. Configure the provider
-wdk config set provider https://mainnet.base.org --network base
+wdk network create --name optimism --network-data '{
+  "displayName": "Optimism",
+  "module": "@tetherto/wdk-wallet-evm",
+  "nativeSymbol": "ETH",
+  "decimals": 18,
+  "testnet": false,
+  "indexerBlockchain": "optimism",
+  "tokens": [
+    { "address": "0x94b008aA00579c1307B0EF2c499aD98a8ce58e68", "symbol": "USDT", "decimals": 6 }
+  ],
+  "config": {
+    "provider": "https://mainnet.optimism.io",
+    "transferMaxFee": 5000000000000000
+  }
+}'
 ```
 
-| Flag | Required | Description |
-|------|----------|-------------|
-| `--name <name>` | Yes | Network identifier (lowercase, e.g. `base`) |
-| `--display-name <name>` | Yes | Human-readable name (e.g. `Base Mainnet`) |
-| `--wallet-type <type>` | Yes | `@tetherto/wdk-wallet-evm`, `@tetherto/wdk-wallet-btc`, `@tetherto/wdk-wallet-solana`, `@tetherto/wdk-wallet-spark`, `@tetherto/wdk-wallet-tron`, `@tetherto/wdk-wallet-evm-erc-4337` |
-| `--symbol <symbol>` | Yes | Native token symbol (e.g. `ETH`) |
-| `--decimals <n>` | No | Token decimals (default: 18 for EVM, 8 for BTC/Spark, 9 for Solana, 6 for Tron) |
-| `--testnet` | No | Mark as testnet |
+**`--network-data` JSON fields:**
 
-Custom networks are stored in config and work with all commands (`get balance`, `send`, `get address`, etc.). After creating a network, use `wdk config set` to configure network settings.
+| Field | Required | Description |
+|-------|----------|-------------|
+| `displayName` | Yes | Human-readable name (e.g. `Optimism`) |
+| `module` | Yes | Wallet type: `@tetherto/wdk-wallet-evm`, `@tetherto/wdk-wallet-btc`, `@tetherto/wdk-wallet-solana`, `@tetherto/wdk-wallet-spark`, `@tetherto/wdk-wallet-tron`, `@tetherto/wdk-wallet-evm-erc-4337` |
+| `nativeSymbol` | Yes | Native token symbol (e.g. `ETH`) |
+| `decimals` | No | Token decimals (default: based on module) |
+| `testnet` | No | Mark as testnet (default: false) |
+| `indexerBlockchain` | No | Blockchain name for indexer API (`get history`) |
+| `tokens` | No | Known tokens: `[{ address, symbol, decimals }]` |
+| `config` | No | Network config passed to SDK (provider, chainId, etc.) |
+
+Custom networks are stored in config and work with all commands (`get balance`, `send`, `get address`, etc.). Network config can also be updated later with `wdk config set <key> <value> --network <name>`.
 
 ### Get
 

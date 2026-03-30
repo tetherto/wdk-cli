@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import walletsFile from '../../wdk-config.json' with { type: 'json' }
+import { configService } from '../services/config-service.js'
 
 export interface TokenConfig {
   address: string
@@ -20,12 +21,18 @@ export interface TokenConfig {
   decimals: number
 }
 
-const TOKENS: Record<string, TokenConfig[]> = {}
+const BUILTIN_TOKENS: Record<string, TokenConfig[]> = {}
 for (const [name, entry] of Object.entries(walletsFile.networks)) {
   const net = entry as Record<string, unknown>
   if (Array.isArray(net.tokens)) {
-    TOKENS[name] = net.tokens as TokenConfig[]
+    BUILTIN_TOKENS[name] = net.tokens as TokenConfig[]
   }
+}
+
+function getAllTokens(network: string): TokenConfig[] {
+  if (BUILTIN_TOKENS[network]) return BUILTIN_TOKENS[network]
+  const custom = configService.get(`customNetworks.${network}.tokens`) as TokenConfig[] | undefined
+  return custom ?? []
 }
 
 function normalizeAddress(address: string): string {
@@ -38,8 +45,7 @@ function getLookup(network: string): Map<string, TokenConfig> {
   let map = lookupCache.get(network)
   if (!map) {
     map = new Map()
-    const tokens = TOKENS[network] ?? []
-    for (const token of tokens) {
+    for (const token of getAllTokens(network)) {
       map.set(normalizeAddress(token.address), token)
     }
     lookupCache.set(network, map)
@@ -52,5 +58,5 @@ export function getTokenConfig(network: string, address: string): TokenConfig | 
 }
 
 export function getKnownTokens(network: string): TokenConfig[] {
-  return TOKENS[network] ?? []
+  return getAllTokens(network)
 }

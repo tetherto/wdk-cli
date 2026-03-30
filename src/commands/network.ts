@@ -81,24 +81,37 @@ export function registerNetworkCommand(program: Command): void {
   network
     .command('create')
     .description('Create a custom network')
-    .option('--name <name>', 'Network identifier (e.g. base, optimism)')
-    .option('--display-name <name>', 'Display name (e.g. "Base Mainnet")')
-    .option('--wallet-type <type>', `Wallet type: ${VALID_WALLET_TYPES.join(', ')}`)
-    .option('--symbol <symbol>', 'Native token symbol (e.g. ETH)')
-    .option('--decimals <n>', 'Token decimals (default: based on type)')
-    .option('--testnet', 'Mark as testnet')
-    .action((options, cmd) => {
-      const { name, displayName, walletType: type, symbol, testnet } = options
+    .requiredOption('--name <name>', 'Network identifier (e.g. base, optimism)')
+    .requiredOption('--network-data <json>', 'JSON with network definition (displayName, module, nativeSymbol, decimals, testnet, indexerBlockchain, tokens, config)')
+    .action((options) => {
+      const name: string = options.name
+
+      let jsonData: Record<string, unknown>
+      try {
+        jsonData = JSON.parse(options.networkData)
+      } catch {
+        console.error(chalk.red('Error: Invalid JSON in --network-data'))
+        process.exit(1)
+      }
+
+      const displayName = jsonData.displayName as string
+      const walletType = jsonData.module as string
+      const symbol = jsonData.nativeSymbol as string
+      const decimals = (jsonData.decimals as number) ?? (DEFAULT_DECIMALS[walletType] ?? 18)
+      const testnet = (jsonData.testnet as boolean) ?? false
+      const indexerBlockchain = jsonData.indexerBlockchain as string | undefined
+      const tokens = Array.isArray(jsonData.tokens) ? jsonData.tokens : undefined
+      let networkConfig: Record<string, unknown> = {}
+      if (jsonData.config && typeof jsonData.config === 'object') {
+        networkConfig = jsonData.config as Record<string, unknown>
+      }
 
       const missing: string[] = []
-      if (!name) missing.push('--name <name>')
-      if (!displayName) missing.push('--display-name <name>')
-      if (!type) missing.push('--wallet-type <type>')
-      if (!symbol) missing.push('--symbol <symbol>')
+      if (!displayName) missing.push('displayName')
+      if (!walletType) missing.push('module')
+      if (!symbol) missing.push('nativeSymbol')
       if (missing.length > 0) {
-        console.error(chalk.red(`Error: missing required options: ${missing.join(', ')}`))
-        console.error()
-        cmd.outputHelp()
+        console.error(chalk.red(`Error: JSON missing required fields: ${missing.join(', ')}`))
         process.exit(1)
       }
 
@@ -110,37 +123,34 @@ export function registerNetworkCommand(program: Command): void {
         console.error(chalk.red(`Error: Network '${name}' already exists.`))
         process.exit(1)
       }
-
-      if (!VALID_WALLET_TYPES.includes(type)) {
+      if (!VALID_WALLET_TYPES.includes(walletType)) {
         console.error(chalk.red(`Error: Wallet type must be one of: ${VALID_WALLET_TYPES.join(', ')}`))
         process.exit(1)
       }
-
-      const walletType = type
-
-      const decimals = options.decimals ? parseInt(options.decimals, 10) : (DEFAULT_DECIMALS[walletType] ?? 18)
       if (isNaN(decimals) || decimals < 0 || decimals > 24) {
         console.error(chalk.red('Error: Decimals must be a number between 0 and 24.'))
         process.exit(1)
       }
 
-      const config: NetworkConfig = {
+      const config: NetworkConfig & { tokens?: unknown[]; indexerBlockchain?: string } = {
         name,
         displayName,
         type: walletType,
+        module: walletType,
         nativeSymbol: symbol,
         decimals,
         custom: true,
-        testnet: !!testnet,
+        testnet,
       }
+      if (tokens) config.tokens = tokens
+      if (indexerBlockchain) config.indexerBlockchain = indexerBlockchain
 
       saveCustomNetwork(name, config)
-
-      configService.set(`networks.${name}`, {})
+      configService.set(`networks.${name}`, networkConfig)
 
       const parentOpts = program.opts()
       if (parentOpts.json) {
-        console.log(JSON.stringify(config, null, 2))
+        console.log(JSON.stringify({ ...config, config: networkConfig }, null, 2))
         return
       }
 
@@ -148,12 +158,17 @@ export function registerNetworkCommand(program: Command): void {
       console.log()
       console.log(`  Name:       ${name}`)
       console.log(`  Display:    ${displayName}`)
-      console.log(`  Wallet:     ${walletType}`)
+      console.log(`  Module:     ${walletType}`)
       console.log(`  Symbol:     ${symbol}`)
       console.log(`  Decimals:   ${decimals}`)
       console.log(`  Testnet:    ${testnet ? 'yes' : 'no'}`)
+      if (indexerBlockchain) console.log(`  Indexer:    ${indexerBlockchain}`)
+      if (tokens) console.log(`  Tokens:     ${tokens.length} configured`)
+      if (Object.keys(networkConfig).length > 0) console.log(`  Config:     ${Object.keys(networkConfig).length} keys`)
       console.log()
-      console.log(chalk.dim(`Use wdk config set <key> <value> --network ${name} to configure network settings.`))
+      if (Object.keys(networkConfig).length === 0) {
+        console.log(chalk.dim(`Use wdk config set <key> <value> --network ${name} to configure network settings.`))
+      }
     })
 
   network

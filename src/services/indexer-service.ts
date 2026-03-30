@@ -44,11 +44,12 @@ export interface TokenTransfer {
 }
 
 export function getIndexerBlockchain(network: NetworkName): string | undefined {
-  return BLOCKCHAIN_MAP[network]
+  if (BLOCKCHAIN_MAP[network]) return BLOCKCHAIN_MAP[network]
+  return configService.get(`customNetworks.${network}.indexerBlockchain`) as string | undefined
 }
 
 export function isIndexerSupported(network: NetworkName): boolean {
-  return network in BLOCKCHAIN_MAP
+  return !!getIndexerBlockchain(network)
 }
 
 export async function getTokenTransfers(
