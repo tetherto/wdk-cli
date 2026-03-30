@@ -283,30 +283,7 @@ BTC networks use the [Electrum protocol](https://electrumx.readthedocs.io/). Def
 
 ## Supported Networks
 
-| Network | Name | Module | Native Symbol |
-|---------|------|--------|---------------|
-| `bitcoin` | Bitcoin | @tetherto/wdk-wallet-btc | BTC |
-| `bitcoin-testnet3` | Bitcoin Testnet3 | @tetherto/wdk-wallet-btc | tBTC |
-| `ethereum` | Ethereum | @tetherto/wdk-wallet-evm | ETH |
-| `sepolia` | Sepolia Testnet | @tetherto/wdk-wallet-evm | ETH |
-| `polygon` | Polygon | @tetherto/wdk-wallet-evm | POL |
-| `arbitrum` | Arbitrum One | @tetherto/wdk-wallet-evm | ETH |
-| `base` | Base | @tetherto/wdk-wallet-evm | ETH |
-| `bsc` | BNB Smart Chain | @tetherto/wdk-wallet-evm | BNB |
-| `avalanche` | Avalanche C-Chain | @tetherto/wdk-wallet-evm | AVAX |
-| `solana` | Solana | @tetherto/wdk-wallet-solana | SOL |
-| `solana-testnet` | Solana Testnet | @tetherto/wdk-wallet-solana | SOL |
-| `solana-devnet` | Solana Devnet | @tetherto/wdk-wallet-solana | SOL |
-| `spark` | Spark | @tetherto/wdk-wallet-spark | BTC |
-| `spark-regtest` | Spark Regtest | @tetherto/wdk-wallet-spark | BTC |
-| `tron` | Tron | @tetherto/wdk-wallet-tron | TRX |
-| `tron-testnet` | Tron Testnet (Shasta) | @tetherto/wdk-wallet-tron | TRX |
-| `smart-account-ethereum` | Smart Account Ethereum | @tetherto/wdk-wallet-evm-erc-4337 | ETH |
-| `smart-account-sepolia` | Smart Account Sepolia | @tetherto/wdk-wallet-evm-erc-4337 | ETH |
-| `smart-account-polygon` | Smart Account Polygon | @tetherto/wdk-wallet-evm-erc-4337 | POL |
-| `smart-account-arbitrum` | Smart Account Arbitrum | @tetherto/wdk-wallet-evm-erc-4337 | ETH |
-| `smart-account-base` | Smart Account Base | @tetherto/wdk-wallet-evm-erc-4337 | ETH |
-| `smart-account-plasma` | Smart Account Plasma | @tetherto/wdk-wallet-evm-erc-4337 | ETH |
+All built-in networks are defined in [`wdk-config.json`](wdk-config.json). Run `wdk network list` to see all available networks.
 
 Additional networks can be added with `wdk network create`. See [Adding Custom Networks](#adding-custom-networks).
 
