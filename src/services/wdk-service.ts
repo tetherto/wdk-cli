@@ -118,9 +118,7 @@ export class WdkService {
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error)
       if (msg.includes('ECONNREFUSED') || msg.includes('ETIMEDOUT') || msg.includes('fetch failed')) {
-        let connectionInfo: string = network
-        try { connectionInfo = configService.getProviderUrl(network) } catch { /* no provider for this network type */ }
-        throw new NetworkError(connectionInfo)
+        throw new NetworkError(network)
       }
       throw error
     }

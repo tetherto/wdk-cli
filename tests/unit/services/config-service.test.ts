@@ -44,17 +44,6 @@ describe('ConfigService', () => {
     expect(typeof config).toBe('object')
   })
 
-  it('returns provider URL from network config', () => {
-    const url = configService.getProviderUrl('ethereum')
-    expect(url).toContain('https://')
-  })
-
-  it('prefers env var over config for provider URL', () => {
-    process.env.WDK_PROVIDER_ETHEREUM = 'https://custom-rpc.example.com'
-    const url = configService.getProviderUrl('ethereum')
-    expect(url).toBe('https://custom-rpc.example.com')
-  })
-
   it('returns config path', () => {
     const path = configService.configPath
     expect(path).toBeTruthy()

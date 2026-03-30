@@ -283,8 +283,6 @@ BTC networks use the [Electrum protocol](https://electrumx.readthedocs.io/). Def
 
 ## Supported Networks
 
-### Built-in
-
 | Network | Name | Module | Native Symbol |
 |---------|------|--------|---------------|
 | `bitcoin` | Bitcoin | @tetherto/wdk-wallet-btc | BTC |
@@ -314,12 +312,15 @@ Additional networks can be added with `wdk network create`. See [Adding Custom N
 
 ## Environment Variables
 
+Environment variables override config values at runtime without modifying the config file. Useful for CI/CD, Docker, or temporary overrides.
+
 | Variable | Description |
 |----------|-------------|
 | `WDK_PASSWORD` | Wallet unlock password (skip interactive prompt) |
-| `WDK_PROVIDER_<NETWORK>` | Provider URL override (e.g. `WDK_PROVIDER_ETHEREUM`, `WDK_PROVIDER_BITCOIN`) |
-| `WDK_INDEXER_BASE_URL` | WDK Indexer API URL |
-| `WDK_INDEXER_API_KEY` | WDK Indexer API key |
+| `WDK_INDEXER_BASE_URL` | Override `indexer.baseUrl` from config |
+| `WDK_INDEXER_API_KEY` | Override `indexer.apiKey` from config |
+
+Priority: environment variable > `wdk config set` > `wdk-config.json` defaults.
 
 ## Security
 
