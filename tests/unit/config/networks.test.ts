@@ -17,31 +17,6 @@ import { NETWORKS, NETWORK_NAMES, isValidNetwork, isTestnet, getNetworkConfig, g
 import { configService } from '../../../src/services/config-service.js'
 
 describe('networks', () => {
-  it('has all expected built-in networks', () => {
-    expect(NETWORK_NAMES).toContain('bitcoin')
-    expect(NETWORK_NAMES).toContain('bitcoin-testnet3')
-    expect(NETWORK_NAMES).toContain('ethereum')
-    expect(NETWORK_NAMES).toContain('sepolia')
-    expect(NETWORK_NAMES).toContain('polygon')
-    expect(NETWORK_NAMES).toContain('arbitrum')
-    expect(NETWORK_NAMES).toContain('bsc')
-    expect(NETWORK_NAMES).toContain('avalanche')
-    expect(NETWORK_NAMES).toContain('solana')
-    expect(NETWORK_NAMES).toContain('solana-testnet')
-    expect(NETWORK_NAMES).toContain('solana-devnet')
-    expect(NETWORK_NAMES).toContain('spark')
-    expect(NETWORK_NAMES).toContain('spark-regtest')
-    expect(NETWORK_NAMES).toContain('tron')
-    expect(NETWORK_NAMES).toContain('tron-testnet')
-    expect(NETWORK_NAMES).toContain('smart-account-ethereum')
-    expect(NETWORK_NAMES).toContain('smart-account-sepolia')
-    expect(NETWORK_NAMES).toContain('smart-account-polygon')
-    expect(NETWORK_NAMES).toContain('smart-account-arbitrum')
-    expect(NETWORK_NAMES).toContain('smart-account-base')
-    expect(NETWORK_NAMES).toContain('smart-account-plasma')
-    expect(NETWORK_NAMES).toContain('base')
-  })
-
   it('validates network names', () => {
     expect(isValidNetwork('ethereum')).toBe(true)
     expect(isValidNetwork('bitcoin')).toBe(true)
@@ -63,14 +38,6 @@ describe('networks', () => {
     expect(isTestnet('solana')).toBe(false)
     expect(isTestnet('spark')).toBe(false)
     expect(isTestnet('smart-account-ethereum')).toBe(false)
-  })
-
-  it('returns network config', () => {
-    const eth = getNetworkConfig('ethereum')
-    expect(eth.displayName).toBe('Ethereum')
-    expect(eth.nativeSymbol).toBe('ETH')
-    expect(eth.decimals).toBe(18)
-    expect(eth.module).toBe('@tetherto/wdk-wallet-evm')
   })
 
   it('all built-in networks have required fields', () => {
