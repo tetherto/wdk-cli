@@ -80,7 +80,7 @@ export async function getNativeUsdPrice(network: NetworkName): Promise<number> {
   const config = getNetworkConfig(network)
   const bitfinexSymbol = NATIVE_SYMBOLS[config.nativeSymbol]
   if (!bitfinexSymbol) {
-    throw new Error(`No USD price available for native token ${config.nativeSymbol} on ${network}.`)
+    throw new Error(`No USD price available for ${config.nativeSymbol} on ${network}.`)
   }
 
   const prices = await fetchPrices()
@@ -94,17 +94,12 @@ export async function getNativeUsdPrice(network: NetworkName): Promise<number> {
 export async function getTokenUsdPrice(network: NetworkName, tokenAddress: string): Promise<number> {
   const tokenConfig = getTokenConfig(network, tokenAddress)
   if (!tokenConfig) {
-    throw new Error(
-      `Unknown token ${tokenAddress} on ${network}. Cannot determine USD value.\n` +
-      `Policy requires USD conversion for spending limits.`,
-    )
+    throw new Error(`Unknown token ${tokenAddress} on ${network}.`)
   }
 
   const bitfinexSymbol = TOKEN_SYMBOLS[tokenConfig.symbol]
   if (!bitfinexSymbol) {
-    throw new Error(
-      `No USD price available for token ${tokenConfig.symbol} on ${network}.`,
-    )
+    throw new Error(`No USD price available for ${tokenConfig.symbol} on ${network}.`)
   }
 
   const prices = await fetchPrices()
@@ -123,10 +118,7 @@ export async function convertToUsd(
   if (tokenAddress) {
     const tokenConfig = getTokenConfig(network, tokenAddress)
     if (!tokenConfig) {
-      throw new Error(
-        `Unknown token ${tokenAddress} on ${network}. Cannot determine USD value.\n` +
-        `Policy requires USD conversion for spending limits.`,
-      )
+      throw new Error(`Unknown token ${tokenAddress} on ${network}.`)
     }
     const price = await getTokenUsdPrice(network, tokenAddress)
     const decimals = tokenConfig.decimals

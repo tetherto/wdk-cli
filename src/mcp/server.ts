@@ -16,7 +16,6 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
 import { daemonClient } from '../daemon/client.js'
-import { getPolicy } from '../services/policy-service.js'
 import { convertToUsd } from '../services/price-service.js'
 import {
   getAllNetworks,
@@ -125,7 +124,7 @@ export async function startMcpServer(): Promise<void> {
 
   server.tool(
     'get_balance',
-    'Get wallet balance. Omit network to get balances for all networks with USD totals.',
+    'Get wallet balance. Omit network to get balances for all networks with USD values.',
     {
       network: z.string().optional().describe('Network name. Omit for all networks.'),
       token: z.string().optional().describe('Token contract address for ERC-20/SPL balance'),
@@ -242,20 +241,6 @@ export async function startMcpServer(): Promise<void> {
           amount: result.amount,
           fee: result.fee,
         })
-      } catch (e) {
-        return errorResult(e instanceof Error ? e.message : String(e))
-      }
-    },
-  )
-
-  server.tool(
-    'get_policy',
-    'Show current spending policy and daily usage',
-    {},
-    async () => {
-      try {
-        const policy = getPolicy()
-        return jsonResult({ policy })
       } catch (e) {
         return errorResult(e instanceof Error ? e.message : String(e))
       }

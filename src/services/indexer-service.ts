@@ -14,7 +14,7 @@
 
 import { configService } from './config-service.js'
 import type { NetworkName } from '../types/index.js'
-import walletsFile from '../../wdk-config.json' with { type: 'json' }
+import walletsFile from '../../wdk.config.json' with { type: 'json' }
 
 const BLOCKCHAIN_MAP: Record<string, string> = {}
 for (const [name, entry] of Object.entries(walletsFile.networks)) {

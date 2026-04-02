@@ -1,6 +1,6 @@
 ---
 name: wdk-wallet
-description: "Manage a multi-chain crypto wallet via the wdk CLI. Supports multiple named wallets. Use when: user asks to check wallet balance, get wallet address, send crypto/tokens, check transaction history, or manage spending policies. Supports Bitcoin, Ethereum, Polygon, Arbitrum, Base, BSC, Avalanche, Solana, Tron, Spark, and Smart Accounts (ERC-4337). Triggers on: 'send ETH', 'check balance', 'wallet address', 'transfer USDT', 'crypto balance', 'send tokens', 'transaction history'."
+description: "Manage a multi-chain crypto wallet via the wdk CLI. Supports multiple named wallets. Use when: user asks to check wallet balance, get wallet address, send crypto/tokens, or check transaction history. Supports Bitcoin, Ethereum, Polygon, Arbitrum, Base, BSC, Avalanche, Solana, Tron, Spark, and Smart Accounts (ERC-4337). Triggers on: 'send ETH', 'check balance', 'wallet address', 'transfer USDT', 'crypto balance', 'send tokens', 'transaction history'."
 metadata:
   openclaw:
     requires:
@@ -22,9 +22,8 @@ Operate a self-custody multi-chain wallet through the `wdk` CLI. All commands ru
 1. Always append `--json` to get machine-parseable output (errors also return JSON: `{"error":"...","code":"...","suggestion":"..."}`)
 2. Before sending, use `--dry-run` to preview, show summary to user, and wait for confirmation in chat
 3. Use `--yes` when sending (user already confirmed in chat, CLI prompt would hang)
-4. Check `wdk policy show --json` before sending to respect spending limits
-5. Amounts are always in **base units** (wei, satoshis, lamports) — never decimals
-6. Never ask for or log seed phrases or passwords
+4. Amounts are always in **base units** (wei, satoshis, lamports) — never decimals
+5. Never ask for or log seed phrases or passwords
 
 ## Prerequisites
 
@@ -32,7 +31,6 @@ The user must complete these steps before the AI agent can operate the wallet:
 
 1. **Create wallet**: `wdk wallet create --words 24` (optionally `--name trading` for named wallets)
 2. **Unlock session**: `wdk wallet unlock --ttl 0` (unlimited session, or `--ttl 480` for 8 hours; default: 30 min)
-3. **Configure policy** (optional): `wdk policy set enabled true`, `wdk policy set maxPerCallUsd 100`, etc.
 
 These require interactive password input — the AI agent cannot perform them.
 
@@ -115,19 +113,6 @@ wdk get history --network ethereum --json
 wdk get history --network ethereum --token usdt --limit 20 --json
 ```
 
-### Check Policy Before Sending
-
-```bash
-wdk policy show --json
-# {"policy":{"enabled":true,"maxPerCallUsd":100,"maxPerDayUsd":1000,"maxTxPerDay":50,"whitelist":[]},"spending":{"date":"2025-01-15","totalUsd":45.00,"txCount":3,"transactions":[...]}}
-```
-
-If policy is enabled, verify:
-- Transaction USD value < `maxPerCallUsd` (0 = unlimited)
-- `spending.totalUsd` + transaction < `maxPerDayUsd` (0 = unlimited)
-- `spending.txCount` < `maxTxPerDay` (0 = unlimited)
-- Recipient is in `whitelist` (empty = any address allowed)
-
 ## Amount Conversion
 
 Amounts are in base units. Common conversions:
@@ -148,8 +133,6 @@ Amounts are in base units. Common conversions:
 | "No wallet found" | Ask user to run `wdk wallet create` |
 | "Wallet is locked" | Ask user to run `wdk wallet unlock` |
 | "Insufficient balance" | Inform user, show current balance |
-| "POLICY_VIOLATION" | Show policy limits, ask user to adjust |
-| "not in the whitelist" | Ask user to whitelist the address |
 | "403 Forbidden" (indexer) | Ask user to set API key: `wdk config set indexer.apiKey <key>` |
 | "Unknown token" | Token not in known registry, provide contract address |
 
@@ -159,8 +142,6 @@ These actions are **strictly forbidden** for AI agents. Do not attempt them unde
 
 1. **NEVER create or import wallets** — `wdk wallet create` and `wdk wallet import` require interactive password input. Tell the user to do it themselves.
 2. **NEVER unlock the wallet** — `wdk wallet unlock` requires interactive password input. If the wallet is locked, tell the user to unlock it.
-3. **NEVER modify spending policies** — `wdk policy set` requires interactive password input. If a policy violation occurs, inform the user and ask them to adjust the policy.
-4. **NEVER export or ask for seed phrases or passwords** — this is sensitive data that must never be logged, stored, or transmitted.
-5. **NEVER bypass policy checks** — always check `wdk policy show --json` before sending and respect the limits.
+3. **NEVER export or ask for seed phrases or passwords** — this is sensitive data that must never be logged, stored, or transmitted.
 
-These restrictions exist for security. Only the human user can perform wallet management and policy changes through interactive terminal input.
+These restrictions exist for security. Only the human user can perform wallet management through interactive terminal input.

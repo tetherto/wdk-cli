@@ -14,7 +14,7 @@
 
 import type { NetworkName, NetworkConfig } from '../types/index.js'
 import { configService } from '../services/config-service.js'
-import walletsFile from '../../wdk-config.json' with { type: 'json' }
+import walletsFile from '../../wdk.config.json' with { type: 'json' }
 
 const NETWORKS: Record<string, NetworkConfig> = {}
 for (const [name, entry] of Object.entries(walletsFile.networks)) {

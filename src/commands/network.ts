@@ -30,7 +30,7 @@ import { CONFIG_DEFAULTS } from '../config/constants.js'
 import { createTable } from '../ui/tables.js'
 import { NetworkNotSupportedError, handleError } from '../errors/index.js'
 import type { NetworkConfig } from '../types/index.js'
-import walletsFile from '../../wdk-config.json' with { type: 'json' }
+import walletsFile from '../../wdk.config.json' with { type: 'json' }
 
 const VALID_WALLET_TYPES = [...new Set(Object.values(walletsFile.networks).map(w => w.module))]
 const DEFAULT_DECIMALS: Record<string, number> = {}

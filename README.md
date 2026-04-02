@@ -1,6 +1,6 @@
 # wdk-cli
 
-A multi-chain crypto wallet for AI agents, built on [Wallet Development Kit (WDK)](https://wallet.tether.io/). Designed to be operated by AI agents (e.g. Claude, ChatGPT, OpenClaw) with user-controlled spending policies.
+A multi-chain crypto wallet for AI agents, built on [Wallet Development Kit (WDK)](https://wallet.tether.io/). Designed to be operated by AI agents (e.g. Claude, ChatGPT, OpenClaw).
 
 ## Architecture
 
@@ -27,16 +27,15 @@ A multi-chain crypto wallet for AI agents, built on [Wallet Development Kit (WDK
 
 **wdk-daemon** (Wallet Daemon):
 - Holds WDK instances in memory — owns all cryptographic operations
-- Enforces spending policies (limits, whitelist) before executing transactions
 - Listens on a Unix socket (`daemon.sock`, 0600 permissions)
 - Exposes: `get_address`, `get_balance`, `get_history`, `estimate_fee`, `send`, `list_wallets`, `status`, `lock`
 - Auto-exits after configurable timeout (default: 30 min, `--ttl 0` for unlimited)
-- Clients send requests → daemon enforces policy → performs crypto → returns results
+- Clients send requests → daemon performs crypto → returns results
 
 **wdk-cli** (CLI):
 - Thin client — no crypto, no keys
 - Parses user commands, sends requests to daemon, formats and displays results
-- Only interface for password-protected operations: unlock wallet, export seed, manage spending policies, delete wallet
+- Only interface for password-protected operations: unlock wallet, export seed, delete wallet
 
 **wdk-mcp** (MCP Server):
 - Thin client — no crypto, no keys
@@ -49,7 +48,6 @@ A multi-chain crypto wallet for AI agents, built on [Wallet Development Kit (WDK
 - **Network** — Bitcoin, Ethereum, Polygon, Arbitrum, Base, BSC, Avalanche, Solana, Tron, Spark, Smart Account (ERC-4337) + testnets. Add custom networks with `network create`
 - **Get** — Derive wallet addresses, check balances, and view transaction history across all networks
 - **Send** — Native and token transfers with fee estimation, confirmation, and dry-run preview
-- **Policy** — Spending limits and address whitelists enforced at the daemon level. Policy changes require user password — AI agents cannot modify policies
 - **Config** — Per-network configuration with env var overrides
 
 ## Requirements
@@ -108,10 +106,6 @@ wdk network info --network ethereum
 
 # List supported networks
 wdk network list
-
-# Use testnet for development
-wdk get address --network sepolia
-wdk get balance --network sepolia
 
 # Lock all wallets when done
 wdk wallet lock
@@ -214,32 +208,6 @@ wdk send --to <address> --amount <base-units> --network ethereum --dry-run      
 
 Amounts are in base units (wei for EVM, satoshis for BTC, lamports for Solana). Fee estimation runs before confirmation. Use `--dry-run` to preview the transaction with fee and USD estimates without sending.
 
-### Policy
-
-Spending policies protect against unauthorized or excessive transactions — designed for environments where AI agents interact with the wallet.
-
-```bash
-wdk policy show                              # Show policy settings and daily spending
-wdk policy set enabled true                  # Enable policy enforcement
-wdk policy set enabled false                 # Disable policy enforcement
-wdk policy set maxPerCallUsd 100             # Max $100 per transaction
-wdk policy set maxPerDayUsd 1000             # Max $1000 per day
-wdk policy set maxTxPerDay 50                # Max 50 transactions per day
-wdk policy whitelist add <address>           # Allow only whitelisted addresses
-wdk policy whitelist remove <address>        # Remove from whitelist
-wdk policy whitelist list                    # List whitelisted addresses
-```
-
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `enabled` | `false` | Enable/disable policy enforcement (true/false) |
-| `maxPerCallUsd` | `0` (unlimited) | Max USD value per transaction (0 = unlimited) |
-| `maxPerDayUsd` | `0` (unlimited) | Max total USD spent per day (0 = unlimited) |
-| `maxTxPerDay` | `0` (unlimited) | Max number of transactions per day (0 = unlimited) |
-| `whitelist` | empty (any address) | Only allow sending to listed addresses (empty = any) |
-
-Policy changes **require wallet password confirmation** in an interactive terminal. AI agents cannot modify policies — even if running in a TTY, they cannot provide the wallet password. USD conversion uses Bitfinex price feeds. Transactions with unknown tokens are blocked when policy is enabled.
-
 ### Configuration
 
 ```bash
@@ -255,7 +223,7 @@ wdk config reset provider --network ethereum                        # Reset to d
 wdk config path                                                     # Config file location
 ```
 
-Network configuration is passed directly to the wallet SDK. Refer to each [wallet module's documentation](https://docs.wdk.tether.io/sdk/wallet-modules) for supported config keys. Default values are in [`wdk-config.json`](wdk-config.json).
+Network configuration is passed directly to the wallet SDK. Refer to each [wallet module's documentation](https://docs.wdk.tether.io/sdk/wallet-modules) for supported config keys. Default values are in [`wdk.config.json`](wdk.config.json).
 
 ### Global Flags
 
@@ -270,7 +238,7 @@ Network configuration is passed directly to the wallet SDK. Refer to each [walle
 
 ## Supported Networks
 
-All built-in networks are defined in [`wdk-config.json`](wdk-config.json). Run `wdk network list` to see all available networks.
+All built-in networks are defined in [`wdk.config.json`](wdk.config.json). Run `wdk network list` to see all available networks.
 
 Additional networks can be added with `wdk network create`. See [Adding Custom Networks](#adding-custom-networks).
 
@@ -284,7 +252,7 @@ Environment variables override config values at runtime without modifying the co
 | `WDK_INDEXER_BASE_URL` | Override `indexer.baseUrl` from config |
 | `WDK_INDEXER_API_KEY` | Override `indexer.apiKey` from config |
 
-Priority: environment variable > `wdk config set` > `wdk-config.json` defaults.
+Priority: environment variable > `wdk config set` > `wdk.config.json` defaults.
 
 ## Security
 
@@ -327,7 +295,7 @@ wdk setup openclaw          # OpenClaw
 
 Each command auto-detects the Node.js path, validates prerequisites, and writes the config. Use `--remove` to uninstall.
 
-**MCP Tools:** `get_networks`, `get_address`, `get_balance`, `get_history`, `send_token`, `get_policy`
+**MCP Tools:** `get_networks`, `get_address`, `get_balance`, `get_history`, `send_token`
 
 All wallet-dependent tools accept an optional `wallet` parameter (defaults to `"default"`).
 
@@ -339,7 +307,6 @@ For AI agents with full system access (Claude Code, OpenClaw, custom agents). Th
 wdk get balance --network ethereum --json
 wdk send --to 0xRECIPIENT --amount 1000000 --network ethereum --dry-run
 wdk send --to 0xRECIPIENT --amount 1000000 --network ethereum --json --yes
-wdk policy show --json
 ```
 
 The `wdk-wallet/SKILL.md` file contains complete instructions for AI agents — commands, workflows, error handling, and amount conversions. Feed it as context to your agent.

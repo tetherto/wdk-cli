@@ -19,7 +19,6 @@ import { registerWalletCommand } from './commands/wallet.js'
 import { registerGetCommand } from './commands/get.js'
 import { registerSendCommand } from './commands/send.js'
 import { registerNetworkCommand } from './commands/network.js'
-import { registerPolicyCommand } from './commands/policy.js'
 import { registerSetupCommand } from './commands/setup.js'
 
 export function createProgram(): Command {
@@ -41,7 +40,6 @@ export function createProgram(): Command {
   registerGetCommand(program)
   registerSendCommand(program)
   registerNetworkCommand(program)
-  registerPolicyCommand(program)
   registerSetupCommand(program)
 
   return program

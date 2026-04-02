@@ -400,7 +400,6 @@ export function registerWalletCommand(program: Command): void {
           await daemonClient.lock()
         }
 
-        // Also clean up legacy session files
         const { sessionService } = await import('../services/session-service.js')
         await sessionService.destroy()
 

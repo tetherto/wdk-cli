@@ -17,14 +17,9 @@ import { isValidNetwork, getNetworkConfig } from '../config/networks.js'
 import { configService } from './config-service.js'
 import { NetworkNotSupportedError, NetworkError } from '../errors/index.js'
 import type { NetworkName } from '../types/index.js'
-// Cache for dynamically loaded wallet manager modules
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const walletManagerCache = new Map<string, any>()
 
-/**
- * Dynamically import a wallet manager module.
- * If the module is not installed, throws an error with install instructions.
- */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function loadWalletManager(moduleName: string): Promise<any> {
   if (walletManagerCache.has(moduleName)) {

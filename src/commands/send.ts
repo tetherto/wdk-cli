@@ -93,8 +93,8 @@ export function registerSendCommand(program: Command): void {
           }
           let amountUsdValue: number | undefined
           let feeUsdValue: number | undefined
-          try { amountUsdValue = await convertToUsd(network as NetworkName, amountBigInt, options.token) } catch { /* */ }
-          try { feeUsdValue = await convertToUsd(network as NetworkName, BigInt(feeQuote.fee)) } catch { /* */ }
+          try { amountUsdValue = await convertToUsd(network as NetworkName, amountBigInt, options.token) } catch { }
+          try { feeUsdValue = await convertToUsd(network as NetworkName, BigInt(feeQuote.fee)) } catch { }
 
           const summary = {
             network,

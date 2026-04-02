@@ -14,7 +14,7 @@
 
 import { join } from 'node:path'
 import { homedir } from 'node:os'
-import walletsFile from '../../wdk-config.json' with { type: 'json' }
+import walletsFile from '../../wdk.config.json' with { type: 'json' }
 
 const networkDefaults: Record<string, Record<string, unknown>> = {}
 for (const [name, entry] of Object.entries(walletsFile.networks)) {

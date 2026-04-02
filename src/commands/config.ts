@@ -111,7 +111,6 @@ export function registerConfigCommand(program: Command): void {
       try {
         const network = program.opts().network
 
-        // If key is a JSON object and --network is set, replace full network config
         if (network && key.startsWith('{')) {
           validateNetwork(network)
           let jsonConfig: unknown
@@ -139,7 +138,7 @@ export function registerConfigCommand(program: Command): void {
         }
 
         let parsed: unknown = value
-        try { parsed = JSON.parse(value) } catch { /* keep as string */ }
+        try { parsed = JSON.parse(value) } catch { }
 
         configService.set(fullKey, parsed)
         if (network) {

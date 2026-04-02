@@ -23,7 +23,6 @@ import { WdkService } from '../services/wdk-service.js'
 import { isValidNetwork, getNetworkConfig } from '../config/networks.js'
 import { getTokenConfig } from '../config/tokens.js'
 import { getTokenTransfers } from '../services/indexer-service.js'
-import { enforcePolicies, recordTransaction } from '../services/policy-service.js'
 import type { DaemonRequest, DaemonResponse } from './protocol.js'
 import type { EncryptedPayload } from '../types/index.js'
 import type { NetworkName } from '../types/index.js'
@@ -73,7 +72,7 @@ export class WalletDaemon {
     const socketPath = getDaemonSocketPath()
     await mkdir(dirname(socketPath), { recursive: true })
 
-    try { await unlink(socketPath) } catch { /* doesn't exist */ }
+    try { await unlink(socketPath) } catch { }
 
     this.server = createServer((socket) => this.handleConnection(socket))
 
@@ -257,16 +256,6 @@ export class WalletDaemon {
           return { ok: false, error: 'Missing required fields: network, to, amount' }
         }
         try {
-          const sendOptions = {
-            network: req.network as NetworkName,
-            index: req.index ?? 0,
-            to: req.to,
-            amount: req.amount,
-            token: req.token,
-            wallet,
-          }
-          const { amountUsd } = await enforcePolicies(sendOptions)
-
           const wdk = await this.ensureInitialized(req.network as NetworkName, wallet)
           const networkConfig = getNetworkConfig(req.network as NetworkName)
           const account = await wdk.getAccount(req.network as NetworkName, req.index ?? 0)
@@ -303,8 +292,6 @@ export class WalletDaemon {
             from = await account.getAddress()
             fee = result.fee?.toString()
           }
-
-          recordTransaction(sendOptions, txHash, amountUsd)
 
           return {
             ok: true,

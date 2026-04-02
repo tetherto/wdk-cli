@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import walletsFile from '../../wdk-config.json' with { type: 'json' }
+import walletsFile from '../../wdk.config.json' with { type: 'json' }
 import { configService } from '../services/config-service.js'
 
 export interface TokenConfig {

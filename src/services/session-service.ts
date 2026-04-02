@@ -84,7 +84,6 @@ class SessionService {
 
       const parsed = JSON.parse(plaintext)
 
-      // Handle legacy format (plain string = single seed phrase)
       if (typeof parsed === 'string') {
         return new Map([[DEFAULT_WALLET, parsed]])
       }
@@ -96,8 +95,8 @@ class SessionService {
   }
 
   async destroy(): Promise<void> {
-    try { await unlink(this.path) } catch { /* File doesn't exist */ }
-    try { await unlink(this.keyPath) } catch { /* File doesn't exist */ }
+    try { await unlink(this.path) } catch { }
+    try { await unlink(this.keyPath) } catch { }
   }
 
   async isActive(): Promise<boolean> {
@@ -109,7 +108,7 @@ class SessionService {
     try {
       const data = await readFile(this.path, 'utf8')
       const session: SessionData = JSON.parse(data)
-      if (session.expiresAt === 0) return 0 // unlimited
+      if (session.expiresAt === 0) return 0
       const remaining = session.expiresAt - Date.now()
       return remaining > 0 ? remaining : 0
     } catch {
