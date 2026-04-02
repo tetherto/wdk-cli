@@ -31,7 +31,7 @@ export function createProgram(): Command {
     .option('--index <n>', 'Account index (default: 0)', '0')
     .option('--wallet <name>', 'Wallet name (default: "default")')
     .option('--json', 'Output as JSON')
-    .option('--no-color', 'Disable colored output')
+
     .option('--verbose', 'Enable debug logging')
     .showHelpAfterError()
 

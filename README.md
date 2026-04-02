@@ -233,7 +233,7 @@ Network configuration is passed directly to the wallet SDK. Refer to each [walle
 | `--index <n>` | Account index (default: 0) |
 | `--wallet <name>` | Wallet name (default: "default") |
 | `--json` | Machine-readable JSON output |
-| `--no-color` | Disable colored output |
+
 | `--verbose` | Debug logging |
 
 ## Supported Networks
