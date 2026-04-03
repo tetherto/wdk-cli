@@ -1,9 +1,6 @@
-#!/usr/bin/env node
+#!/usr/bin/env -S node --disable-warning=ExperimentalWarning
 
 // stdout must be clean for JSON-RPC — redirect everything else to stderr
-
-process.removeAllListeners('warning')
-process.on('warning', () => {})
 
 console.log = (...args) => process.stderr.write(args.map(String).join(' ') + '\n')
 console.warn = (...args) => process.stderr.write(args.map(String).join(' ') + '\n')

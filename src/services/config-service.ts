@@ -12,11 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import { join } from 'node:path'
+import { homedir } from 'node:os'
 import Conf from 'conf'
 import { CONFIG_DEFAULTS } from '../config/constants.js'
+
 const ENV_MAP: Record<string, string> = {
   'indexer.baseUrl': 'WDK_INDEXER_BASE_URL',
   'indexer.apiKey': 'WDK_INDEXER_API_KEY',
+}
+
+function getConfigDir(): string {
+  const xdgConfig = process.env.XDG_CONFIG_HOME
+  const base = xdgConfig || join(homedir(), '.config')
+  return join(base, 'wdk-cli')
 }
 
 class ConfigService {
@@ -25,6 +34,7 @@ class ConfigService {
   constructor() {
     this.conf = new Conf({
       projectName: 'wdk-cli',
+      cwd: getConfigDir(),
       defaults: CONFIG_DEFAULTS as Record<string, unknown>,
     })
   }

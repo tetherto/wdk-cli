@@ -43,9 +43,9 @@ function getDaemonScript(): string {
 
 function spawnDaemon(password: string, ttl: number): Promise<void> {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [getDaemonScript()], {
+    const child = spawn(process.execPath, ['--disable-warning=ExperimentalWarning', getDaemonScript()], {
       env: { ...process.env, WDK_DAEMON_TTL: String(ttl) },
-      stdio: ['pipe', 'pipe', 'pipe'],
+      stdio: ['pipe', 'ignore', 'pipe'],
       detached: true,
     })
 
@@ -56,6 +56,7 @@ function spawnDaemon(password: string, ttl: number): Promise<void> {
     child.stderr!.on('data', (chunk: Buffer) => { stderr += chunk.toString() })
 
     const timeout = setTimeout(() => {
+      child.stderr!.destroy()
       child.unref()
       resolve()
     }, 2000)
@@ -354,7 +355,7 @@ export function registerWalletCommand(program: Command): void {
         const spinner = ora('Unlocking wallets...').start()
         const seeds = await keyService.unlockAll(password)
         const walletNames = [...seeds.keys()]
-        spinner.text = 'Starting daemon...'
+        spinner.text = 'Loading wallets...'
 
         const ttl = parseInt(options.ttl, 10)
         await spawnDaemon(password, ttl)

@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env -S node --disable-warning=ExperimentalWarning
 
 const ttl = parseInt(process.env.WDK_DAEMON_TTL || '30', 10)
 

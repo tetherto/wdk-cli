@@ -60,6 +60,17 @@ export function registerGetCommand(program: Command): void {
           return
         }
 
+        if (!(await daemonClient.isRunning())) {
+          if (program.opts().json) {
+            console.log(JSON.stringify({ error: 'Wallet is locked. Run `wdk wallet unlock` first.' }))
+          } else {
+            console.log()
+            console.log(chalk.yellow('  Wallet is locked. Run `wdk wallet unlock` first.'))
+            console.log()
+          }
+          return
+        }
+
         const showTestnet = options.testnet === true
         const allNames = getAllNetworkNames().filter((n) => isTestnet(n) === showTestnet)
 
@@ -69,7 +80,10 @@ export function registerGetCommand(program: Command): void {
           try {
             const address = await daemonClient.getAddress(network, index, wallet)
             return { network, address }
-          } catch {
+          } catch (e) {
+            if (program.opts().verbose) {
+              console.error(chalk.dim(`  [${network}] ${e instanceof Error ? e.message : String(e)}`))
+            }
             return null
           }
         })
@@ -87,10 +101,15 @@ export function registerGetCommand(program: Command): void {
         console.log()
         console.log(chalk.bold(`Wallet Addresses (index: ${index}, ${showTestnet ? 'testnet' : 'mainnet'}):`))
         console.log()
-        console.log(`  ${'Network'.padEnd(28)} ${'Address'}`)
-        console.log(`  ${'─'.repeat(28)} ${'─'.repeat(44)}`)
-        for (const r of results) {
-          console.log(`  ${formatNetworkLabel(r.network).padEnd(28)} ${r.address}`)
+        if (results.length === 0) {
+          console.log(chalk.dim('  No addresses available. Wallet modules may not be installed.'))
+          console.log(chalk.dim('  Run: node scripts/install-wallets.mjs'))
+        } else {
+          console.log(`  ${'Network'.padEnd(28)} ${'Address'}`)
+          console.log(`  ${'─'.repeat(28)} ${'─'.repeat(44)}`)
+          for (const r of results) {
+            console.log(`  ${formatNetworkLabel(r.network).padEnd(28)} ${r.address}`)
+          }
         }
         console.log()
       } catch (error) {
@@ -142,6 +161,17 @@ export function registerGetCommand(program: Command): void {
           return
         }
 
+        if (!(await daemonClient.isRunning())) {
+          if (program.opts().json) {
+            console.log(JSON.stringify({ error: 'Wallet is locked. Run `wdk wallet unlock` first.' }))
+          } else {
+            console.log()
+            console.log(chalk.yellow('  Wallet is locked. Run `wdk wallet unlock` first.'))
+            console.log()
+          }
+          return
+        }
+
         const showTestnet = options.testnet === true
         const allNames = getAllNetworkNames().filter((n) => isTestnet(n) === showTestnet)
 
@@ -180,14 +210,19 @@ export function registerGetCommand(program: Command): void {
         console.log()
         console.log(chalk.bold(`Wallet Balance (index: ${index}, ${showTestnet ? 'testnet' : 'mainnet'}):`))
         console.log()
-        console.log(`  ${'Network'.padEnd(28)} ${'Address'.padEnd(17)} ${'Balance'}`)
-        console.log(`  ${'─'.repeat(28)} ${'─'.repeat(17)} ${'─'.repeat(24)}`)
-        for (const r of results) {
-          const usdStr = chalk.dim(` (~$${r.usd.toFixed(2)})`)
-          console.log(`  ${formatNetworkLabel(r.network).padEnd(28)} ${formatAddress(r.address, true).padEnd(17)} ${chalk.bold(r.formatted)}${usdStr}`)
+        if (results.length === 0) {
+          console.log(chalk.dim('  No balances available. Wallet modules may not be installed.'))
+          console.log(chalk.dim('  Run: node scripts/install-wallets.mjs'))
+        } else {
+          console.log(`  ${'Network'.padEnd(28)} ${'Address'.padEnd(17)} ${'Balance'}`)
+          console.log(`  ${'─'.repeat(28)} ${'─'.repeat(17)} ${'─'.repeat(24)}`)
+          for (const r of results) {
+            const usdStr = chalk.dim(` (~$${r.usd.toFixed(2)})`)
+            console.log(`  ${formatNetworkLabel(r.network).padEnd(28)} ${formatAddress(r.address, true).padEnd(17)} ${chalk.bold(r.formatted)}${usdStr}`)
+          }
+          console.log()
+          console.log(`  ${chalk.bold(`Total: ~$${totalUsd.toFixed(2)}`)}`)
         }
-        console.log()
-        console.log(`  ${chalk.bold(`Total: ~$${totalUsd.toFixed(2)}`)}`)
         console.log()
       } catch (error) {
         handleError(error, program.opts().verbose, program.opts().json)
