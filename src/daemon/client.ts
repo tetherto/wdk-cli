@@ -136,10 +136,10 @@ export class DaemonClient {
     return (resp.data as { wallets: string[] }).wallets
   }
 
-  async status(): Promise<{ unlocked: boolean; wallets: string[]; ttlMs: number; pid: number }> {
+  async status(): Promise<{ unlocked: boolean; wallets: string[]; ttlMs: number; ttlRemaining: number; pid: number }> {
     const resp = await this.request({ action: 'status' })
     this.assertOk(resp, 'Failed to get daemon status')
-    return resp.data as { unlocked: boolean; wallets: string[]; ttlMs: number; pid: number }
+    return resp.data as { unlocked: boolean; wallets: string[]; ttlMs: number; ttlRemaining: number; pid: number }
   }
 
   async lock(): Promise<void> {

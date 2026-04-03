@@ -341,8 +341,8 @@ export function registerWalletCommand(program: Command): void {
             if (status.ttlMs === 0) {
               console.log(chalk.yellow(`  Wallet already unlocked: ${walletList} (unlimited session)`))
             } else {
-              const mins = Math.ceil(status.ttlMs / 60000)
-              console.log(chalk.yellow(`  Wallet already unlocked: ${walletList} (${mins} min timeout)`))
+              const mins = Math.ceil(status.ttlRemaining / 60000)
+              console.log(chalk.yellow(`  Wallet already unlocked: ${walletList} (${mins} min remaining)`))
             }
             return
           } catch { /* daemon unreachable, continue */ }
@@ -383,7 +383,7 @@ export function registerWalletCommand(program: Command): void {
         if (ttl === 0) {
           console.log(chalk.dim('  Session will not expire'))
         } else {
-          console.log(chalk.dim(`  Session expires after ${ttl} minutes of inactivity`))
+          console.log(chalk.dim(`  Session locks after ${ttl} minutes`))
         }
         console.log(chalk.dim('  Run `wdk wallet lock` to end session'))
         console.log()

@@ -12,7 +12,7 @@ A multi-chain crypto wallet for AI agents, built on [Wallet Development Kit (WDK
                      │  Holds WDK instances in memory    │
 ┌───────────┐        │  Handles all crypto operations:   │
 │  wdk-mcp  │──IPC──▶│  derivation, signing, balances    │
-│  (MCP)    │        │  Auto-exits after timeout         │
+│  (MCP)    │        │  Auto-locks after TTL expires     │
 └───────────┘        │                                   │
                      │  Signs tx locally, then submits   │
                      └───────────┬───────────────────────┘
@@ -29,7 +29,7 @@ A multi-chain crypto wallet for AI agents, built on [Wallet Development Kit (WDK
 - Holds WDK instances in memory — owns all cryptographic operations
 - Listens on a Unix socket (`daemon.sock`, 0600 permissions)
 - Exposes: `get_address`, `get_balance`, `get_history`, `estimate_fee`, `send`, `list_wallets`, `status`, `lock`
-- Auto-exits after configurable timeout (default: 30 min, `--ttl 0` for unlimited)
+- Auto-locks after configurable TTL (default: 30 min, `--ttl 0` for unlimited)
 - Clients send requests → daemon performs crypto → returns results
 
 **wdk-cli** (CLI):
@@ -77,7 +77,7 @@ wdk wallet create --name savings --words 12
 # List all wallets
 wdk wallet list
 
-# Unlock all wallets (starts background daemon, default: 30 min timeout)
+# Unlock all wallets (starts background daemon, locks after 30 min)
 wdk wallet unlock --ttl 0
 
 # Get all wallet addresses across networks
@@ -127,7 +127,7 @@ wdk wallet lock                                     # Lock all wallets (stops da
 
 Supports **multiple named wallets**, each stored as an independently encrypted file in `~/.config/wdk-cli/wallets/`. If `--name` is omitted, the wallet is named `"default"`. Use `--wallet <name>` on any command to target a specific wallet.
 
-`wdk wallet unlock` starts the daemon with all wallets unlocked at once. Use `--ttl 0` for unlimited timeout — ideal for AI agent environments.
+`wdk wallet unlock` starts the daemon with all wallets unlocked at once. Use `--ttl 0` for unlimited session — ideal for AI agent environments.
 
 ### Networks
 

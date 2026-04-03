@@ -67,7 +67,7 @@ export class WalletDaemon {
     }
 
     this.ttlMs = ttlMinutes === 0 ? 0 : ttlMinutes * 60 * 1000
-    this.resetTtl()
+    this.startTtl()
 
     const socketPath = getDaemonSocketPath()
     await mkdir(dirname(socketPath), { recursive: true })
@@ -90,8 +90,7 @@ export class WalletDaemon {
     await chmod(pidPath, 0o600)
   }
 
-  private resetTtl(): void {
-    if (this.ttlTimer) clearTimeout(this.ttlTimer)
+  private startTtl(): void {
     if (this.ttlMs > 0) {
       this.ttlExpiresAt = Date.now() + this.ttlMs
       this.ttlTimer = setTimeout(() => this.shutdown(), this.ttlMs)
@@ -142,7 +141,6 @@ export class WalletDaemon {
 
     switch (req.action) {
       case 'get_address': {
-        this.resetTtl()
         if (!req.network || !isValidNetwork(req.network)) {
           return { ok: false, error: `Invalid network: ${req.network}` }
         }
@@ -157,7 +155,6 @@ export class WalletDaemon {
       }
 
       case 'get_balance': {
-        this.resetTtl()
         if (!req.network || !isValidNetwork(req.network)) {
           return { ok: false, error: `Invalid network: ${req.network}` }
         }
@@ -194,7 +191,6 @@ export class WalletDaemon {
       }
 
       case 'get_history': {
-        this.resetTtl()
         if (!req.network || !isValidNetwork(req.network)) {
           return { ok: false, error: `Invalid network: ${req.network}` }
         }
@@ -212,7 +208,6 @@ export class WalletDaemon {
       }
 
       case 'estimate_fee': {
-        this.resetTtl()
         if (!req.network || !isValidNetwork(req.network) || !req.to || !req.amount) {
           return { ok: false, error: 'Missing required fields: network, to, amount' }
         }
@@ -251,7 +246,6 @@ export class WalletDaemon {
       }
 
       case 'send': {
-        this.resetTtl()
         if (!req.network || !isValidNetwork(req.network) || !req.to || !req.amount) {
           return { ok: false, error: 'Missing required fields: network, to, amount' }
         }
