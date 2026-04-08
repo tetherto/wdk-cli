@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import walletsFile from '../../wdk.config.json' with { type: 'json' }
+import tokensFile from '../../wdk.tokens.json' with { type: 'json' }
 import { configService } from '../services/config-service.js'
 
 export interface TokenConfig {
@@ -21,13 +21,7 @@ export interface TokenConfig {
   decimals: number
 }
 
-const BUILTIN_TOKENS: Record<string, TokenConfig[]> = {}
-for (const [name, entry] of Object.entries(walletsFile.networks)) {
-  const net = entry as Record<string, unknown>
-  if (Array.isArray(net.tokens)) {
-    BUILTIN_TOKENS[name] = net.tokens as TokenConfig[]
-  }
-}
+const BUILTIN_TOKENS: Record<string, TokenConfig[]> = tokensFile as Record<string, TokenConfig[]>
 
 function getAllTokens(network: string): TokenConfig[] {
   if (BUILTIN_TOKENS[network]) return BUILTIN_TOKENS[network]
