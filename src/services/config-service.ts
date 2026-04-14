@@ -65,6 +65,14 @@ class ConfigService {
     return store
   }
 
+  getDefaultWallet(): string {
+    return (this.conf.get('defaultWallet') as string) || ''
+  }
+
+  setDefaultWallet(name: string): void {
+    this.conf.set('defaultWallet', name)
+  }
+
   get configPath(): string {
     return this.conf.path
   }

@@ -15,7 +15,7 @@
 import { readFile, writeFile, unlink, chmod, mkdir } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { randomBytes, createCipheriv, createDecipheriv } from 'node:crypto'
-import { getSessionPath, SESSION_TTL_MINUTES, DEFAULT_WALLET } from '../config/constants.js'
+import { getSessionPath, SESSION_TTL_MINUTES } from '../config/constants.js'
 
 const ALGORITHM = 'aes-256-gcm'
 const KEY_LEN = 32
@@ -56,7 +56,7 @@ class SessionService {
     await chmod(this.path, 0o600)
   }
 
-  async get(walletName: string = DEFAULT_WALLET): Promise<string | null> {
+  async get(walletName: string): Promise<string | null> {
     const seeds = await this.getAll()
     if (!seeds) return null
     return seeds.get(walletName) || null
@@ -85,7 +85,7 @@ class SessionService {
       const parsed = JSON.parse(plaintext)
 
       if (typeof parsed === 'string') {
-        return new Map([[DEFAULT_WALLET, parsed]])
+        return new Map([['default', parsed]])
       }
 
       return new Map(Object.entries(parsed as Record<string, string>))

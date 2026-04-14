@@ -29,10 +29,10 @@ Operate a self-custody multi-chain wallet through the `wdk` CLI. All commands ru
 
 The user must complete these steps before the AI agent can operate the wallet:
 
-1. **Create wallet**: `wdk wallet create --words 24` (optionally `--name trading` for named wallets)
-2. **Unlock session**: `wdk wallet unlock --ttl 0` (unlimited session, or `--ttl 480` for 8 hours; default: 30 min)
+1. **Create wallet**: `wdk wallet create --name trading --words 24` (each wallet has its own password)
+2. **Unlock wallet**: `wdk wallet unlock --name trading --ttl 0` (unlimited session, or `--ttl 480` for 8 hours; default: 30 min)
 
-These require interactive password input — the AI agent cannot perform them.
+Each wallet is unlocked individually with its own password and TTL. These require interactive password input — the AI agent cannot perform them.
 
 ## Multi-Wallet
 
@@ -130,8 +130,8 @@ Amounts are in base units. Common conversions:
 
 | Error | Action |
 |-------|--------|
-| "No wallet found" | Ask user to run `wdk wallet create` |
-| "Wallet is locked" | Ask user to run `wdk wallet unlock` |
+| "No wallet found" | Ask user to run `wdk wallet create --name <name>` |
+| "Wallet is locked" | Ask user to run `wdk wallet unlock --name <name>` |
 | "Insufficient balance" | Inform user, show current balance |
 | "403 Forbidden" (indexer) | Ask user to set API key: `wdk config set indexer.apiKey <key>` |
 | "Unknown token" | Token not in known registry, provide contract address |
@@ -140,8 +140,8 @@ Amounts are in base units. Common conversions:
 
 These actions are **strictly forbidden** for AI agents. Do not attempt them under any circumstances:
 
-1. **NEVER create or import wallets** — `wdk wallet create` and `wdk wallet import` require interactive password input. Tell the user to do it themselves.
-2. **NEVER unlock the wallet** — `wdk wallet unlock` requires interactive password input. If the wallet is locked, tell the user to unlock it.
+1. **NEVER create or import wallets** — `wdk wallet create --name <name>` and `wdk wallet import --name <name>` require interactive password input. Tell the user to do it themselves.
+2. **NEVER unlock the wallet** — `wdk wallet unlock --name <name>` requires interactive password input. If the wallet is locked, tell the user to unlock it.
 3. **NEVER export or ask for seed phrases or passwords** — this is sensitive data that must never be logged, stored, or transmitted.
 
 These restrictions exist for security. Only the human user can perform wallet management through interactive terminal input.

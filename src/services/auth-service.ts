@@ -16,14 +16,14 @@ import { KeyService } from './key-service.js'
 import { WalletKeyring } from '../security/keyring.js'
 import { KeyNotFoundError } from '../errors/index.js'
 import { promptPassword } from '../ui/prompts.js'
-import { DEFAULT_WALLET } from '../config/constants.js'
+import { configService } from './config-service.js'
 
 const keyService = new KeyService(new WalletKeyring())
 
 const seedPhraseCache = new Map<string, string>()
 const seedPhrasePromises = new Map<string, Promise<string>>()
 
-export async function getSeedPhrase(walletName: string = DEFAULT_WALLET): Promise<string> {
+export async function getSeedPhrase(walletName: string = configService.getDefaultWallet()): Promise<string> {
   const cached = seedPhraseCache.get(walletName)
   if (cached) return cached
 
@@ -36,7 +36,6 @@ export async function getSeedPhrase(walletName: string = DEFAULT_WALLET): Promis
     }
 
     const password = await promptPassword('Enter password to unlock wallet:')
-    await keyService.migrateLegacy(password)
     const phrase = await keyService.unlock(password, walletName)
     seedPhraseCache.set(walletName, phrase)
     return phrase

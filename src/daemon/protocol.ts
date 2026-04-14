@@ -20,11 +20,15 @@ export type DaemonAction =
   | 'send'
   | 'list_wallets'
   | 'status'
+  | 'unlock_wallet'
+  | 'lock_wallet'
   | 'lock'
 
 export interface DaemonRequest {
   action: DaemonAction
   wallet?: string
+  password?: string
+  ttl?: number
   network?: string
   index?: number
   token?: string

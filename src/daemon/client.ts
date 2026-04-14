@@ -130,16 +130,26 @@ export class DaemonClient {
     return resp.data as { txHash: string; network: string; from: string; to: string; amount: string; fee?: string }
   }
 
-  async listWallets(): Promise<string[]> {
-    const resp = await this.request({ action: 'list_wallets' })
-    this.assertOk(resp, 'Failed to list wallets')
-    return (resp.data as { wallets: string[] }).wallets
+  async unlockWallet(name: string, password: string, ttlMinutes: number = 30): Promise<void> {
+    const resp = await this.request({ action: 'unlock_wallet', wallet: name, password, ttl: ttlMinutes }, 30000)
+    this.assertOk(resp, `Failed to unlock wallet '${name}'`)
   }
 
-  async status(): Promise<{ unlocked: boolean; wallets: string[]; ttlMs: number; ttlRemaining: number; pid: number }> {
+  async lockWallet(name: string): Promise<void> {
+    const resp = await this.request({ action: 'lock_wallet', wallet: name })
+    this.assertOk(resp, `Failed to lock wallet '${name}'`)
+  }
+
+  async listWallets(): Promise<{ name: string; ttlMs: number; ttlRemaining: number }[]> {
+    const resp = await this.request({ action: 'list_wallets' })
+    this.assertOk(resp, 'Failed to list wallets')
+    return (resp.data as { wallets: { name: string; ttlMs: number; ttlRemaining: number }[] }).wallets
+  }
+
+  async status(): Promise<{ unlocked: boolean; wallets: { name: string; ttlMs: number; ttlRemaining: number }[]; pid: number }> {
     const resp = await this.request({ action: 'status' })
     this.assertOk(resp, 'Failed to get daemon status')
-    return resp.data as { unlocked: boolean; wallets: string[]; ttlMs: number; ttlRemaining: number; pid: number }
+    return resp.data as { unlocked: boolean; wallets: { name: string; ttlMs: number; ttlRemaining: number }[]; pid: number }
   }
 
   async lock(): Promise<void> {

@@ -26,11 +26,12 @@ A multi-chain crypto wallet for AI agents, built on [Wallet Development Kit (WDK
 ```
 
 **wdk-daemon** (Wallet Daemon):
+- Starts empty — wallets unlocked individually via socket requests
 - Holds WDK instances in memory — owns all cryptographic operations
 - Listens on a Unix socket (`daemon.sock`, 0600 permissions)
-- Exposes: `get_address`, `get_balance`, `get_history`, `estimate_fee`, `send`, `list_wallets`, `status`, `lock`
-- Auto-locks after configurable TTL (default: 30 min, `--ttl 0` for unlimited)
-- Clients send requests → daemon performs crypto → returns results
+- Exposes: `unlock_wallet`, `lock_wallet`, `get_address`, `get_balance`, `get_history`, `estimate_fee`, `send`, `list_wallets`, `status`, `lock`
+- Per-wallet TTL — each wallet has its own timeout (default: 30 min, `--ttl 0` for unlimited)
+- Auto-exits when last wallet is locked
 
 **wdk-cli** (CLI):
 - Thin client — no crypto, no keys
@@ -44,7 +45,7 @@ A multi-chain crypto wallet for AI agents, built on [Wallet Development Kit (WDK
 
 ## Features
 
-- **Wallet** — Multiple named wallets with BIP-39 seed phrases, encrypted at rest with AES-256-GCM. Background daemon holds keys in memory after unlock
+- **Wallet** — Multiple named wallets with per-wallet passwords and BIP-39 seed phrases, encrypted at rest with AES-256-GCM. Background daemon holds keys in memory after unlock, with per-wallet TTL
 - **Network** — Bitcoin, Ethereum, Polygon, Arbitrum, Base, BSC, Avalanche, Solana, Tron, Spark, Smart Account (ERC-4337) + testnets. Add custom networks with `network create`
 - **Get** — Derive wallet addresses, check balances, and view transaction history across all networks
 - **Send** — Native and token transfers with fee estimation, confirmation, and dry-run preview
@@ -67,18 +68,19 @@ npm link  # makes `wdk` available globally
 ## Quick Start
 
 ```bash
-# Create a new wallet
-wdk wallet create --words 24
-
-# Create additional named wallets
+# Create wallets (each has its own password)
 wdk wallet create --name trading --words 24
 wdk wallet create --name savings --words 12
 
 # List all wallets
 wdk wallet list
 
-# Unlock all wallets (starts background daemon, locks after 30 min)
-wdk wallet unlock --ttl 0
+# Unlock wallets individually (starts daemon on first unlock)
+wdk wallet unlock --name trading --ttl 0      # unlimited session
+wdk wallet unlock --name savings --ttl 60     # 60 min session
+
+# Set default wallet
+wdk wallet default --name trading
 
 # Get all wallet addresses across networks
 wdk get address
@@ -107,8 +109,11 @@ wdk network info --network ethereum
 # List supported networks
 wdk network list
 
+# Lock a single wallet
+wdk wallet lock --name trading
+
 # Lock all wallets when done
-wdk wallet lock
+wdk wallet lock --all
 ```
 
 ## Commands
@@ -116,18 +121,21 @@ wdk wallet lock
 ### Wallet
 
 ```bash
-wdk wallet create [--words 12|24] [--name <name>]  # Generate new BIP-39 seed phrase
-wdk wallet import [--name <name>]                   # Import existing seed phrase (interactive)
-wdk wallet export [--name <name>]                   # Export seed phrase (decrypt and display)
-wdk wallet list                                     # List all wallets with lock status
-wdk wallet delete <name>                            # Delete a wallet (requires password)
-wdk wallet unlock [--ttl <minutes>]                 # Unlock all wallets (starts daemon)
-wdk wallet lock                                     # Lock all wallets (stops daemon)
+wdk wallet create --name <name> [--words 12|24]     # Generate new BIP-39 seed phrase
+wdk wallet import --name <name>                     # Import existing seed phrase (interactive)
+wdk wallet export --name <name>                     # Export seed phrase (decrypt and display)
+wdk wallet list                                     # List all wallets with lock/default status
+wdk wallet unlock --name <name> [--ttl <minutes>]   # Unlock a wallet (starts daemon if needed)
+wdk wallet lock --name <name>                       # Lock a single wallet
+wdk wallet lock --all                               # Lock all wallets (stops daemon)
+wdk wallet delete --name <name>                     # Delete a wallet (requires password)
+wdk wallet default --name <name>                    # Set the default wallet
+wdk wallet rename --name <old> --new <new>          # Rename a wallet
 ```
 
-Supports **multiple named wallets**, each stored as an independently encrypted file in `~/.config/wdk-cli/wallets/`. If `--name` is omitted, the wallet is named `"default"`. Use `--wallet <name>` on any command to target a specific wallet.
+Supports **multiple named wallets** with **per-wallet passwords**. Each wallet is stored as `~/.config/wdk-cli/wallets/<name>/seed.enc`. The first wallet created is auto-set as default. Use `--wallet <name>` on other commands to target a specific wallet (defaults to the default wallet).
 
-`wdk wallet unlock` starts the daemon with all wallets unlocked at once. Use `--ttl 0` for unlimited session — ideal for AI agent environments.
+`wdk wallet unlock` unlocks a single wallet and starts the daemon if not running. Each wallet has its own TTL — use `--ttl 0` for unlimited session, ideal for AI agent environments. The daemon auto-exits when the last wallet is locked.
 
 ### Networks
 
@@ -231,7 +239,7 @@ Network configuration is passed directly to the wallet SDK. Refer to each [walle
 |------|-------------|
 | `--network <network>` | Override default network |
 | `--index <n>` | Account index (default: 0) |
-| `--wallet <name>` | Wallet name (default: "default") |
+| `--wallet <name>` | Wallet name (uses default wallet if omitted) |
 | `--json` | Machine-readable JSON output |
 
 | `--verbose` | Debug logging |
@@ -256,7 +264,7 @@ Priority: environment variable > `wdk config set` > `wdk.config.json` defaults.
 
 ## Security
 
-- Seed phrases encrypted at rest (AES-256-GCM + scrypt), unique salt per wallet
+- Seed phrases encrypted at rest (AES-256-GCM + scrypt), per-wallet passwords with unique salt per wallet
 - Seeds and passwords never accepted as CLI arguments
 - Private keys and seeds never leave the daemon process
 - Unix socket with 0600 permissions (same-user access only, like ssh-agent)
@@ -264,19 +272,19 @@ Priority: environment variable > `wdk config set` > `wdk.config.json` defaults.
 
 ### Data flow
 
-1. **Unlock**: User enters password → daemon decrypts seeds via scrypt + AES-256-GCM → initializes WDK instances in RAM → discards derived keys
-2. **Request**: CLI/MCP sends operation (e.g. `get_address`) over Unix socket → daemon performs crypto operation → returns result only
-3. **Lock**: WDK instances disposed and cleared → daemon exits
+1. **Unlock**: User unlocks a wallet by name → password sent to daemon over Unix socket → daemon decrypts seed via scrypt + AES-256-GCM → initializes WDK instance in RAM → starts per-wallet TTL timer
+2. **Request**: CLI/MCP sends operation (e.g. `get_address`) with wallet name over Unix socket → daemon performs crypto operation → returns result only
+3. **Lock**: Individual wallet locked → WDK instance disposed and cleared. When last wallet locks → daemon exits
 
 ### Encrypted wallet files
 
-Each wallet is stored as an independent `.enc` file in `~/.config/wdk-cli/wallets/`:
+Each wallet is stored in its own directory as `~/.config/wdk-cli/wallets/<name>/seed.enc`:
 
 ```json
 { "version": 1, "salt": "...", "iv": "...", "tag": "...", "ciphertext": "..." }
 ```
 
-Same password, unique random salt per wallet → unique derived key per wallet.
+Per-wallet password with unique random salt → unique derived key per wallet.
 
 ## AI Agent Integration
 
@@ -297,7 +305,7 @@ Each command auto-detects the Node.js path, validates prerequisites, and writes 
 
 **MCP Tools:** `get_networks`, `get_address`, `get_balance`, `get_history`, `send_token`
 
-All wallet-dependent tools accept an optional `wallet` parameter (defaults to `"default"`).
+All wallet-dependent tools accept an optional `wallet` parameter (uses default wallet if omitted).
 
 ### CLI — for local AI agents
 
@@ -313,9 +321,10 @@ The `wdk-wallet/SKILL.md` file contains complete instructions for AI agents — 
 
 ### Before using either mode
 
-Unlock the wallet first:
+Create and unlock wallets first:
 ```bash
-wdk wallet unlock --ttl 0
+wdk wallet create --name default --words 24
+wdk wallet unlock --name default --ttl 0
 ```
 
 Both MCP and CLI route through the daemon — the agent never has access to keys or seeds.

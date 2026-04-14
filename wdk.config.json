@@ -2,7 +2,6 @@
   "version": 1,
   "defaults": {
     "defaultIndex": 0,
-    "defaultWallet": "default",
     "indexer": {
       "baseUrl": "https://wdk-api.tether.io",
       "apiKey": ""

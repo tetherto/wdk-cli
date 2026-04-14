@@ -31,7 +31,6 @@ export const APP_VERSION = '0.0.1'
 export const CONFIG_DIR = APP_NAME
 export const KEYRING_FILENAME = 'keyring.enc'
 export const WALLETS_DIR = 'wallets'
-export const DEFAULT_WALLET = (CONFIG_DEFAULTS.defaultWallet as string) || 'default'
 
 function getConfigDir(): string {
   const xdgConfig = process.env.XDG_CONFIG_HOME
@@ -60,12 +59,20 @@ export function getWalletsDir(): string {
   return join(getConfigDir(), WALLETS_DIR)
 }
 
-export function getWalletPath(name: string = DEFAULT_WALLET): string {
+export function validateWalletName(name: string): string {
   const sanitized = name.replace(/[^a-zA-Z0-9_-]/g, '')
   if (!sanitized || sanitized !== name) {
     throw new Error(`Invalid wallet name: '${name}'. Use only letters, numbers, hyphens, and underscores.`)
   }
-  return join(getWalletsDir(), `${sanitized}.enc`)
+  return sanitized
+}
+
+export function getWalletDir(name: string): string {
+  return join(getWalletsDir(), validateWalletName(name))
+}
+
+export function getWalletPath(name: string): string {
+  return join(getWalletDir(name), 'seed.enc')
 }
 
 export function getSessionPath(): string {

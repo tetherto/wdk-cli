@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { readFile, writeFile, access, unlink, mkdir, chmod, readdir } from 'node:fs/promises'
-import { dirname, basename } from 'node:path'
+import { readFile, writeFile, access, unlink, mkdir, chmod, readdir, rm, stat } from 'node:fs/promises'
+import { dirname, join } from 'node:path'
 import { encrypt, decrypt } from './encryption.js'
-import { getWalletsDir, getWalletPath, getKeyringPath, DEFAULT_WALLET } from '../config/constants.js'
+import { getWalletsDir, getWalletPath, getWalletDir } from '../config/constants.js'
 import type { EncryptedPayload } from '../types/index.js'
 
 export class Keyring {
@@ -51,71 +51,55 @@ export class Keyring {
 }
 
 export class WalletKeyring {
-  async store(seedPhrase: string, password: string, name: string = DEFAULT_WALLET): Promise<void> {
+  async store(seedPhrase: string, password: string, name: string): Promise<void> {
     const walletPath = getWalletPath(name)
     const keyring = new Keyring(walletPath)
     await keyring.store(seedPhrase, password)
   }
 
-  async retrieve(password: string, name: string = DEFAULT_WALLET): Promise<string> {
+  async retrieve(password: string, name: string): Promise<string> {
     const walletPath = getWalletPath(name)
     const keyring = new Keyring(walletPath)
     return keyring.retrieve(password)
   }
 
-  async exists(name: string = DEFAULT_WALLET): Promise<boolean> {
+  async exists(name: string): Promise<boolean> {
     const walletPath = getWalletPath(name)
     const keyring = new Keyring(walletPath)
     return keyring.exists()
   }
 
-  async destroy(name: string = DEFAULT_WALLET): Promise<void> {
-    const walletPath = getWalletPath(name)
-    const keyring = new Keyring(walletPath)
-    return keyring.destroy()
+  async destroy(name: string): Promise<void> {
+    const walletDir = getWalletDir(name)
+    try {
+      await rm(walletDir, { recursive: true })
+    } catch { /* */ }
   }
 
   async list(): Promise<string[]> {
     try {
       const dir = getWalletsDir()
-      const files = await readdir(dir)
-      return files
-        .filter((f) => f.endsWith('.enc'))
-        .map((f) => basename(f, '.enc'))
-        .sort()
+      const entries = await readdir(dir)
+      const wallets: string[] = []
+      for (const entry of entries) {
+        const entryPath = join(dir, entry)
+        const s = await stat(entryPath)
+        if (s.isDirectory()) {
+          try {
+            await access(join(entryPath, 'seed.enc'))
+            wallets.push(entry)
+          } catch { /* */ }
+        }
+      }
+      return wallets.sort()
     } catch {
       return []
     }
   }
 
   async hasAny(): Promise<boolean> {
-    // Check new wallets/ directory first
     const wallets = await this.list()
-    if (wallets.length > 0) return true
-    // Fallback: check legacy keyring.enc
-    try {
-      await access(getKeyringPath())
-      return true
-    } catch {
-      return false
-    }
+    return wallets.length > 0
   }
 
-  async migrateLegacy(password: string): Promise<boolean> {
-    const legacyPath = getKeyringPath()
-    try {
-      await access(legacyPath)
-    } catch {
-      return false
-    }
-
-    const wallets = await this.list()
-    if (wallets.length > 0) return false
-
-    const legacyKeyring = new Keyring(legacyPath)
-    const seedPhrase = await legacyKeyring.retrieve(password)
-    await this.store(seedPhrase, password, DEFAULT_WALLET)
-    await legacyKeyring.destroy()
-    return true
-  }
 }

@@ -17,7 +17,7 @@ import { readFileSync } from 'node:fs'
 import { writeFile, unlink, chmod, mkdir } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { getDaemonSocketPath, getDaemonPidPath, getWalletPath } from '../config/constants.js'
-import { WalletKeyring } from '../security/keyring.js'
+import { configService } from '../services/config-service.js'
 import { deriveKey, decryptWithKey } from '../security/encryption.js'
 import { WdkService } from '../services/wdk-service.js'
 import { isValidNetwork, getNetworkConfig } from '../config/networks.js'
@@ -27,48 +27,18 @@ import type { DaemonRequest, DaemonResponse } from './protocol.js'
 import type { EncryptedPayload } from '../types/index.js'
 import type { NetworkName } from '../types/index.js'
 
+interface WalletState {
+  wdk: WdkService
+  timer: ReturnType<typeof setTimeout> | null
+  ttlMs: number
+  expiresAt: number
+}
+
 export class WalletDaemon {
-  private walletNames: string[] = []
-  private wdkInstances = new Map<string, WdkService>()
+  private wallets = new Map<string, WalletState>()
   private server: Server | null = null
-  private ttlTimer: ReturnType<typeof setTimeout> | null = null
-  private ttlMs: number = 0
-  private ttlExpiresAt: number = 0
 
-  async start(password: string, ttlMinutes: number): Promise<void> {
-    const walletKeyring = new WalletKeyring()
-    const walletNames = await walletKeyring.list()
-
-    if (walletNames.length === 0) {
-      throw new Error('No wallets found')
-    }
-
-    for (const name of walletNames) {
-      const walletPath = getWalletPath(name)
-      const data = readFileSync(walletPath, 'utf8')
-      const payload: EncryptedPayload = JSON.parse(data)
-      const salt = Buffer.from(payload.salt, 'hex')
-      const key = deriveKey(password, salt)
-      try {
-        const seed = decryptWithKey(payload, key)
-        const wdk = new WdkService()
-        wdk.createInstance(seed)
-        this.wdkInstances.set(name, wdk)
-        this.walletNames.push(name)
-      } catch {
-        process.stderr.write(`Warning: Failed to decrypt wallet '${name}' — wrong password or corrupted file\n`)
-      } finally {
-        key.fill(0)
-      }
-    }
-
-    if (this.walletNames.length === 0) {
-      throw new Error('Failed to decrypt any wallets. Check your password.')
-    }
-
-    this.ttlMs = ttlMinutes === 0 ? 0 : ttlMinutes * 60 * 1000
-    this.startTtl()
-
+  async start(): Promise<void> {
     const socketPath = getDaemonSocketPath()
     await mkdir(dirname(socketPath), { recursive: true })
 
@@ -90,22 +60,85 @@ export class WalletDaemon {
     await chmod(pidPath, 0o600)
   }
 
-  private startTtl(): void {
-    if (this.ttlMs > 0) {
-      this.ttlExpiresAt = Date.now() + this.ttlMs
-      this.ttlTimer = setTimeout(() => this.shutdown(), this.ttlMs)
-      this.ttlTimer.unref()
+  private unlockWalletSync(name: string, password: string, ttlMinutes: number): void {
+    // If already unlocked, just reset the timer
+    const existing = this.wallets.get(name)
+    if (existing) {
+      this.resetTimer(name, ttlMinutes)
+      return
+    }
+
+    const walletPath = getWalletPath(name)
+    const data = readFileSync(walletPath, 'utf8')
+    const payload: EncryptedPayload = JSON.parse(data)
+    const salt = Buffer.from(payload.salt, 'hex')
+    const key = deriveKey(password, salt)
+    try {
+      const seed = decryptWithKey(payload, key)
+      const wdk = new WdkService()
+      wdk.createInstance(seed)
+
+      const ttlMs = ttlMinutes === 0 ? 0 : ttlMinutes * 60 * 1000
+      const state: WalletState = {
+        wdk,
+        timer: null,
+        ttlMs,
+        expiresAt: ttlMs > 0 ? Date.now() + ttlMs : 0,
+      }
+      this.wallets.set(name, state)
+      this.startWalletTimer(name, state)
+    } finally {
+      key.fill(0)
+    }
+  }
+
+  private resetTimer(name: string, ttlMinutes: number): void {
+    const state = this.wallets.get(name)
+    if (!state) return
+
+    if (state.timer) {
+      clearTimeout(state.timer)
+      state.timer = null
+    }
+
+    state.ttlMs = ttlMinutes === 0 ? 0 : ttlMinutes * 60 * 1000
+    state.expiresAt = state.ttlMs > 0 ? Date.now() + state.ttlMs : 0
+    this.startWalletTimer(name, state)
+  }
+
+  private startWalletTimer(name: string, state: WalletState): void {
+    if (state.ttlMs > 0) {
+      state.timer = setTimeout(() => {
+        this.lockWallet(name)
+      }, state.ttlMs)
+      state.timer.unref()
+    }
+  }
+
+  private lockWallet(name: string): void {
+    const state = this.wallets.get(name)
+    if (!state) return
+
+    if (state.timer) {
+      clearTimeout(state.timer)
+    }
+    state.wdk.dispose()
+    this.wallets.delete(name)
+
+    // Auto-exit when no wallets remain
+    if (this.wallets.size === 0) {
+      this.shutdown()
     }
   }
 
   private async ensureInitialized(network: NetworkName, wallet: string): Promise<WdkService> {
-    const wdk = this.wdkInstances.get(wallet)
-    if (!wdk) throw new Error(`Wallet '${wallet}' is not unlocked`)
+    const state = this.wallets.get(wallet)
+    if (!state) throw new Error(`Wallet '${wallet}' is not unlocked`)
 
-    if (!wdk.isNetworkRegistered(network)) {
-      await wdk.registerNetworkPublic(network)
+    if (!state.wdk.isNetworkRegistered(network)) {
+      await state.wdk.registerNetworkPublic(network)
     }
-    return wdk
+    return state.wdk
   }
 
   private handleConnection(socket: Socket): void {
@@ -137,9 +170,36 @@ export class WalletDaemon {
   }
 
   private async handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
-    const wallet = req.wallet || 'default'
+    const wallet = req.wallet || configService.getDefaultWallet()
 
     switch (req.action) {
+      case 'unlock_wallet': {
+        if (!wallet) {
+          return { ok: false, error: 'Missing wallet name' }
+        }
+        if (!req.password) {
+          return { ok: false, error: 'Missing password' }
+        }
+        try {
+          const ttl = req.ttl ?? 30
+          this.unlockWalletSync(wallet, req.password, ttl)
+          return { ok: true, data: { message: `Wallet '${wallet}' unlocked`, wallet } }
+        } catch (e) {
+          return { ok: false, error: e instanceof Error ? e.message : String(e) }
+        }
+      }
+
+      case 'lock_wallet': {
+        if (!wallet) {
+          return { ok: false, error: 'Missing wallet name' }
+        }
+        if (!this.wallets.has(wallet)) {
+          return { ok: false, error: `Wallet '${wallet}' is not unlocked` }
+        }
+        this.lockWallet(wallet)
+        return { ok: true, data: { message: `Wallet '${wallet}' locked`, wallet } }
+      }
+
       case 'get_address': {
         if (!req.network || !isValidNetwork(req.network)) {
           return { ok: false, error: `Invalid network: ${req.network}` }
@@ -304,29 +364,44 @@ export class WalletDaemon {
       }
 
       case 'list_wallets': {
-        return { ok: true, data: { wallets: this.walletNames } }
+        const walletList = [...this.wallets.entries()].map(([name, state]) => {
+          let ttlRemaining = 0
+          if (state.ttlMs > 0 && state.expiresAt > 0) {
+            ttlRemaining = Math.max(0, state.expiresAt - Date.now())
+          }
+          return { name, ttlMs: state.ttlMs, ttlRemaining }
+        })
+        return { ok: true, data: { wallets: walletList } }
       }
 
       case 'status': {
-        let ttlRemaining = 0
-        if (this.ttlMs > 0 && this.ttlExpiresAt > 0) {
-          ttlRemaining = Math.max(0, this.ttlExpiresAt - Date.now())
-        }
+        const walletList = [...this.wallets.entries()].map(([name, state]) => {
+          let ttlRemaining = 0
+          if (state.ttlMs > 0 && state.expiresAt > 0) {
+            ttlRemaining = Math.max(0, state.expiresAt - Date.now())
+          }
+          return { name, ttlMs: state.ttlMs, ttlRemaining }
+        })
         return {
           ok: true,
           data: {
-            unlocked: this.walletNames.length > 0,
-            wallets: this.walletNames,
-            ttlMs: this.ttlMs,
-            ttlRemaining,
+            unlocked: this.wallets.size > 0,
+            wallets: walletList,
             pid: process.pid,
           },
         }
       }
 
       case 'lock': {
+        // Lock all wallets and shutdown
+        for (const [name] of this.wallets) {
+          const state = this.wallets.get(name)
+          if (state?.timer) clearTimeout(state.timer)
+          state?.wdk.dispose()
+        }
+        this.wallets.clear()
         setTimeout(() => this.shutdown(), 100)
-        return { ok: true, data: { message: 'Wallet locked' } }
+        return { ok: true, data: { message: 'All wallets locked' } }
       }
 
       default:
@@ -335,15 +410,11 @@ export class WalletDaemon {
   }
 
   private async shutdown(): Promise<void> {
-    for (const [, wdk] of this.wdkInstances) {
-      wdk.dispose()
+    for (const [, state] of this.wallets) {
+      if (state.timer) clearTimeout(state.timer)
+      state.wdk.dispose()
     }
-    this.wdkInstances.clear()
-
-    if (this.ttlTimer) {
-      clearTimeout(this.ttlTimer)
-      this.ttlTimer = null
-    }
+    this.wallets.clear()
 
     if (this.server) {
       this.server.close()
@@ -357,9 +428,9 @@ export class WalletDaemon {
   }
 }
 
-export async function startDaemon(password: string, ttlMinutes: number): Promise<void> {
+export async function startDaemon(): Promise<void> {
   const daemon = new WalletDaemon()
-  await daemon.start(password, ttlMinutes)
+  await daemon.start()
 
   process.on('SIGTERM', () => process.exit(0))
   process.on('SIGINT', () => process.exit(0))
