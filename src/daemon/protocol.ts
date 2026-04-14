@@ -35,6 +35,8 @@ export interface DaemonRequest {
   to?: string
   amount?: string
   limit?: number
+  fromTs?: number
+  toTs?: number
 }
 
 export interface DaemonResponse {

@@ -61,14 +61,32 @@ export function registerGetCommand(program: Command): void {
         }
 
         if (!(await daemonClient.isRunning())) {
+          const msg = wallet
+            ? `Wallet '${wallet}' is locked. Run \`wdk wallet unlock --name ${wallet}\` first.`
+            : 'Wallet is locked. Run `wdk wallet unlock --name <name>` first.'
           if (program.opts().json) {
-            console.log(JSON.stringify({ error: 'Wallet is locked. Run `wdk wallet unlock` first.' }))
+            console.log(JSON.stringify({ error: msg }))
           } else {
             console.log()
-            console.log(chalk.yellow('  Wallet is locked. Run `wdk wallet unlock` first.'))
+            console.log(chalk.yellow(`  ${msg}`))
             console.log()
           }
           return
+        }
+
+        if (wallet) {
+          const status = await daemonClient.status()
+          if (!status.wallets.find((w) => w.name === wallet)) {
+            const msg = `Wallet '${wallet}' is locked. Run \`wdk wallet unlock --name ${wallet}\` first.`
+            if (program.opts().json) {
+              console.log(JSON.stringify({ error: msg }))
+            } else {
+              console.log()
+              console.log(chalk.yellow(`  ${msg}`))
+              console.log()
+            }
+            return
+          }
         }
 
         const showTestnet = options.testnet === true
@@ -102,8 +120,7 @@ export function registerGetCommand(program: Command): void {
         console.log(chalk.bold(`Wallet Addresses (index: ${index}, ${showTestnet ? 'testnet' : 'mainnet'}):`))
         console.log()
         if (results.length === 0) {
-          console.log(chalk.dim('  No addresses available. Wallet modules may not be installed.'))
-          console.log(chalk.dim('  Run: node scripts/install-wallets.mjs'))
+          console.log(chalk.dim('  No addresses available.'))
         } else {
           console.log(`  ${'Network'.padEnd(28)} ${'Address'}`)
           console.log(`  ${'─'.repeat(28)} ${'─'.repeat(44)}`)
@@ -162,14 +179,32 @@ export function registerGetCommand(program: Command): void {
         }
 
         if (!(await daemonClient.isRunning())) {
+          const msg = wallet
+            ? `Wallet '${wallet}' is locked. Run \`wdk wallet unlock --name ${wallet}\` first.`
+            : 'Wallet is locked. Run `wdk wallet unlock --name <name>` first.'
           if (program.opts().json) {
-            console.log(JSON.stringify({ error: 'Wallet is locked. Run `wdk wallet unlock` first.' }))
+            console.log(JSON.stringify({ error: msg }))
           } else {
             console.log()
-            console.log(chalk.yellow('  Wallet is locked. Run `wdk wallet unlock` first.'))
+            console.log(chalk.yellow(`  ${msg}`))
             console.log()
           }
           return
+        }
+
+        if (wallet) {
+          const status = await daemonClient.status()
+          if (!status.wallets.find((w) => w.name === wallet)) {
+            const msg = `Wallet '${wallet}' is locked. Run \`wdk wallet unlock --name ${wallet}\` first.`
+            if (program.opts().json) {
+              console.log(JSON.stringify({ error: msg }))
+            } else {
+              console.log()
+              console.log(chalk.yellow(`  ${msg}`))
+              console.log()
+            }
+            return
+          }
         }
 
         const showTestnet = options.testnet === true
@@ -211,8 +246,7 @@ export function registerGetCommand(program: Command): void {
         console.log(chalk.bold(`Wallet Balance (index: ${index}, ${showTestnet ? 'testnet' : 'mainnet'}):`))
         console.log()
         if (results.length === 0) {
-          console.log(chalk.dim('  No balances available. Wallet modules may not be installed.'))
-          console.log(chalk.dim('  Run: node scripts/install-wallets.mjs'))
+          console.log(chalk.dim('  No balances available.'))
         } else {
           console.log(`  ${'Network'.padEnd(28)} ${'Address'.padEnd(17)} ${'Balance'}`)
           console.log(`  ${'─'.repeat(28)} ${'─'.repeat(17)} ${'─'.repeat(24)}`)
@@ -237,6 +271,8 @@ export function registerGetCommand(program: Command): void {
     .option('--wallet <name>', 'Wallet name')
     .option('--token <token>', `Token: ${INDEXER_TOKENS.join(', ')} (default: usdt)`)
     .option('--limit <n>', 'Number of transfers (default: 10, max: 1000)')
+    .option('--from-date <date>', 'Start date (ISO 8601, e.g. 2026-01-01)')
+    .option('--to-date <date>', 'End date (ISO 8601, e.g. 2026-12-31)')
     .action(async (options) => {
       try {
         const network = resolveNetwork(options.network ?? program.opts().network)
@@ -256,7 +292,9 @@ export function registerGetCommand(program: Command): void {
         }
 
         const limit = options.limit ? parseInt(options.limit, 10) : 10
-        const result = await daemonClient.getHistory(network, token, limit, wallet)
+        const fromTs = options.fromDate ? Math.floor(new Date(options.fromDate).getTime() / 1000) : undefined
+        const toTs = options.toDate ? Math.floor(new Date(options.toDate).getTime() / 1000) : undefined
+        const result = await daemonClient.getHistory(network, token, limit, wallet, fromTs, toTs)
         const address = result.address
         const transfers = result.transfers as { timestamp: number; from: string; to: string; amount: string; transactionHash: string }[]
 

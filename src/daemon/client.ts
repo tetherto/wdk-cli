@@ -98,8 +98,10 @@ export class DaemonClient {
     token?: string,
     limit?: number,
     wallet?: string,
+    fromTs?: number,
+    toTs?: number,
   ): Promise<{ address: string; transfers: unknown[]; count: number }> {
-    const resp = await this.request({ action: 'get_history', network, token, limit, wallet }, 30000)
+    const resp = await this.request({ action: 'get_history', network, token, limit, wallet, fromTs, toTs }, 30000)
     this.assertOk(resp, 'Failed to get history')
     return resp.data as { address: string; transfers: unknown[]; count: number }
   }

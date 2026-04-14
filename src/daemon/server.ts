@@ -260,7 +260,7 @@ export class WalletDaemon {
           const address = await account.getAddress()
           const networkConfig = getNetworkConfig(req.network as NetworkName)
           const token = (req.token || networkConfig.nativeSymbol.toLowerCase()) as 'usdt' | 'usat' | 'xaut' | 'btc'
-          const transfers = await getTokenTransfers(req.network as NetworkName, token, address, { limit: req.limit ?? 20 })
+          const transfers = await getTokenTransfers(req.network as NetworkName, token, address, { limit: req.limit ?? 20, fromTs: req.fromTs, toTs: req.toTs })
           return { ok: true, data: { address, transfers, count: transfers.length } }
         } catch (e) {
           return { ok: false, error: e instanceof Error ? e.message : String(e) }

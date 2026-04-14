@@ -111,6 +111,7 @@ wdk send --to 0xRECIPIENT --amount 1000000000000000000 --network ethereum --json
 ```bash
 wdk get history --network ethereum --json
 wdk get history --network ethereum --token usdt --limit 20 --json
+wdk get history --network ethereum --from-date 2026-01-01 --to-date 2026-03-31 --json
 ```
 
 ## Amount Conversion

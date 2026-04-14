@@ -194,8 +194,9 @@ wdk get balance --network ethereum                              # Native ETH bal
 wdk get balance --network ethereum --token 0xdAC17F...          # ERC-20 token balance
 wdk get balance                                                 # All mainnet balances with USD
 wdk get balance --testnet                                       # All testnet balances with USD
-wdk get history --network ethereum                               # USDT transfer history
-wdk get history --network ethereum --token xaut --limit 50       # XAUT transfers, last 50
+wdk get history --network ethereum                                              # USDT transfer history
+wdk get history --network ethereum --token xaut --limit 50                      # XAUT transfers, last 50
+wdk get history --network ethereum --from-date 2026-01-01 --to-date 2026-03-31  # Date range filter
 ```
 
 Known tokens (e.g. USDT) are automatically resolved with correct decimals and symbol. Unknown tokens fall back to raw base-unit amounts.
