@@ -270,7 +270,7 @@ export function registerGetCommand(program: Command): void {
     .option('--index <n>', 'Account index')
     .option('--wallet <name>', 'Wallet name')
     .option('--token <token>', `Token: ${INDEXER_TOKENS.join(', ')} (default: usdt)`)
-    .option('--limit <n>', 'Number of transfers (default: 10, max: 1000)')
+    .option('--limit <n>', 'Number of transfers (default: 30)')
     .option('--from-date <date>', 'Start date (ISO 8601, e.g. 2026-01-01)')
     .option('--to-date <date>', 'End date (ISO 8601, e.g. 2026-12-31)')
     .action(async (options) => {
@@ -291,7 +291,7 @@ export function registerGetCommand(program: Command): void {
           process.exit(1)
         }
 
-        const limit = options.limit ? parseInt(options.limit, 10) : 10
+        const limit = options.limit ? parseInt(options.limit, 10) : 30
         const fromTs = options.fromDate ? Math.floor(new Date(options.fromDate).getTime() / 1000) : undefined
         const toTs = options.toDate ? Math.floor(new Date(options.toDate).getTime() / 1000) : undefined
         const result = await daemonClient.getHistory(network, token, limit, wallet, fromTs, toTs)
