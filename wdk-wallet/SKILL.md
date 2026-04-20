@@ -114,6 +114,23 @@ wdk get history --network ethereum --token usdt --limit 20 --json
 wdk get history --network ethereum --from-date 2026-01-01 --to-date 2026-03-31 --json
 ```
 
+### Buy / Sell (On/Off Ramp)
+
+Buy crypto with fiat or sell crypto for fiat via MoonPay. Opens the MoonPay widget in the browser.
+
+```bash
+# Buy crypto
+wdk buy --network ethereum --token eth --json
+wdk buy --network ethereum --token usdt --fiat-amount 100 --json
+wdk buy --network bitcoin --token btc --crypto-amount 0.05 --json
+
+# Sell crypto
+wdk sell --network ethereum --token eth --json
+wdk sell --network polygon --token usdt --crypto-amount 50 --json
+```
+
+`--token` is required. `--fiat-amount` and `--crypto-amount` are mutually exclusive and optional. Supported tokens per network are in `wdk.config.json` under each network's `moonpay` key. Requires `moonpay.apiKey` to be configured.
+
 ## Amount Conversion
 
 Amounts are in base units. Common conversions:
@@ -136,6 +153,9 @@ Amounts are in base units. Common conversions:
 | "Insufficient balance" | Inform user, show current balance |
 | "403 Forbidden" (indexer) | Ask user to set API key: `wdk config set indexer.apiKey <key>` |
 | "Unknown token" | Token not in known registry, provide contract address |
+| "MoonPay API key not configured" | Ask user to run `wdk config set moonpay.apiKey <key>` |
+| "Cannot use production MoonPay with testnet" | Ask user to run `wdk config set moonpay.environment sandbox` |
+| "Cannot use sandbox MoonPay with mainnet" | Ask user to run `wdk config set moonpay.environment production` |
 
 ## Restricted Actions (NEVER do these)
 

@@ -49,6 +49,7 @@ A multi-chain crypto wallet for AI agents, built on [Wallet Development Kit (WDK
 - **Network** — Bitcoin, Ethereum, Polygon, Arbitrum, Base, BSC, Avalanche, Solana, Tron, Spark, Smart Account (ERC-4337) + testnets. Add custom networks with `network create`
 - **Get** — Derive wallet addresses, check balances, and view transaction history across all networks
 - **Send** — Native and token transfers with fee estimation, confirmation, and dry-run preview
+- **Buy/Sell** — On/off ramp via MoonPay (buy crypto with fiat, sell crypto for fiat)
 - **Config** — Per-network configuration with env var overrides
 
 ## Requirements
@@ -217,6 +218,43 @@ wdk send --to <address> --amount <base-units> --network ethereum --dry-run      
 
 Amounts are in base units (wei for EVM, satoshis for BTC, lamports for Solana). Fee estimation runs before confirmation. Use `--dry-run` to preview the transaction with fee and USD estimates without sending.
 
+### Buy / Sell (On/Off Ramp)
+
+```bash
+# Buy crypto with fiat
+wdk buy --network ethereum --token usdt                          # Opens MoonPay widget
+wdk buy --network ethereum --token eth --fiat-amount 100         # Buy $100 of ETH
+wdk buy --network bitcoin --token btc --crypto-amount 0.05       # Buy 0.05 BTC
+
+# Sell crypto for fiat
+wdk sell --network ethereum --token usdt                         # Opens MoonPay sell widget
+wdk sell --network ethereum --token eth --fiat-amount 200        # Sell ETH for $200
+wdk sell --network polygon --token usdt --crypto-amount 50       # Sell 50 USDT on Polygon
+```
+
+Uses MoonPay as the fiat provider. Requires API key configuration:
+
+```bash
+wdk config set moonpay.apiKey <your-publishable-key>
+wdk config set moonpay.environment production    # or sandbox (default)
+wdk config set moonpay.signUrl <your-sign-url>   # optional, for URL signing
+```
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `--network <network>` | Blockchain network (required) |
+| `--token <token>` | Crypto asset code, e.g. `usdt`, `eth`, `btc` (required) |
+| `--module <module>` | Fiat provider (default: `moonpay`) |
+| `--fiat <currency>` | Fiat currency code (default: `usd`) |
+| `--fiat-amount <value>` | Fiat amount (mutually exclusive with `--crypto-amount`) |
+| `--crypto-amount <value>` | Crypto amount (mutually exclusive with `--fiat-amount`) |
+
+Supported tokens per network are defined in [`wdk.config.json`](wdk.config.json) under each network's `moonpay` key. Environment validation prevents using production MoonPay with testnet networks (and vice versa).
+
+Environment variables: `WDK_MOONPAY_API_KEY`, `WDK_MOONPAY_SIGN_URL`, `WDK_MOONPAY_ENVIRONMENT`.
+
 ### Configuration
 
 ```bash
@@ -260,6 +298,9 @@ Environment variables override config values at runtime without modifying the co
 | `WDK_PASSWORD` | Wallet unlock password (skip interactive prompt) |
 | `WDK_INDEXER_BASE_URL` | Override `indexer.baseUrl` from config |
 | `WDK_INDEXER_API_KEY` | Override `indexer.apiKey` from config |
+| `WDK_MOONPAY_API_KEY` | Override `moonpay.apiKey` from config |
+| `WDK_MOONPAY_SIGN_URL` | Override `moonpay.signUrl` from config |
+| `WDK_MOONPAY_ENVIRONMENT` | Override `moonpay.environment` from config (`sandbox` or `production`) |
 
 Priority: environment variable > `wdk config set` > `wdk.config.json` defaults.
 
