@@ -20,6 +20,9 @@ import { CONFIG_DEFAULTS } from '../config/constants.js'
 const ENV_MAP: Record<string, string> = {
   'indexer.baseUrl': 'WDK_INDEXER_BASE_URL',
   'indexer.apiKey': 'WDK_INDEXER_API_KEY',
+  'moonpay.apiKey': 'WDK_MOONPAY_API_KEY',
+  'moonpay.signUrl': 'WDK_MOONPAY_SIGN_URL',
+  'moonpay.environment': 'WDK_MOONPAY_ENVIRONMENT',
 }
 
 function getConfigDir(): string {

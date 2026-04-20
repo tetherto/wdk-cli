@@ -8,6 +8,11 @@
     },
     "output": {
       "json": false
+    },
+    "moonpay": {
+      "apiKey": "",
+      "signUrl": "",
+      "environment": ""
     }
   },
   "networks": {
@@ -17,6 +22,7 @@
       "nativeSymbol": "BTC",
       "decimals": 8,
       "indexerBlockchain": "bitcoin",
+      "moonpay": { "btc": "btc" },
       "config": {
         "host": "electrum.blockstream.info",
         "port": 50001,
@@ -31,6 +37,7 @@
       "nativeSymbol": "tBTC",
       "decimals": 8,
       "testnet": true,
+      "moonpay": { "btc": "btc" },
       "config": {
         "host": "electrum.blockstream.info",
         "port": 60001,
@@ -45,6 +52,7 @@
       "nativeSymbol": "ETH",
       "decimals": 18,
       "indexerBlockchain": "ethereum",
+      "moonpay": { "usdt": "usdt", "eth": "eth" },
       "config": {
         "provider": "https://ethereum-rpc.publicnode.com",
         "transferMaxFee": 5000000000000000
@@ -56,6 +64,7 @@
       "nativeSymbol": "ETH",
       "decimals": 18,
       "testnet": true,
+      "moonpay": { "eth": "eth" },
       "indexerBlockchain": "sepolia",
       "config": {
         "provider": "https://ethereum-sepolia-rpc.publicnode.com",
@@ -68,6 +77,7 @@
       "nativeSymbol": "POL",
       "decimals": 18,
       "indexerBlockchain": "polygon",
+      "moonpay": { "usdt": "usdt_polygon", "pol": "pol_polygon" },
       "config": {
         "provider": "https://polygon.drpc.org",
         "transferMaxFee": 5000000000000000
@@ -79,6 +89,7 @@
       "nativeSymbol": "ETH",
       "decimals": 18,
       "indexerBlockchain": "arbitrum",
+      "moonpay": { "usdt": "usdt_arbitrum", "eth": "eth_arbitrum" },
       "config": {
         "provider": "https://arb1.arbitrum.io/rpc",
         "transferMaxFee": 1000000000000000
@@ -89,6 +100,7 @@
       "displayName": "Base",
       "nativeSymbol": "ETH",
       "decimals": 18,
+      "moonpay": { "eth": "eth_base" },
       "config": {
         "provider": "https://mainnet.base.org",
         "transferMaxFee": 1000000000000000
@@ -99,6 +111,7 @@
       "displayName": "BNB Smart Chain",
       "nativeSymbol": "BNB",
       "decimals": 18,
+      "moonpay": { "usdt": "usdt_bsc", "bnb": "bnb_bsc" },
       "config": {
         "provider": "https://bsc-dataseed.binance.org",
         "transferMaxFee": 5000000000000000
@@ -109,6 +122,7 @@
       "displayName": "Avalanche C-Chain",
       "nativeSymbol": "AVAX",
       "decimals": 18,
+      "moonpay": { "avax": "avax_cchain" },
       "config": {
         "provider": "https://api.avax.network/ext/bc/C/rpc",
         "transferMaxFee": 5000000000000000
@@ -119,6 +133,7 @@
       "displayName": "Solana",
       "nativeSymbol": "SOL",
       "decimals": 9,
+      "moonpay": { "usdt": "usdt_sol", "sol": "sol" },
       "config": {
         "rpcUrl": "https://api.mainnet-beta.solana.com"
       }
@@ -129,6 +144,7 @@
       "nativeSymbol": "SOL",
       "decimals": 9,
       "testnet": true,
+      "moonpay": { "sol": "sol" },
       "config": {
         "rpcUrl": "https://api.testnet.solana.com"
       }
@@ -169,6 +185,7 @@
       "nativeSymbol": "TRX",
       "decimals": 6,
       "indexerBlockchain": "tron",
+      "moonpay": { "trx": "trx" },
       "config": {
         "provider": "https://api.trongrid.io",
         "transferMaxFee": 30000000

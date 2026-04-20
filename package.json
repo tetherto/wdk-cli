@@ -30,6 +30,7 @@
     "@inquirer/prompts": "8.2.0",
     "@modelcontextprotocol/sdk": "1.27.1",
     "@tetherto/wdk": "1.0.0-beta.6",
+    "@tetherto/wdk-protocol-fiat-moonpay": "1.0.0-beta.2",
     "@tetherto/wdk-wallet": "1.0.0-beta.7",
     "chalk": "5.6.2",
     "cli-table3": "0.6.5",
