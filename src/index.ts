@@ -20,7 +20,7 @@ import { registerGetCommand } from './commands/get.js'
 import { registerSendCommand } from './commands/send.js'
 import { registerNetworkCommand } from './commands/network.js'
 import { registerSetupCommand } from './commands/setup.js'
-import { registerBuySellCommands } from './commands/ramp.js'
+import { registerRampCommands } from './commands/ramp.js'
 
 export function createProgram(): Command {
   const program = new Command()
@@ -42,7 +42,7 @@ export function createProgram(): Command {
   registerSendCommand(program)
   registerNetworkCommand(program)
   registerSetupCommand(program)
-  registerBuySellCommands(program)
+  registerRampCommands(program)
 
   return program
 }

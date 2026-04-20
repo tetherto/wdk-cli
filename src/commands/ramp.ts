@@ -14,7 +14,6 @@
 
 import { Command } from 'commander'
 import chalk from 'chalk'
-import { exec } from 'node:child_process'
 import { resolveNetwork, resolveIndex } from '../services/wallet-service.js'
 import { isValidNetwork, isTestnet } from '../config/networks.js'
 import { NetworkNotSupportedError, handleError } from '../errors/index.js'
@@ -28,15 +27,6 @@ type RampModule = typeof SUPPORTED_MODULES[number]
 
 const MOONPAY_BUY_ORIGINS = { production: 'https://buy.moonpay.com', sandbox: 'https://buy-sandbox.moonpay.com' }
 const MOONPAY_SELL_ORIGINS = { production: 'https://sell.moonpay.com', sandbox: 'https://sell-sandbox.moonpay.com' }
-
-function openUrl(url: string): void {
-  const cmd = process.platform === 'darwin'
-    ? `open "${url}"`
-    : process.platform === 'win32'
-      ? `start "${url}"`
-      : `xdg-open "${url}"`
-  exec(cmd)
-}
 
 function validateModule(module: string): RampModule {
   if (!SUPPORTED_MODULES.includes(module as RampModule)) {
@@ -79,8 +69,11 @@ function getMoonPayConfig(): { apiKey: string; signUrl?: string; environment: 'p
     throw new Error('MoonPay API key not configured. Run: wdk config set moonpay.apiKey <your-key>')
   }
   const signUrl = configService.get('moonpay.signUrl') as string || undefined
-  const environment = ((configService.get('moonpay.environment') as string) || 'sandbox') as 'production' | 'sandbox'
-  return { apiKey, signUrl, environment }
+  const env = (configService.get('moonpay.environment') as string) || 'sandbox'
+  if (env !== 'production' && env !== 'sandbox') {
+    throw new Error(`Invalid moonpay.environment '${env}'. Must be 'production' or 'sandbox'.`)
+  }
+  return { apiKey, signUrl, environment: env }
 }
 
 async function signMoonPayUrl(url: string, signEndpoint: string): Promise<string> {
@@ -92,82 +85,122 @@ async function signMoonPayUrl(url: string, signEndpoint: string): Promise<string
   if (!response.ok) {
     throw new Error(`Failed to sign MoonPay URL: ${response.status} ${response.statusText}`)
   }
-  const { signedUrl } = await response.json() as { signedUrl: string }
-  return signedUrl
+  const data = await response.json() as Record<string, unknown>
+  if (typeof data.signedUrl !== 'string' || !data.signedUrl) {
+    throw new Error('Sign server returned invalid response: missing signedUrl')
+  }
+  return data.signedUrl
 }
 
-function buildMoonPayBuyUrl(
-  config: { apiKey: string; environment: 'production' | 'sandbox' },
+interface MoonPayUrlConfig {
+  apiKey: string
+  environment: 'production' | 'sandbox'
+}
+
+function buildMoonPayUrl(
+  direction: 'buy' | 'sell',
+  config: MoonPayUrlConfig,
   cryptoAsset: string,
   address: string,
   fiat?: string,
   fiatAmount?: string,
   cryptoAmount?: string,
 ): string {
-  const base = MOONPAY_BUY_ORIGINS[config.environment]
-  const url = new URL('/', base)
+  const origins = direction === 'buy' ? MOONPAY_BUY_ORIGINS : MOONPAY_SELL_ORIGINS
+  const url = new URL('/', origins[config.environment])
   url.searchParams.set('apiKey', config.apiKey)
-  url.searchParams.set('currencyCode', cryptoAsset)
-  if (fiat) url.searchParams.set('baseCurrencyCode', fiat)
-  url.searchParams.set('walletAddress', address)
-  if (fiatAmount) url.searchParams.set('baseCurrencyAmount', fiatAmount)
-  if (cryptoAmount) url.searchParams.set('quoteCurrencyAmount', cryptoAmount)
+
+  if (direction === 'buy') {
+    url.searchParams.set('currencyCode', cryptoAsset)
+    if (fiat) url.searchParams.set('baseCurrencyCode', fiat)
+    url.searchParams.set('walletAddress', address)
+    if (fiatAmount) url.searchParams.set('baseCurrencyAmount', fiatAmount)
+    if (cryptoAmount) url.searchParams.set('quoteCurrencyAmount', cryptoAmount)
+  } else {
+    url.searchParams.set('baseCurrencyCode', cryptoAsset)
+    if (fiat) url.searchParams.set('quoteCurrencyCode', fiat)
+    url.searchParams.set('refundWalletAddress', address)
+    if (fiatAmount) url.searchParams.set('quoteCurrencyAmount', fiatAmount)
+    if (cryptoAmount) url.searchParams.set('baseCurrencyAmount', cryptoAmount)
+  }
+
   return url.toString()
 }
 
-function buildMoonPaySellUrl(
-  config: { apiKey: string; environment: 'production' | 'sandbox' },
-  cryptoAsset: string,
-  address: string,
-  fiat?: string,
-  fiatAmount?: string,
-  cryptoAmount?: string,
-): string {
-  const base = MOONPAY_SELL_ORIGINS[config.environment]
-  const url = new URL('/', base)
-  url.searchParams.set('apiKey', config.apiKey)
-  url.searchParams.set('baseCurrencyCode', cryptoAsset)
-  if (fiat) url.searchParams.set('quoteCurrencyCode', fiat)
-  url.searchParams.set('refundWalletAddress', address)
-  if (fiatAmount) url.searchParams.set('quoteCurrencyAmount', fiatAmount)
-  if (cryptoAmount) url.searchParams.set('baseCurrencyAmount', cryptoAmount)
-  return url.toString()
+interface RampResult {
+  direction: 'Buy' | 'Sell'
+  network: string
+  address: string
+  token: string
+  module: string
+  fiat: string
+  fiatAmount?: string
+  cryptoAmount?: string
+  url: string
 }
 
-function printResult(
-  isJson: boolean,
-  direction: 'Buy' | 'Sell',
-  network: string,
-  address: string,
-  token: string,
-  module: string,
-  fiat: string,
-  fiatAmount: string | undefined,
-  cryptoAmount: string | undefined,
-  url: string,
-): void {
+function printResult(isJson: boolean, result: RampResult): void {
   if (isJson) {
-    console.log(JSON.stringify({ network, address, module, token, url }))
+    console.log(JSON.stringify({
+      direction: result.direction.toLowerCase(),
+      network: result.network,
+      address: result.address,
+      module: result.module,
+      token: result.token,
+      fiat: result.fiat,
+      ...(result.fiatAmount && { fiatAmount: result.fiatAmount }),
+      ...(result.cryptoAmount && { cryptoAmount: result.cryptoAmount }),
+      url: result.url,
+    }))
   } else {
     console.log()
-    console.log(chalk.bold(`${direction} Crypto:`))
-    console.log(`  Network:  ${formatNetworkLabel(network)}`)
-    console.log(`  Address:  ${address}`)
-    console.log(`  Token:    ${token.toUpperCase()}`)
-    console.log(`  Module:   ${module}`)
-    console.log(`  Fiat:     ${fiat.toUpperCase()}`)
-    if (fiatAmount) console.log(`  Amount:   ${fiatAmount} ${fiat.toUpperCase()}`)
-    if (cryptoAmount) console.log(`  Amount:   ${cryptoAmount} ${token.toUpperCase()}`)
+    console.log(chalk.bold(`${result.direction} Crypto:`))
+    console.log(`  Network:  ${formatNetworkLabel(result.network)}`)
+    console.log(`  Address:  ${result.address}`)
+    console.log(`  Token:    ${result.token.toUpperCase()}`)
+    console.log(`  Module:   ${result.module}`)
+    console.log(`  Fiat:     ${result.fiat.toUpperCase()}`)
+    if (result.fiatAmount) console.log(`  Amount:   ${result.fiatAmount} ${result.fiat.toUpperCase()}`)
+    if (result.cryptoAmount) console.log(`  Amount:   ${result.cryptoAmount} ${result.token.toUpperCase()}`)
     console.log()
-    console.log(`  ${chalk.cyan(url)}`)
-    console.log()
-    openUrl(url)
-    console.log(chalk.dim('  Opening in browser...'))
+    console.log(`  ${chalk.cyan(result.url)}`)
     console.log()
   }
 }
 
-export function registerBuySellCommands(program: Command): void {
+async function handleRampAction(
+  direction: 'buy' | 'sell',
+  options: Record<string, string | undefined>,
+  program: Command,
+): Promise<void> {
+  if (options.fiatAmount && options.cryptoAmount) {
+    throw new Error('Cannot specify both --fiat-amount and --crypto-amount')
+  }
+
+  const module = validateModule(options.module!)
+  const network = resolveNetwork(options.network ?? program.opts().network)
+  if (!isValidNetwork(network)) throw new NetworkNotSupportedError(network)
+  const index = resolveIndex(options.index ?? program.opts().index)
+  const wallet = options.wallet ?? program.opts().wallet
+  const isJson = program.opts().json
+  const { code: cryptoAsset, token } = resolveAsset(network, options.token!, module)
+
+  if (module === 'moonpay') {
+    const config = getMoonPayConfig()
+    validateEnvironment(network, config.environment)
+    const address = await daemonClient.getAddress(network, index, wallet)
+
+    let url = buildMoonPayUrl(direction, config, cryptoAsset, address, options.fiat, options.fiatAmount, options.cryptoAmount)
+    if (config.signUrl) {
+      url = await signMoonPayUrl(url, config.signUrl)
+    }
+
+    const label = direction === 'buy' ? 'Buy' : 'Sell' as const
+    printResult(isJson, { direction: label, network, address, token, module, fiat: options.fiat!, fiatAmount: options.fiatAmount, cryptoAmount: options.cryptoAmount, url })
+  }
+}
+
+export function registerRampCommands(program: Command): void {
   program
     .command('buy')
     .description('Buy crypto with fiat via on-ramp provider')
@@ -181,30 +214,7 @@ export function registerBuySellCommands(program: Command): void {
     .requiredOption('--token <token>', 'Crypto asset code (e.g. usdt, eth, btc)')
     .action(async (options) => {
       try {
-        if (options.fiatAmount && options.cryptoAmount) {
-          throw new Error('Cannot specify both --fiat-amount and --crypto-amount')
-        }
-
-        const module = validateModule(options.module)
-        const network = resolveNetwork(options.network ?? program.opts().network)
-        if (!isValidNetwork(network)) throw new NetworkNotSupportedError(network)
-        const index = resolveIndex(options.index ?? program.opts().index)
-        const wallet = options.wallet ?? program.opts().wallet
-        const isJson = program.opts().json
-        const { code: cryptoAsset, token } = resolveAsset(network, options.token, module)
-
-        if (module === 'moonpay') {
-          const config = getMoonPayConfig()
-          validateEnvironment(network, config.environment)
-          const address = await daemonClient.getAddress(network, index, wallet)
-
-          let buyUrl = buildMoonPayBuyUrl(config, cryptoAsset, address, options.fiat, options.fiatAmount, options.cryptoAmount)
-          if (config.signUrl) {
-            buyUrl = await signMoonPayUrl(buyUrl, config.signUrl)
-          }
-
-          printResult(isJson, 'Buy', network, address, token, module, options.fiat, options.fiatAmount, options.cryptoAmount, buyUrl)
-        }
+        await handleRampAction('buy', options, program)
       } catch (error) {
         handleError(error, program.opts().verbose, program.opts().json)
       }
@@ -223,30 +233,7 @@ export function registerBuySellCommands(program: Command): void {
     .requiredOption('--token <token>', 'Crypto asset code (e.g. usdt, eth, btc)')
     .action(async (options) => {
       try {
-        if (options.fiatAmount && options.cryptoAmount) {
-          throw new Error('Cannot specify both --fiat-amount and --crypto-amount')
-        }
-
-        const module = validateModule(options.module)
-        const network = resolveNetwork(options.network ?? program.opts().network)
-        if (!isValidNetwork(network)) throw new NetworkNotSupportedError(network)
-        const index = resolveIndex(options.index ?? program.opts().index)
-        const wallet = options.wallet ?? program.opts().wallet
-        const isJson = program.opts().json
-        const resolved = resolveAsset(network, options.token, module)
-
-        if (module === 'moonpay') {
-          const config = getMoonPayConfig()
-          validateEnvironment(network, config.environment)
-          const address = await daemonClient.getAddress(network, index, wallet)
-
-          let sellUrl = buildMoonPaySellUrl(config, resolved?.code, address, options.fiat, options.fiatAmount, options.cryptoAmount)
-          if (config.signUrl) {
-            sellUrl = await signMoonPayUrl(sellUrl, config.signUrl)
-          }
-
-          printResult(isJson, 'Sell', network, address, resolved?.token, module, options.fiat, options.fiatAmount, options.cryptoAmount, sellUrl)
-        }
+        await handleRampAction('sell', options, program)
       } catch (error) {
         handleError(error, program.opts().verbose, program.opts().json)
       }
