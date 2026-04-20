@@ -132,7 +132,7 @@ export class DaemonClient {
     return resp.data as { txHash: string; network: string; from: string; to: string; amount: string; fee?: string }
   }
 
-  async unlockWallet(name: string, password: string, ttlMinutes: number = 30): Promise<void> {
+  async unlockWallet(name: string, password: string, ttlMinutes: number = 5): Promise<void> {
     const resp = await this.request({ action: 'unlock_wallet', wallet: name, password, ttl: ttlMinutes }, 30000)
     this.assertOk(resp, `Failed to unlock wallet '${name}'`)
   }

@@ -181,7 +181,7 @@ export class WalletDaemon {
           return { ok: false, error: 'Missing password' }
         }
         try {
-          const ttl = req.ttl ?? 30
+          const ttl = req.ttl ?? 5
           this.unlockWalletSync(wallet, req.password, ttl)
           return { ok: true, data: { message: `Wallet '${wallet}' unlocked`, wallet } }
         } catch (e) {

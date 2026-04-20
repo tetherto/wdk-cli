@@ -30,7 +30,7 @@ A multi-chain crypto wallet for AI agents, built on [Wallet Development Kit (WDK
 - Holds WDK instances in memory — owns all cryptographic operations
 - Listens on a Unix socket (`daemon.sock`, 0600 permissions)
 - Exposes: `unlock_wallet`, `lock_wallet`, `get_address`, `get_balance`, `get_history`, `estimate_fee`, `send`, `list_wallets`, `status`, `lock`
-- Per-wallet TTL — each wallet has its own timeout (default: 30 min, `--ttl 0` for unlimited)
+- Per-wallet TTL — each wallet has its own timeout (default: 5 min, `--ttl 0` for unlimited)
 - Auto-exits when last wallet is locked
 
 **wdk-cli** (CLI):

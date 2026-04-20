@@ -39,7 +39,7 @@ function getConfigDir(): string {
 }
 
 export const SESSION_FILENAME = 'session.json'
-export const SESSION_TTL_MINUTES = 30
+export const SESSION_TTL_MINUTES = 5
 export const DAEMON_SOCKET = 'daemon.sock'
 export const DAEMON_PID = 'daemon.pid'
 
