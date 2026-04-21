@@ -13,9 +13,54 @@
 // limitations under the License.
 
 import { connect } from 'node:net'
+import { spawn } from 'node:child_process'
+import { existsSync } from 'node:fs'
 import { readFile, access, unlink } from 'node:fs/promises'
+import { join, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { getDaemonSocketPath, getDaemonPidPath } from '../config/constants.js'
 import type { DaemonRequest, DaemonResponse } from './protocol.js'
+
+function getDaemonScript(): string {
+  const thisFile = fileURLToPath(import.meta.url)
+  let dir = dirname(thisFile)
+  for (let i = 0; i < 5; i++) {
+    const candidate = join(dir, 'bin', 'wdk-daemon.mjs')
+    if (existsSync(candidate)) return candidate
+    dir = dirname(dir)
+  }
+  throw new Error('Cannot find wdk-daemon.mjs')
+}
+
+function spawnDaemon(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, ['--disable-warning=ExperimentalWarning', getDaemonScript()], {
+      stdio: ['ignore', 'ignore', 'pipe'],
+      detached: true,
+    })
+
+    let stderr = ''
+    child.stderr!.on('data', (chunk: Buffer) => { stderr += chunk.toString() })
+
+    const timeout = setTimeout(() => {
+      child.stderr!.destroy()
+      child.unref()
+      resolve()
+    }, 2000)
+
+    child.on('error', (err) => {
+      clearTimeout(timeout)
+      reject(new Error(`Failed to start daemon: ${err.message}`))
+    })
+
+    child.on('exit', (code) => {
+      clearTimeout(timeout)
+      if (code !== 0 && code !== null) {
+        reject(new Error(`Daemon exited with code ${code}: ${stderr.trim()}`))
+      }
+    })
+  })
+}
 
 export class DaemonClient {
   private socketPath = getDaemonSocketPath()
@@ -36,6 +81,25 @@ export class DaemonClient {
     } catch {
       return false
     }
+  }
+
+  async ensureRunning(): Promise<void> {
+    if (await this.isRunning()) return
+
+    await spawnDaemon()
+
+    let retries = 5
+    while (retries > 0) {
+      if (await this.isRunning()) {
+        try {
+          await this.status()
+          return
+        } catch { /* not ready yet */ }
+      }
+      await new Promise((r) => setTimeout(r, 500))
+      retries--
+    }
+    throw new Error('Failed to start wallet daemon')
   }
 
   async request(req: DaemonRequest, timeoutMs: number = 5000): Promise<DaemonResponse> {

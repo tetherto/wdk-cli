@@ -23,25 +23,24 @@ Operate a self-custody multi-chain wallet through the `wdk` CLI. All commands ru
 2. Before sending, use `--dry-run` to preview, show summary to user, and wait for confirmation in chat
 3. Use `--yes` when sending (user already confirmed in chat, CLI prompt would hang)
 4. Amounts are always in **base units** (wei, satoshis, lamports) — never decimals
-5. Never ask for or log seed phrases or passwords
+5. Never ask for or log seed phrases or passphrases
 
 ## Prerequisites
 
 The user must complete these steps before the AI agent can operate the wallet:
 
-1. **Create wallet**: `wdk wallet create --name trading --words 24` (each wallet has its own password)
+1. **Create wallet**: `wdk wallet create --name trading --words 24` (each wallet has its own passphrase)
 2. **Unlock wallet**: `wdk wallet unlock --name trading --ttl 0` (unlimited session, or `--ttl 480` for 8 hours; default: 5 min)
 
-Each wallet is unlocked individually with its own password and TTL. These require interactive password input — the AI agent cannot perform them.
+Each wallet is unlocked individually with its own passphrase and TTL. These require interactive passphrase input — the AI agent cannot perform them.
 
 ## Multi-Wallet
 
 Users can create multiple named wallets. Use `--wallet <name>` on any command to target a specific wallet (defaults to `"default"`).
 
 ```bash
-wdk wallet list --json
-# Lists all wallets with lock status
-
+# Wallet commands are interactive only (no --json). AI agents cannot run them.
+# Use --wallet <name> on data/send commands to target a specific wallet:
 wdk get address --network ethereum --wallet trading --json
 wdk get balance --network ethereum --wallet savings --json
 wdk send --to 0x... --amount 1000 --network ethereum --wallet trading --json --yes
@@ -161,8 +160,9 @@ Amounts are in base units. Common conversions:
 
 These actions are **strictly forbidden** for AI agents. Do not attempt them under any circumstances:
 
-1. **NEVER create or import wallets** — `wdk wallet create --name <name>` and `wdk wallet import --name <name>` require interactive password input. Tell the user to do it themselves.
-2. **NEVER unlock the wallet** — `wdk wallet unlock --name <name>` requires interactive password input. If the wallet is locked, tell the user to unlock it.
-3. **NEVER export or ask for seed phrases or passwords** — this is sensitive data that must never be logged, stored, or transmitted.
+1. **NEVER create or import wallets** — `wdk wallet create --name <name>` and `wdk wallet import --name <name>` require interactive passphrase input. Tell the user to do it themselves.
+2. **NEVER unlock the wallet** — `wdk wallet unlock --name <name>` requires interactive passphrase input. If the wallet is locked, tell the user to unlock it.
+3. **NEVER export or ask for seed phrases or passphrases** — this is sensitive data that must never be logged, stored, or transmitted.
+4. **NEVER use `--json` with wallet commands** — all `wdk wallet` subcommands are interactive only and will reject `--json`.
 
 These restrictions exist for security. Only the human user can perform wallet management through interactive terminal input.

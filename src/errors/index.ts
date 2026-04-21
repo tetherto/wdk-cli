@@ -54,9 +54,9 @@ export class InvalidSeedPhraseError extends WdkCliError {
 export class WrongPasswordError extends WdkCliError {
   constructor() {
     super(
-      'Incorrect password.',
+      'Incorrect passphrase.',
       'WRONG_PASSWORD',
-      'Try again with the correct password.',
+      'Try again with the correct passphrase.',
     )
   }
 }

@@ -15,7 +15,7 @@
 import { KeyService } from './key-service.js'
 import { WalletKeyring } from '../security/keyring.js'
 import { KeyNotFoundError } from '../errors/index.js'
-import { promptPassword } from '../ui/prompts.js'
+import { promptPassphrase } from '../ui/prompts.js'
 import { configService } from './config-service.js'
 
 const keyService = new KeyService(new WalletKeyring())
@@ -35,7 +35,7 @@ export async function getSeedPhrase(walletName: string = configService.getDefaul
       throw new KeyNotFoundError()
     }
 
-    const password = await promptPassword('Enter password to unlock wallet:')
+    const password = await promptPassphrase('Enter passphrase to unlock wallet:')
     const phrase = await keyService.unlock(password, walletName)
     seedPhraseCache.set(walletName, phrase)
     return phrase
