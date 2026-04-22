@@ -17,7 +17,7 @@ import chalk from 'chalk'
 import { configService } from '../services/config-service.js'
 import { CONFIG_DEFAULTS } from '../config/constants.js'
 import { isValidNetwork } from '../config/networks.js'
-import { handleError, NetworkNotSupportedError } from '../errors/index.js'
+import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
 
 function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
   return path.split('.').reduce((o: Record<string, unknown> | undefined, k) => (o as Record<string, unknown> | undefined)?.[k] as Record<string, unknown> | undefined, obj as Record<string, unknown> | undefined) as unknown
@@ -46,7 +46,7 @@ function printEntries(entries: [string, string][]): void {
 }
 
 function validateNetwork(network: string): void {
-  if (!isValidNetwork(network)) throw new NetworkNotSupportedError(network)
+  if (!isValidNetwork(network)) throw new WdkCliError(`Network '${network}' is not supported.`, ErrorCode.NETWORK_NOT_SUPPORTED)
 }
 
 export function registerConfigCommand(program: Command): void {
@@ -138,7 +138,7 @@ export function registerConfigCommand(program: Command): void {
         }
 
         let parsed: unknown = value
-        try { parsed = JSON.parse(value) } catch { }
+        try { parsed = JSON.parse(value) } catch { /* not JSON, use raw value */ }
 
         configService.set(fullKey, parsed)
         if (network) {

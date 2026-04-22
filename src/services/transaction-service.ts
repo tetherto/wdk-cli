@@ -16,7 +16,7 @@ import { wdkService } from './wdk-service.js'
 import { getSeedPhrase } from './auth-service.js'
 import { configService } from './config-service.js'
 import { getNetworkConfig } from '../config/networks.js'
-import { InsufficientBalanceError, TransactionFailedError } from '../errors/index.js'
+import { WdkCliError, ErrorCode } from '../errors/index.js'
 import type { NetworkName, TxResult } from '../types/index.js'
 
 export async function ensureInitialized(network: NetworkName, wallet: string = configService.getDefaultWallet()): Promise<void> {
@@ -80,11 +80,7 @@ export async function send(options: SendOptions): Promise<TxResult> {
   if (options.token) {
     const tokenBalance = await account.getTokenBalance(options.token)
     if (tokenBalance < sendAmount) {
-      throw new InsufficientBalanceError(
-        tokenBalance.toString(),
-        sendAmount.toString(),
-        'tokens',
-      )
+      throw new WdkCliError(`Insufficient balance. Have ${tokenBalance} tokens, need ${sendAmount} tokens (+ fee).`, ErrorCode.INSUFFICIENT_BALANCE)
     }
     try {
       const result = await account.transfer({
@@ -103,15 +99,11 @@ export async function send(options: SendOptions): Promise<TxResult> {
       }
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error)
-      throw new TransactionFailedError(msg)
+      throw new WdkCliError(`Transaction failed: ${msg}`, ErrorCode.TRANSACTION_FAILED)
     }
   } else {
     if (balance < sendAmount) {
-      throw new InsufficientBalanceError(
-        balance.toString(),
-        sendAmount.toString(),
-        networkConfig.nativeSymbol,
-      )
+      throw new WdkCliError(`Insufficient balance. Have ${balance} ${networkConfig.nativeSymbol}, need ${sendAmount} ${networkConfig.nativeSymbol} (+ fee).`, ErrorCode.INSUFFICIENT_BALANCE)
     }
     try {
       const result = await account.sendTransaction({
@@ -130,13 +122,9 @@ export async function send(options: SendOptions): Promise<TxResult> {
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error)
       if (msg.includes('insufficient funds')) {
-        throw new InsufficientBalanceError(
-          balance.toString(),
-          sendAmount.toString(),
-          networkConfig.nativeSymbol,
-        )
+        throw new WdkCliError(`Insufficient balance. Have ${balance} ${networkConfig.nativeSymbol}, need ${sendAmount} ${networkConfig.nativeSymbol} (+ fee).`, ErrorCode.INSUFFICIENT_BALANCE)
       }
-      throw new TransactionFailedError(msg)
+      throw new WdkCliError(`Transaction failed: ${msg}`, ErrorCode.TRANSACTION_FAILED)
     }
   }
 }

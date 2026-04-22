@@ -20,7 +20,7 @@ import { WalletKeyring } from '../security/keyring.js'
 import { daemonClient } from '../daemon/client.js'
 import { configService } from '../services/config-service.js'
 import { SESSION_TTL_MINUTES } from '../config/constants.js'
-import { KeyNotFoundError, handleError } from '../errors/index.js'
+import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
 import { promptPassphrase, promptSeedPhrase, promptConfirm } from '../ui/prompts.js'
 
 function createKeyService(): KeyService {
@@ -55,7 +55,7 @@ export function registerWalletCommand(program: Command): void {
         const keyService = createKeyService()
 
         if (await keyService.hasKey(name)) {
-          throw new Error(`Wallet '${name}' already exists.`)
+          throw new WdkCliError(`Wallet '${name}' already exists.`, ErrorCode.WALLET_EXISTS)
         }
 
         const seedPhrase = keyService.generate(wordCount)
@@ -66,7 +66,7 @@ export function registerWalletCommand(program: Command): void {
         const password = await promptPassphrase('Passphrase (empty for none):')
         const confirmPw = await promptPassphrase('Confirm passphrase:')
         if (password !== confirmPw) {
-          throw new Error('Passphrases do not match.')
+          throw new WdkCliError('Passphrases do not match.', ErrorCode.PASSPHRASE_MISMATCH)
         }
 
         const spinner = ora('Encrypting and storing seed phrase...').start()
@@ -100,7 +100,7 @@ export function registerWalletCommand(program: Command): void {
         const keyService = createKeyService()
 
         if (await keyService.hasKey(name)) {
-          throw new Error(`Wallet '${name}' already exists.`)
+          throw new WdkCliError(`Wallet '${name}' already exists.`, ErrorCode.WALLET_EXISTS)
         }
 
         console.log(chalk.dim('Enter your BIP-39 seed phrase (12 or 24 words).'))
@@ -117,7 +117,7 @@ export function registerWalletCommand(program: Command): void {
         const password = await promptPassphrase('Passphrase (empty for none):')
         const confirmPw = await promptPassphrase('Confirm passphrase:')
         if (password !== confirmPw) {
-          throw new Error('Passphrases do not match.')
+          throw new WdkCliError('Passphrases do not match.', ErrorCode.PASSPHRASE_MISMATCH)
         }
 
         const spinner = ora('Encrypting and storing seed phrase...').start()
@@ -143,7 +143,7 @@ export function registerWalletCommand(program: Command): void {
         const keyService = createKeyService()
 
         if (!(await keyService.hasKey(name))) {
-          throw new KeyNotFoundError()
+          throw new WdkCliError('No key found.', ErrorCode.KEY_NOT_FOUND)
         }
 
         const password = await promptPassphrase('Enter passphrase:')
@@ -266,7 +266,7 @@ export function registerWalletCommand(program: Command): void {
         const keyService = createKeyService()
 
         if (!(await keyService.hasKey(name))) {
-          throw new KeyNotFoundError()
+          throw new WdkCliError('No key found.', ErrorCode.KEY_NOT_FOUND)
         }
 
         const ttl = parseInt(options.ttl, 10)

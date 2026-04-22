@@ -14,7 +14,7 @@
 
 import WalletManager from '@tetherto/wdk-wallet'
 import { WalletKeyring } from '../security/keyring.js'
-import { InvalidSeedPhraseError, WrongPasswordError, KeyNotFoundError } from '../errors/index.js'
+import { WdkCliError, ErrorCode } from '../errors/index.js'
 
 export class KeyService {
   constructor(private walletKeyring: WalletKeyring) {}
@@ -29,19 +29,19 @@ export class KeyService {
 
   async store(seedPhrase: string, password: string, name: string): Promise<void> {
     if (!this.validate(seedPhrase)) {
-      throw new InvalidSeedPhraseError()
+      throw new WdkCliError('Invalid seed phrase. Must be 12 or 24 BIP-39 words.', ErrorCode.INVALID_SEED_PHRASE)
     }
     await this.walletKeyring.store(seedPhrase, password, name)
   }
 
   async unlock(password: string, name: string): Promise<string> {
     if (!(await this.walletKeyring.exists(name))) {
-      throw new KeyNotFoundError()
+      throw new WdkCliError('No key found.', ErrorCode.KEY_NOT_FOUND)
     }
     try {
       return await this.walletKeyring.retrieve(password, name)
     } catch {
-      throw new WrongPasswordError()
+      throw new WdkCliError('Incorrect passphrase.', ErrorCode.WRONG_PASSWORD)
     }
   }
 

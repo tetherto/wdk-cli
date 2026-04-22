@@ -20,6 +20,7 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { getDaemonSocketPath, getDaemonPidPath } from '../config/constants.js'
 import type { DaemonRequest, DaemonResponse } from './protocol.js'
+import { WdkCliError, ErrorCode } from '../errors/index.js'
 
 function getDaemonScript(): string {
   const thisFile = fileURLToPath(import.meta.url)
@@ -103,6 +104,10 @@ export class DaemonClient {
   }
 
   async request(req: DaemonRequest, timeoutMs: number = 5000): Promise<DaemonResponse> {
+    if (!(await this.isRunning())) {
+      throw new WdkCliError('Wallet is locked.', ErrorCode.WALLET_LOCKED)
+    }
+
     return new Promise((resolve, reject) => {
       const socket = connect(this.socketPath)
       let buffer = ''
@@ -216,6 +221,16 @@ export class DaemonClient {
     const resp = await this.request({ action: 'status' })
     this.assertOk(resp, 'Failed to get daemon status')
     return resp.data as { unlocked: boolean; wallets: { name: string; ttlMs: number; ttlRemaining: number }[]; pid: number }
+  }
+
+  async isWalletUnlocked(wallet: string): Promise<boolean> {
+    if (!(await this.isRunning())) return false
+    try {
+      const status = await this.status()
+      return status.wallets.some((w) => w.name === wallet)
+    } catch {
+      return false
+    }
   }
 
   async lock(): Promise<void> {

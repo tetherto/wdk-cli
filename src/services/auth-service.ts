@@ -14,7 +14,7 @@
 
 import { KeyService } from './key-service.js'
 import { WalletKeyring } from '../security/keyring.js'
-import { KeyNotFoundError } from '../errors/index.js'
+import { WdkCliError, ErrorCode } from '../errors/index.js'
 import { promptPassphrase } from '../ui/prompts.js'
 import { configService } from './config-service.js'
 
@@ -32,7 +32,7 @@ export async function getSeedPhrase(walletName: string = configService.getDefaul
 
   const promise = (async () => {
     if (!(await keyService.hasAnyKey())) {
-      throw new KeyNotFoundError()
+      throw new WdkCliError('No key found.', ErrorCode.KEY_NOT_FOUND)
     }
 
     const password = await promptPassphrase('Enter passphrase to unlock wallet:')

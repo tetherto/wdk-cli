@@ -15,11 +15,9 @@
 import { wdkService } from './wdk-service.js'
 import { configService } from './config-service.js'
 import { getSeedPhrase } from './auth-service.js'
-import { configService } from './config-service.js'
 import { getNetworkConfig } from '../config/networks.js'
 import { getTokenConfig } from '../config/tokens.js'
-import { MissingNetworkError, WdkCliError } from '../errors/index.js'
-
+import { WdkCliError, ErrorCode } from '../errors/index.js'
 import type { NetworkName } from '../types/index.js'
 
 async function ensureInitialized(network: NetworkName, wallet: string = configService.getDefaultWallet()): Promise<void> {
@@ -57,7 +55,7 @@ export async function getBalance(
       if (msg.includes('BAD_DATA') || msg.includes('could not decode result') || msg.includes('AccountNotFound')) {
         throw new WdkCliError(
           `Not a valid token contract: ${token}`,
-          'INVALID_TOKEN',
+          ErrorCode.INVALID_TOKEN,
           'Make sure the address is a token contract, not a wallet address.',
         )
       }
@@ -73,18 +71,3 @@ export async function getBalance(
   }
 }
 
-export function resolveNetwork(optionNetwork?: string): NetworkName {
-  if (optionNetwork) return optionNetwork as NetworkName
-  throw new MissingNetworkError()
-}
-
-export function resolveIndex(optionIndex?: string): number {
-  if (optionIndex !== undefined) {
-    const index = parseInt(optionIndex, 10)
-    if (isNaN(index) || index < 0) {
-      throw new WdkCliError('Invalid account index. Must be a non-negative integer.', 'INVALID_INDEX')
-    }
-    return index
-  }
-  return (configService.get('defaultIndex') as number) || 0
-}

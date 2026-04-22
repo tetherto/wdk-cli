@@ -76,6 +76,14 @@ class ConfigService {
     this.conf.set('defaultWallet', name)
   }
 
+  getDefaultIndex(): number {
+    return (this.conf.get('defaultIndex') as number) || 0
+  }
+
+  setDefaultIndex(index: number): void {
+    this.conf.set('defaultIndex', index)
+  }
+
   get configPath(): string {
     return this.conf.path
   }

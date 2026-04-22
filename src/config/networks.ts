@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import type { NetworkName, NetworkConfig } from '../types/index.js'
+import type { NetworkConfig } from '../types/index.js'
 import { configService } from '../services/config-service.js'
 import walletsFile from '../../wdk.config.json' with { type: 'json' }
 

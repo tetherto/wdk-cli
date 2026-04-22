@@ -25,7 +25,6 @@ import {
   isTestnet,
 } from '../config/networks.js'
 import { APP_VERSION } from '../config/constants.js'
-import { configService } from '../services/config-service.js'
 import { formatAmount } from '../ui/formatters.js'
 import type { NetworkName } from '../types/index.js'
 

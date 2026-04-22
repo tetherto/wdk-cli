@@ -26,9 +26,8 @@ import {
   deleteCustomNetwork,
 } from '../config/networks.js'
 import { configService } from '../services/config-service.js'
-import { CONFIG_DEFAULTS } from '../config/constants.js'
 import { createTable } from '../ui/tables.js'
-import { NetworkNotSupportedError, handleError } from '../errors/index.js'
+import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
 import type { NetworkConfig } from '../types/index.js'
 import walletsFile from '../../wdk.config.json' with { type: 'json' }
 
@@ -196,12 +195,12 @@ export function registerNetworkCommand(program: Command): void {
     .option('--network <network>', 'Blockchain network')
     .action((options) => {
       try {
-        const networkName = options.network ?? program.opts().network
+        const networkName = options.network
         if (!networkName) {
           console.error(chalk.red('Error: --network is required.'))
           process.exit(1)
         }
-        if (!isValidNetwork(networkName)) throw new NetworkNotSupportedError(networkName)
+        if (!isValidNetwork(networkName)) throw new WdkCliError(`Network '${networkName}' is not supported.`, ErrorCode.NETWORK_NOT_SUPPORTED)
 
         const config = getNetworkConfig(networkName)
         const netConf = configService.get(`networks.${networkName}`) as Record<string, unknown> || {}

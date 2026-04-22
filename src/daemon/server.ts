@@ -42,7 +42,7 @@ export class WalletDaemon {
     const socketPath = getDaemonSocketPath()
     await mkdir(dirname(socketPath), { recursive: true })
 
-    try { await unlink(socketPath) } catch { }
+    try { await unlink(socketPath) } catch { /* socket may not exist */ }
 
     this.server = createServer((socket) => this.handleConnection(socket))
 

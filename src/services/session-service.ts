@@ -95,8 +95,8 @@ class SessionService {
   }
 
   async destroy(): Promise<void> {
-    try { await unlink(this.path) } catch { }
-    try { await unlink(this.keyPath) } catch { }
+    try { await unlink(this.path) } catch { /* file may not exist */ }
+    try { await unlink(this.keyPath) } catch { /* file may not exist */ }
   }
 
   async isActive(): Promise<boolean> {

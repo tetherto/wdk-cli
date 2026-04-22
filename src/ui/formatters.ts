@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import chalk from 'chalk'
 import { getNetworkConfig } from '../config/networks.js'
 
 export function formatAmount(raw: bigint, decimals: number, symbol: string): string {

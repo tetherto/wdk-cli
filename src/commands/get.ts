@@ -14,10 +14,11 @@
 
 import { Command } from 'commander'
 import chalk from 'chalk'
-import { resolveNetwork, resolveIndex } from '../services/wallet-service.js'
+import { resolveNetwork, resolveIndex } from '../utils/resolvers.js'
 import { isValidNetwork, getAllNetworkNames, isTestnet } from '../config/networks.js'
-import { NetworkNotSupportedError, handleError } from '../errors/index.js'
+import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
 import { formatNetworkLabel, formatAmount, formatAddress, formatTxHash } from '../ui/formatters.js'
+import { configService } from '../services/config-service.js'
 import { isIndexerSupported, INDEXER_TOKENS } from '../services/indexer-service.js'
 import type { IndexerToken } from '../services/indexer-service.js'
 import { createTable } from '../ui/tables.js'
@@ -33,19 +34,23 @@ export function registerGetCommand(program: Command): void {
   get
     .command('address')
     .description('Derive wallet address for a network. Omit --network to show all.')
+    .option('--wallet <name>', 'Wallet name')
     .option('--network <network>', 'Blockchain network (omit for all)')
     .option('--index <n>', 'Account index')
-    .option('--wallet <name>', 'Wallet name')
     .option('--testnet', 'Include testnet networks (for all-network mode)')
     .action(async (options) => {
       try {
-        const index = resolveIndex(options.index ?? program.opts().index)
-        const networkOpt = options.network ?? program.opts().network
-        const wallet = options.wallet ?? program.opts().wallet
+        const index = options.index ? resolveIndex(options.index) : configService.getDefaultIndex()
+        const networkOpt = options.network
+        const wallet = options.wallet ?? configService.getDefaultWallet()
+
+        if (!(await daemonClient.isWalletUnlocked(wallet))) {
+          throw new WdkCliError(`Wallet '${wallet}' is not unlocked.`, ErrorCode.WALLET_NOT_UNLOCKED, `Run: wdk wallet unlock --name ${wallet}`)
+        }
 
         if (networkOpt) {
           const network = resolveNetwork(networkOpt)
-          if (!isValidNetwork(network)) throw new NetworkNotSupportedError(network)
+          if (!isValidNetwork(network)) throw new WdkCliError(`Network '${network}' is not supported.`, ErrorCode.NETWORK_NOT_SUPPORTED)
 
           const address = await daemonClient.getAddress(network, index, wallet)
 
@@ -58,35 +63,6 @@ export function registerGetCommand(program: Command): void {
             console.log()
           }
           return
-        }
-
-        if (!(await daemonClient.isRunning())) {
-          const msg = wallet
-            ? `Wallet '${wallet}' is locked. Run \`wdk wallet unlock --name ${wallet}\` first.`
-            : 'Wallet is locked. Run `wdk wallet unlock --name <name>` first.'
-          if (program.opts().json) {
-            console.log(JSON.stringify({ error: msg }))
-          } else {
-            console.log()
-            console.log(chalk.yellow(`  ${msg}`))
-            console.log()
-          }
-          return
-        }
-
-        if (wallet) {
-          const status = await daemonClient.status()
-          if (!status.wallets.find((w) => w.name === wallet)) {
-            const msg = `Wallet '${wallet}' is locked. Run \`wdk wallet unlock --name ${wallet}\` first.`
-            if (program.opts().json) {
-              console.log(JSON.stringify({ error: msg }))
-            } else {
-              console.log()
-              console.log(chalk.yellow(`  ${msg}`))
-              console.log()
-            }
-            return
-          }
         }
 
         const showTestnet = options.testnet === true
@@ -137,20 +113,24 @@ export function registerGetCommand(program: Command): void {
   get
     .command('balance')
     .description('Check wallet balance (native, ERC-20, or SPL token). Omit --network to show all.')
+    .option('--wallet <name>', 'Wallet name')
     .option('--network <network>', 'Blockchain network (omit for all)')
     .option('--index <n>', 'Account index')
-    .option('--wallet <name>', 'Wallet name')
     .option('--token <address>', 'Token contract address (ERC-20 or SPL mint)')
     .option('--testnet', 'Include testnet networks (for all-network mode)')
     .action(async (options) => {
       try {
-        const index = resolveIndex(options.index ?? program.opts().index)
-        const networkOpt = options.network ?? program.opts().network
-        const wallet = options.wallet ?? program.opts().wallet
+        const index = options.index ? resolveIndex(options.index) : configService.getDefaultIndex()
+        const networkOpt = options.network
+        const wallet = options.wallet ?? configService.getDefaultWallet()
+
+        if (!(await daemonClient.isWalletUnlocked(wallet))) {
+          throw new WdkCliError(`Wallet '${wallet}' is not unlocked.`, ErrorCode.WALLET_NOT_UNLOCKED, `Run: wdk wallet unlock --name ${wallet}`)
+        }
 
         if (networkOpt) {
           const network = resolveNetwork(networkOpt)
-          if (!isValidNetwork(network)) throw new NetworkNotSupportedError(network)
+          if (!isValidNetwork(network)) throw new WdkCliError(`Network '${network}' is not supported.`, ErrorCode.NETWORK_NOT_SUPPORTED)
 
           const result = await daemonClient.getBalance(network, index, options.token, wallet)
 
@@ -176,35 +156,6 @@ export function registerGetCommand(program: Command): void {
           }
           console.log()
           return
-        }
-
-        if (!(await daemonClient.isRunning())) {
-          const msg = wallet
-            ? `Wallet '${wallet}' is locked. Run \`wdk wallet unlock --name ${wallet}\` first.`
-            : 'Wallet is locked. Run `wdk wallet unlock --name <name>` first.'
-          if (program.opts().json) {
-            console.log(JSON.stringify({ error: msg }))
-          } else {
-            console.log()
-            console.log(chalk.yellow(`  ${msg}`))
-            console.log()
-          }
-          return
-        }
-
-        if (wallet) {
-          const status = await daemonClient.status()
-          if (!status.wallets.find((w) => w.name === wallet)) {
-            const msg = `Wallet '${wallet}' is locked. Run \`wdk wallet unlock --name ${wallet}\` first.`
-            if (program.opts().json) {
-              console.log(JSON.stringify({ error: msg }))
-            } else {
-              console.log()
-              console.log(chalk.yellow(`  ${msg}`))
-              console.log()
-            }
-            return
-          }
         }
 
         const showTestnet = options.testnet === true
@@ -266,25 +217,30 @@ export function registerGetCommand(program: Command): void {
   get
     .command('history')
     .description('Get token transfer history (requires indexer API key)')
+    .option('--wallet <name>', 'Wallet name')
     .option('--network <network>', 'Blockchain network')
     .option('--index <n>', 'Account index')
-    .option('--wallet <name>', 'Wallet name')
     .option('--token <token>', `Token: ${INDEXER_TOKENS.join(', ')} (default: usdt)`)
     .option('--limit <n>', 'Number of transfers (default: 30)')
     .option('--from-date <date>', 'Start date (ISO 8601, e.g. 2026-01-01)')
     .option('--to-date <date>', 'End date (ISO 8601, e.g. 2026-12-31)')
     .action(async (options) => {
       try {
-        const network = resolveNetwork(options.network ?? program.opts().network)
-        if (!isValidNetwork(network)) throw new NetworkNotSupportedError(network)
+        const network = resolveNetwork(options.network)
+        if (!isValidNetwork(network)) throw new WdkCliError(`Network '${network}' is not supported.`, ErrorCode.NETWORK_NOT_SUPPORTED)
 
         if (!isIndexerSupported(network)) {
           console.error(chalk.red(`Error: Network '${network}' is not supported by the indexer API.`))
           process.exit(1)
         }
 
-        const index = resolveIndex(options.index ?? program.opts().index)
-        const wallet = options.wallet ?? program.opts().wallet
+        const index = options.index ? resolveIndex(options.index) : configService.getDefaultIndex()
+        const wallet = options.wallet ?? configService.getDefaultWallet()
+
+        if (!(await daemonClient.isWalletUnlocked(wallet))) {
+          throw new WdkCliError(`Wallet '${wallet}' is not unlocked.`, ErrorCode.WALLET_NOT_UNLOCKED, `Run: wdk wallet unlock --name ${wallet}`)
+        }
+
         const token = (options.token || 'usdt') as IndexerToken
         if (!INDEXER_TOKENS.includes(token)) {
           console.error(chalk.red(`Error: Invalid token '${token}'. Valid: ${INDEXER_TOKENS.join(', ')}`))

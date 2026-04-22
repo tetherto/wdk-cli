@@ -15,7 +15,7 @@
 import WDK from '@tetherto/wdk'
 import { isValidNetwork, getNetworkConfig } from '../config/networks.js'
 import { configService } from './config-service.js'
-import { NetworkNotSupportedError, NetworkError } from '../errors/index.js'
+import { WdkCliError, ErrorCode } from '../errors/index.js'
 import type { NetworkName } from '../types/index.js'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const walletManagerCache = new Map<string, any>()
@@ -69,7 +69,7 @@ export class WdkService {
 
   async initialize(seedPhrase: string, network: NetworkName): Promise<void> {
     if (!isValidNetwork(network)) {
-      throw new NetworkNotSupportedError(network)
+      throw new WdkCliError(`Network '${network}' is not supported.`, ErrorCode.NETWORK_NOT_SUPPORTED)
     }
 
     this.createInstance(seedPhrase)
@@ -84,7 +84,7 @@ export class WdkService {
 
     const networkConfig = getNetworkConfig(network)
     const WalletManager = await loadWalletManager(networkConfig.module)
-    if (!WalletManager) throw new NetworkNotSupportedError(network)
+    if (!WalletManager) throw new WdkCliError(`Network '${network}' is not supported.`, ErrorCode.NETWORK_NOT_SUPPORTED)
 
     const sdkConfig = configService.get(`networks.${network}`) as Record<string, unknown> || {}
 
@@ -113,7 +113,7 @@ export class WdkService {
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error)
       if (msg.includes('ECONNREFUSED') || msg.includes('ETIMEDOUT') || msg.includes('fetch failed')) {
-        throw new NetworkError(network)
+        throw new WdkCliError(`Cannot reach ${network}.`, ErrorCode.NETWORK_ERROR)
       }
       throw error
     }

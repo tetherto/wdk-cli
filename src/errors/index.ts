@@ -14,10 +14,39 @@
 
 import chalk from 'chalk'
 
+export const ErrorCode = {
+  KEY_NOT_FOUND: 'KEY_NOT_FOUND',
+  INVALID_SEED_PHRASE: 'INVALID_SEED_PHRASE',
+  WRONG_PASSWORD: 'WRONG_PASSWORD',
+  MISSING_NETWORK: 'MISSING_NETWORK',
+  NETWORK_NOT_SUPPORTED: 'NETWORK_NOT_SUPPORTED',
+  INSUFFICIENT_BALANCE: 'INSUFFICIENT_BALANCE',
+  TRANSACTION_FAILED: 'TRANSACTION_FAILED',
+  NETWORK_ERROR: 'NETWORK_ERROR',
+  WALLET_NOT_UNLOCKED: 'WALLET_NOT_UNLOCKED',
+  WALLET_EXISTS: 'WALLET_EXISTS',
+  WALLET_LOCKED: 'WALLET_LOCKED',
+  PASSPHRASE_MISMATCH: 'PASSPHRASE_MISMATCH',
+  INVALID_ARGUMENT: 'INVALID_ARGUMENT',
+  INVALID_INDEX: 'INVALID_INDEX',
+  INVALID_CONFIG: 'INVALID_CONFIG',
+  MISSING_CONFIG: 'MISSING_CONFIG',
+  UNSUPPORTED_MODULE: 'UNSUPPORTED_MODULE',
+  TOKEN_NOT_SUPPORTED: 'TOKEN_NOT_SUPPORTED',
+  ENVIRONMENT_MISMATCH: 'ENVIRONMENT_MISMATCH',
+  SIGN_FAILED: 'SIGN_FAILED',
+  INVALID_AMOUNT: 'INVALID_AMOUNT',
+  INVALID_TOKEN: 'INVALID_TOKEN',
+  UNKNOWN_ERROR: 'UNKNOWN_ERROR',
+  UNEXPECTED_ERROR: 'UNEXPECTED_ERROR',
+} as const
+
+export type ErrorCodeType = typeof ErrorCode[keyof typeof ErrorCode]
+
 export class WdkCliError extends Error {
   constructor(
     message: string,
-    public readonly code: string,
+    public readonly code: ErrorCodeType,
     public readonly suggestion?: string,
   ) {
     super(message)
@@ -29,83 +58,6 @@ export class WdkCliError extends Error {
     if (this.suggestion) {
       console.error(chalk.yellow(`Hint: ${this.suggestion}`))
     }
-  }
-}
-
-export class KeyNotFoundError extends WdkCliError {
-  constructor() {
-    super(
-      'No key found.',
-      'KEY_NOT_FOUND',
-      'Run `wdk wallet create` or `wdk wallet import` first.',
-    )
-  }
-}
-
-export class InvalidSeedPhraseError extends WdkCliError {
-  constructor() {
-    super(
-      'Invalid seed phrase. Must be 12 or 24 BIP-39 words.',
-      'INVALID_SEED_PHRASE',
-    )
-  }
-}
-
-export class WrongPasswordError extends WdkCliError {
-  constructor() {
-    super(
-      'Incorrect passphrase.',
-      'WRONG_PASSWORD',
-      'Try again with the correct passphrase.',
-    )
-  }
-}
-
-export class MissingNetworkError extends WdkCliError {
-  constructor() {
-    super(
-      'Missing --network flag.',
-      'MISSING_NETWORK',
-      `Run \`wdk network list\` to see options.`,
-    )
-  }
-}
-
-export class NetworkNotSupportedError extends WdkCliError {
-  constructor(network: string) {
-    super(
-      `Network '${network}' is not supported.`,
-      'NETWORK_NOT_SUPPORTED',
-      `Run \`wdk network list\` to see supported networks.`,
-    )
-  }
-}
-
-export class InsufficientBalanceError extends WdkCliError {
-  constructor(have: string, need: string, symbol: string) {
-    super(
-      `Insufficient balance. Have ${have} ${symbol}, need ${need} ${symbol} (+ fee).`,
-      'INSUFFICIENT_BALANCE',
-    )
-  }
-}
-
-export class TransactionFailedError extends WdkCliError {
-  constructor(reason: string, txHash?: string) {
-    super(
-      `Transaction failed: ${reason}${txHash ? `. TX: ${txHash}` : ''}`,
-      'TRANSACTION_FAILED',
-    )
-  }
-}
-
-export class NetworkError extends WdkCliError {
-  constructor(provider: string) {
-    super(
-      `Cannot reach ${provider}.`,
-      'NETWORK_ERROR',
-      'Check your RPC URL and network connection.',
-    )
   }
 }
 
@@ -124,19 +76,18 @@ export function handleError(error: unknown, verbose: boolean = false, json: bool
     const coded = error as Error & { code?: string }
     if (coded.code) {
       const messages: Record<string, [string, string?]> = {
-        INSUFFICIENT_FUNDS: ['Insufficient funds for this transaction.', 'Top up your wallet and try again.'],
+        INSUFFICIENT_FUNDS: ['Insufficient funds for this transaction.'],
         INVALID_ARGUMENT: ['Invalid argument.'],
-        NETWORK_ERROR: ['Cannot reach the RPC provider.', 'Check your network connection and provider URL.'],
-        SERVER_ERROR: ['RPC server error.', 'Try again later or switch to a different provider.'],
-        TIMEOUT: ['Request timed out.', 'Check your network connection and try again.'],
+        NETWORK_ERROR: ['Cannot reach the RPC provider.'],
+        SERVER_ERROR: ['RPC server error.'],
+        TIMEOUT: ['Request timed out.'],
       }
       const match = messages[coded.code]
       if (match) {
         if (json) {
-          console.log(JSON.stringify({ error: match[0], code: coded.code, ...(match[1] ? { suggestion: match[1] } : {}) }))
+          console.log(JSON.stringify({ error: match[0], code: coded.code }))
         } else {
           console.error(chalk.red(`Error: ${match[0]}`))
-          if (match[1]) console.error(chalk.yellow(`Hint: ${match[1]}`))
         }
         if (verbose && !json) console.error(error.stack)
         process.exit(1)
@@ -144,7 +95,7 @@ export function handleError(error: unknown, verbose: boolean = false, json: bool
     }
 
     if (json) {
-      console.log(JSON.stringify({ error: error.message, code: 'UNKNOWN_ERROR' }))
+      console.log(JSON.stringify({ error: error.message, code: ErrorCode.UNKNOWN_ERROR }))
     } else {
       console.error(chalk.red(`Error: ${error.message}`))
     }
@@ -153,7 +104,7 @@ export function handleError(error: unknown, verbose: boolean = false, json: bool
   }
 
   if (json) {
-    console.log(JSON.stringify({ error: 'Unexpected error occurred.', code: 'UNEXPECTED_ERROR' }))
+    console.log(JSON.stringify({ error: 'Unexpected error occurred.', code: ErrorCode.UNEXPECTED_ERROR }))
   } else {
     console.error(chalk.red('Unexpected error occurred.'))
   }

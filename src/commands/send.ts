@@ -15,12 +15,13 @@
 import { Command } from 'commander'
 import chalk from 'chalk'
 import ora from 'ora'
-import { resolveNetwork, resolveIndex } from '../services/wallet-service.js'
+import { resolveNetwork, resolveIndex } from '../utils/resolvers.js'
 import { isValidNetwork, getNetworkConfig } from '../config/networks.js'
-import { NetworkNotSupportedError, WdkCliError, handleError } from '../errors/index.js'
+import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
 import { promptConfirm } from '../ui/prompts.js'
 import { formatAddress, formatNetworkLabel, formatAmount } from '../ui/formatters.js'
 import { getTokenConfig } from '../config/tokens.js'
+import { configService } from '../services/config-service.js'
 import { convertToUsd } from '../services/price-service.js'
 import { daemonClient } from '../daemon/client.js'
 import type { NetworkName } from '../types/index.js'
@@ -39,25 +40,29 @@ export function registerSendCommand(program: Command): void {
   program
     .command('send')
     .description('Send native tokens, ERC-20, or SPL tokens')
+    .option('--wallet <name>', 'Wallet name')
     .requiredOption('--to <address>', 'Recipient address')
     .requiredOption('--amount <value>', 'Amount in base units (wei/satoshis/lamports)')
     .option('--network <network>', 'Blockchain network')
     .option('--index <n>', 'Account index')
     .option('--token <address>', 'Token contract address (ERC-20 or SPL mint)')
-    .option('--wallet <name>', 'Wallet name')
     .option('--yes', 'Skip confirmation prompt')
     .option('--dry-run', 'Estimate fees and show summary without sending')
     .action(async (options) => {
       try {
-        const network = resolveNetwork(options.network ?? program.opts().network)
-        if (!isValidNetwork(network)) throw new NetworkNotSupportedError(network)
-        const index = resolveIndex(options.index ?? program.opts().index)
-        const wallet = options.wallet ?? program.opts().wallet
+        const network = resolveNetwork(options.network)
+        if (!isValidNetwork(network)) throw new WdkCliError(`Network '${network}' is not supported.`, ErrorCode.NETWORK_NOT_SUPPORTED)
+        const index = options.index ? resolveIndex(options.index) : configService.getDefaultIndex()
+        const wallet = options.wallet ?? configService.getDefaultWallet()
+
+        if (!(await daemonClient.isWalletUnlocked(wallet))) {
+          throw new WdkCliError(`Wallet '${wallet}' is not unlocked.`, ErrorCode.WALLET_NOT_UNLOCKED, `Run: wdk wallet unlock --name ${wallet}`)
+        }
 
         if (!/^\d+$/.test(options.amount) || options.amount === '0') {
           throw new WdkCliError(
             'Invalid amount. Must be a positive integer in base units (wei/satoshis/lamports).',
-            'INVALID_AMOUNT',
+            ErrorCode.INVALID_AMOUNT,
             'Do not use decimal points. Example: 1000000 for 1 USDT (6 decimals).',
           )
         }
@@ -93,8 +98,8 @@ export function registerSendCommand(program: Command): void {
           }
           let amountUsdValue: number | undefined
           let feeUsdValue: number | undefined
-          try { amountUsdValue = await convertToUsd(network as NetworkName, amountBigInt, options.token) } catch { }
-          try { feeUsdValue = await convertToUsd(network as NetworkName, BigInt(feeQuote.fee)) } catch { }
+          try { amountUsdValue = await convertToUsd(network as NetworkName, amountBigInt, options.token) } catch { /* price unavailable */ }
+          try { feeUsdValue = await convertToUsd(network as NetworkName, BigInt(feeQuote.fee)) } catch { /* price unavailable */ }
 
           const summary = {
             network,
