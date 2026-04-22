@@ -53,13 +53,15 @@ export function registerGetCommand(program: Command): void {
           if (!isValidNetwork(network)) throw new WdkCliError(`Network '${network}' is not supported.`, ErrorCode.NETWORK_NOT_SUPPORTED)
 
           const address = await daemonClient.getAddress(network, index, wallet)
+          const result = { network, index, address }
 
           if (program.opts().json) {
-            console.log(JSON.stringify({ network, index, address }))
+            console.log(JSON.stringify(result))
           } else {
             console.log()
-            console.log(`  Network: ${formatNetworkLabel(network)}`)
-            console.log(`  Address: ${address}`)
+            console.log(`  Network: ${formatNetworkLabel(result.network)}`)
+            console.log(`  Index:   ${result.index}`)
+            console.log(`  Address: ${result.address}`)
             console.log()
           }
           return
@@ -87,13 +89,15 @@ export function registerGetCommand(program: Command): void {
           if (r) results.push(r)
         }
 
+        const result = { index, type: showTestnet ? 'testnet' : 'mainnet', addresses: results }
+
         if (program.opts().json) {
-          console.log(JSON.stringify({ index, addresses: results }))
+          console.log(JSON.stringify(result))
           return
         }
 
         console.log()
-        console.log(chalk.bold(`Wallet Addresses (index: ${index}, ${showTestnet ? 'testnet' : 'mainnet'}):`))
+        console.log(chalk.bold(`Wallet Addresses (index: ${result.index}, ${result.type}):`))
         console.log()
         if (results.length === 0) {
           console.log(chalk.dim('  No addresses available.'))
@@ -132,27 +136,28 @@ export function registerGetCommand(program: Command): void {
           const network = resolveNetwork(networkOpt)
           if (!isValidNetwork(network)) throw new WdkCliError(`Network '${network}' is not supported.`, ErrorCode.NETWORK_NOT_SUPPORTED)
 
-          const result = await daemonClient.getBalance(network, index, options.token, wallet)
+          const balanceData = await daemonClient.getBalance(network, index, options.token, wallet)
+          const formatted = formatAmount(BigInt(balanceData.balance), balanceData.decimals, balanceData.symbol)
+          const result = {
+            network,
+            index,
+            balance: balanceData.balance,
+            symbol: balanceData.symbol,
+            decimals: balanceData.decimals,
+            formatted,
+            ...(options.token ? { token: options.token } : {}),
+          }
 
           if (program.opts().json) {
-            console.log(JSON.stringify({
-              network,
-              index,
-              balance: result.balance,
-              symbol: result.symbol,
-              decimals: result.decimals,
-              ...(options.token ? { token: options.token } : {}),
-            }))
+            console.log(JSON.stringify(result))
             return
           }
 
-          const formatted = formatAmount(BigInt(result.balance), result.decimals, result.symbol)
-
           console.log()
-          console.log(`  ${formatNetworkLabel(network)} ${chalk.dim(`(index: ${index})`)}`)
-          console.log(`  Balance: ${chalk.bold(formatted)}`)
-          if (options.token) {
-            console.log(`  Token:   ${chalk.dim(options.token)}`)
+          console.log(`  ${formatNetworkLabel(result.network)} ${chalk.dim(`(index: ${result.index})`)}`)
+          console.log(`  Balance: ${chalk.bold(result.formatted)}`)
+          if (result.token) {
+            console.log(`  Token:   ${chalk.dim(result.token)}`)
           }
           console.log()
           return
@@ -188,13 +193,15 @@ export function registerGetCommand(program: Command): void {
           }
         }
 
+        const result = { index, type: showTestnet ? 'testnet' : 'mainnet', balances: results, totalUsd }
+
         if (program.opts().json) {
-          console.log(JSON.stringify({ index, balances: results, totalUsd }))
+          console.log(JSON.stringify(result))
           return
         }
 
         console.log()
-        console.log(chalk.bold(`Wallet Balance (index: ${index}, ${showTestnet ? 'testnet' : 'mainnet'}):`))
+        console.log(chalk.bold(`Wallet Balance (index: ${result.index}, ${result.type}):`))
         console.log()
         if (results.length === 0) {
           console.log(chalk.dim('  No balances available.'))
@@ -255,7 +262,7 @@ export function registerGetCommand(program: Command): void {
         const transfers = result.transfers as { timestamp: number; from: string; to: string; amount: string; transactionHash: string }[]
 
         if (program.opts().json) {
-          console.log(JSON.stringify({ network, index, address, token, transfers }))
+          console.log(JSON.stringify({ network, index, address, token, transfers, count: transfers.length }))
           return
         }
 

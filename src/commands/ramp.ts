@@ -127,46 +127,6 @@ function buildMoonPayUrl(
   return url.toString()
 }
 
-interface RampResult {
-  direction: 'Buy' | 'Sell'
-  network: string
-  address: string
-  token: string
-  module: string
-  fiat: string
-  fiatAmount?: string
-  cryptoAmount?: string
-  url: string
-}
-
-function printResult(isJson: boolean, result: RampResult): void {
-  if (isJson) {
-    console.log(JSON.stringify({
-      direction: result.direction.toLowerCase(),
-      network: result.network,
-      address: result.address,
-      module: result.module,
-      token: result.token,
-      fiat: result.fiat,
-      ...(result.fiatAmount && { fiatAmount: result.fiatAmount }),
-      ...(result.cryptoAmount && { cryptoAmount: result.cryptoAmount }),
-      url: result.url,
-    }))
-  } else {
-    console.log()
-    console.log(chalk.bold(`${result.direction} Crypto:`))
-    console.log(`  Network:  ${formatNetworkLabel(result.network)}`)
-    console.log(`  Address:  ${result.address}`)
-    console.log(`  Token:    ${result.token.toUpperCase()}`)
-    console.log(`  Module:   ${result.module}`)
-    console.log(`  Fiat:     ${result.fiat.toUpperCase()}`)
-    if (result.fiatAmount) console.log(`  Amount:   ${result.fiatAmount} ${result.fiat.toUpperCase()}`)
-    if (result.cryptoAmount) console.log(`  Amount:   ${result.cryptoAmount} ${result.token.toUpperCase()}`)
-    console.log()
-    console.log(`  ${chalk.cyan(result.url)}`)
-    console.log()
-  }
-}
 
 async function handleRampAction(
   direction: 'buy' | 'sell',
@@ -200,8 +160,35 @@ async function handleRampAction(
       url = await signMoonPayUrl(url, config.signUrl)
     }
 
-    const label = direction === 'buy' ? 'Buy' : 'Sell' as const
-    printResult(isJson, { direction: label, network, address, token, module, fiat: options.fiat!, fiatAmount: options.fiatAmount, cryptoAmount: options.cryptoAmount, url })
+    const result = {
+      direction,
+      network,
+      address,
+      token,
+      module,
+      fiat: options.fiat!,
+      fiatAmount: options.fiatAmount,
+      cryptoAmount: options.cryptoAmount,
+      url,
+    }
+
+    if (isJson) {
+      console.log(JSON.stringify(result))
+    } else {
+      const label = direction === 'buy' ? 'Buy' : 'Sell'
+      console.log()
+      console.log(chalk.bold(`${label} Crypto:`))
+      console.log(`  Network:  ${formatNetworkLabel(result.network)}`)
+      console.log(`  Address:  ${result.address}`)
+      console.log(`  Token:    ${result.token.toUpperCase()}`)
+      console.log(`  Module:   ${result.module}`)
+      console.log(`  Fiat:     ${result.fiat.toUpperCase()}`)
+      if (result.fiatAmount) console.log(`  Amount:   ${result.fiatAmount} ${result.fiat.toUpperCase()}`)
+      if (result.cryptoAmount) console.log(`  Amount:   ${result.cryptoAmount} ${result.token.toUpperCase()}`)
+      console.log()
+      console.log(`  ${chalk.cyan(result.url)}`)
+      console.log()
+    }
   }
 }
 

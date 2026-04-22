@@ -96,33 +96,47 @@ export function registerSendCommand(program: Command): void {
           } else {
             amountFormatted = formatAmount(amountBigInt, networkConfig.decimals, networkConfig.nativeSymbol)
           }
-          let amountUsdValue: number | undefined
-          let feeUsdValue: number | undefined
-          try { amountUsdValue = await convertToUsd(network as NetworkName, amountBigInt, options.token) } catch { /* price unavailable */ }
-          try { feeUsdValue = await convertToUsd(network as NetworkName, BigInt(feeQuote.fee)) } catch { /* price unavailable */ }
+          let amountUsd: number | undefined
+          let estimatedFeeUsd: number | undefined
+          try { amountUsd = await convertToUsd(network as NetworkName, amountBigInt, options.token) } catch { /* price unavailable */ }
+          try { estimatedFeeUsd = await convertToUsd(network as NetworkName, BigInt(feeQuote.fee)) } catch { /* price unavailable */ }
 
-          const summary = {
+          const result = {
             network,
             networkName: networkConfig.displayName,
             to: options.to,
             amount: options.amount,
             amountFormatted,
-            amountUsd: amountUsdValue,
+            amountUsd,
             token: options.token,
             tokenSymbol,
             estimatedFee: feeQuote.fee,
             estimatedFeeFormatted: feeQuote.feeFormatted,
-            estimatedFeeUsd: feeUsdValue,
+            estimatedFeeUsd,
           }
-          console.log(JSON.stringify(summary))
+
+          if (program.opts().json) {
+            console.log(JSON.stringify(result))
+          } else {
+            console.log()
+            console.log(chalk.bold('Transaction Preview (dry run):'))
+            console.log(`  Network:   ${formatNetworkLabel(result.network)}`)
+            console.log(`  To:        ${formatAddress(result.to)}`)
+            let amountLine = `  Amount:    ${result.amountFormatted}`
+            if (result.amountUsd && result.amountUsd > 0) amountLine += ` (~$${result.amountUsd.toFixed(2)})`
+            console.log(amountLine)
+            if (result.token) {
+              console.log(`  Token:     ${result.token}`)
+            }
+            let feeLine = `  Est. Fee:  ${result.estimatedFeeFormatted}`
+            if (result.estimatedFeeUsd && result.estimatedFeeUsd > 0) feeLine += ` (~$${result.estimatedFeeUsd.toFixed(2)})`
+            console.log(feeLine)
+            console.log()
+          }
           return
         }
 
         if (!program.opts().json) {
-          console.log()
-          console.log(chalk.bold('Transaction Summary:'))
-          console.log(`  Network:   ${formatNetworkLabel(network)}`)
-          console.log(`  To:        ${formatAddress(options.to)}`)
           let amountFormatted: string
           if (options.token) {
             const tokenConfig = getTokenConfig(network, options.token)
@@ -132,21 +146,24 @@ export function registerSendCommand(program: Command): void {
           } else {
             amountFormatted = formatAmount(amountBigInt, networkConfig.decimals, networkConfig.nativeSymbol)
           }
-          let usdDisplay = ''
-          try {
-            const usd = await convertToUsd(network as NetworkName, amountBigInt, options.token)
-            if (usd > 0) usdDisplay = ` (~$${usd.toFixed(2)})`
-          } catch { /* price unavailable */ }
-          console.log(`  Amount:    ${amountFormatted}${usdDisplay}`)
+          let amountUsd: number | undefined
+          let estimatedFeeUsd: number | undefined
+          try { amountUsd = await convertToUsd(network as NetworkName, amountBigInt, options.token) } catch { /* price unavailable */ }
+          try { estimatedFeeUsd = await convertToUsd(network as NetworkName, BigInt(feeQuote.fee)) } catch { /* price unavailable */ }
+
+          console.log()
+          console.log(chalk.bold('Transaction Summary:'))
+          console.log(`  Network:   ${formatNetworkLabel(network)}`)
+          console.log(`  To:        ${formatAddress(options.to)}`)
+          let amountLine = `  Amount:    ${amountFormatted}`
+          if (amountUsd && amountUsd > 0) amountLine += ` (~$${amountUsd.toFixed(2)})`
+          console.log(amountLine)
           if (options.token) {
             console.log(`  Token:     ${options.token}`)
           }
-          let feeUsdDisplay = ''
-          try {
-            const feeUsd = await convertToUsd(network as NetworkName, BigInt(feeQuote.fee))
-            if (feeUsd > 0) feeUsdDisplay = ` (~$${feeUsd.toFixed(2)})`
-          } catch { /* price unavailable */ }
-          console.log(`  Est. Fee:  ${feeQuote.feeFormatted}${feeUsdDisplay}`)
+          let feeLine = `  Est. Fee:  ${feeQuote.feeFormatted}`
+          if (estimatedFeeUsd && estimatedFeeUsd > 0) feeLine += ` (~$${estimatedFeeUsd.toFixed(2)})`
+          console.log(feeLine)
           console.log()
         }
 
@@ -160,18 +177,41 @@ export function registerSendCommand(program: Command): void {
 
         const sendSpinner = ora('Broadcasting transaction...').start()
         try {
-          const result = await daemonClient.send(network, index, options.to, options.amount, options.token, wallet)
+          const sendData = await daemonClient.send(network, index, options.to, options.amount, options.token, wallet)
           sendSpinner.succeed('Transaction sent!')
+
+          let amountFormatted: string
+          if (options.token) {
+            const tokenConfig = getTokenConfig(network, options.token)
+            amountFormatted = tokenConfig
+              ? formatAmount(amountBigInt, tokenConfig.decimals, tokenConfig.symbol)
+              : `${options.amount} tokens (base units)`
+          } else {
+            amountFormatted = formatAmount(amountBigInt, networkConfig.decimals, networkConfig.nativeSymbol)
+          }
+
+          const result = {
+            network,
+            txHash: sendData.txHash,
+            from: sendData.from,
+            to: sendData.to,
+            amount: options.amount,
+            amountFormatted,
+            fee: sendData.fee,
+            feeFormatted: sendData.fee ? formatAmount(BigInt(sendData.fee), networkConfig.decimals, networkConfig.nativeSymbol) : undefined,
+          }
 
           if (program.opts().json) {
             console.log(JSON.stringify(result))
           } else {
             console.log()
+            console.log(`  Network: ${formatNetworkLabel(result.network)}`)
             console.log(`  TX Hash: ${chalk.cyan(result.txHash)}`)
             console.log(`  From:    ${formatAddress(result.from)}`)
             console.log(`  To:      ${formatAddress(result.to)}`)
-            if (result.fee) {
-              console.log(`  Fee:     ${formatAmount(BigInt(result.fee), networkConfig.decimals, networkConfig.nativeSymbol)}`)
+            console.log(`  Amount:  ${result.amountFormatted}`)
+            if (result.feeFormatted) {
+              console.log(`  Fee:     ${result.feeFormatted}`)
             }
             console.log()
           }
