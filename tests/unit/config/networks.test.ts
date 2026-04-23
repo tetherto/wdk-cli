@@ -56,6 +56,7 @@ describe('networks', () => {
     expect(isBuiltinNetwork('bitcoin')).toBe(true)
     expect(isBuiltinNetwork('nonexistent')).toBe(false)
   })
+
 })
 
 describe('custom networks', () => {

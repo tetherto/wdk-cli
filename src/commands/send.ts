@@ -16,39 +16,43 @@ import { Command } from 'commander'
 import chalk from 'chalk'
 import ora from 'ora'
 import { resolveNetwork, resolveIndex } from '../utils/resolvers.js'
+import { withTimeout } from '../utils/async.js'
 import { isValidNetwork, getNetworkConfig } from '../config/networks.js'
 import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
-import { promptConfirm } from '../ui/prompts.js'
-import { formatAddress, formatNetworkLabel, formatAmount } from '../ui/formatters.js'
-import { getTokenConfig } from '../config/tokens.js'
+import { formatAddress, formatNetworkLabel, formatAmount, formatTokenAmount } from '../ui/formatters.js'
+import { configureHelp } from '../ui/help.js'
 import { configService } from '../services/config-service.js'
 import { convertToUsd } from '../services/price-service.js'
 import { daemonClient } from '../daemon/client.js'
 import type { NetworkName } from '../types/index.js'
 
-function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
-  let timer: ReturnType<typeof setTimeout>
-  return Promise.race([
-    promise.then((v) => { clearTimeout(timer); return v }),
-    new Promise<never>((_, reject) => {
-      timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s. The RPC provider may be slow or unreachable.`)), ms)
-    }),
-  ])
-}
-
 export function registerSendCommand(program: Command): void {
-  program
+  const send = program
     .command('send')
-    .description('Send native tokens, ERC-20, or SPL tokens')
+    .description('Send tokens (native, ERC-20, SPL, TRC-20, ...)')
     .option('--wallet <name>', 'Wallet name')
+    .requiredOption('--network <network>', 'Blockchain network')
+    .option('--index <n>', 'Account index')
     .requiredOption('--to <address>', 'Recipient address')
     .requiredOption('--amount <value>', 'Amount in base units (wei/satoshis/lamports)')
-    .option('--network <network>', 'Blockchain network')
-    .option('--index <n>', 'Account index')
-    .option('--token <address>', 'Token contract address (ERC-20 or SPL mint)')
-    .option('--yes', 'Skip confirmation prompt')
+    .option('--token <address>', 'Token contract address (ERC-20, SPL, TRC-20)')
     .option('--dry-run', 'Estimate fees and show summary without sending')
-    .action(async (options) => {
+
+  configureHelp(send, {
+    params: [
+      { flags: '--network <network>', description: 'Blockchain network', required: true },
+      { flags: '--to <address>', description: 'Recipient address', required: true },
+      { flags: '--amount <value>', description: 'Amount in base units (wei/satoshis/lamports)', required: true },
+      { flags: '--token <address>', description: 'Token contract address (omit for native)' },
+    ],
+    options: [
+      { flags: '--wallet <name>', description: 'Wallet name (default: default wallet)' },
+      { flags: '--index <n>', description: 'Account index (default: 0)' },
+      { flags: '--dry-run', description: 'Estimate fees and show summary without sending' },
+    ],
+  })
+
+  send.action(async (options) => {
       try {
         const network = resolveNetwork(options.network)
         if (!isValidNetwork(network)) throw new WdkCliError(`Network '${network}' is not supported.`, ErrorCode.NETWORK_NOT_SUPPORTED)
@@ -75,61 +79,49 @@ export function registerSendCommand(program: Command): void {
             30_000,
             'Fee estimation',
           )
+        } finally {
           spinner.stop()
-        } catch (error) {
-          spinner.stop()
-          throw error
         }
 
         const networkConfig = getNetworkConfig(network)
         const amountBigInt = BigInt(options.amount)
+        const { formatted: amountFormatted, symbol: tokenSymbol } = formatTokenAmount(amountBigInt, options.amount, network, options.token)
+
+        let amountUsd: number | undefined
+        let estimatedFeeUsd: number | undefined
+        try { amountUsd = await convertToUsd(network as NetworkName, amountBigInt, options.token) } catch { /* price unavailable */ }
+        try { estimatedFeeUsd = await convertToUsd(network as NetworkName, BigInt(feeQuote.fee)) } catch { /* price unavailable */ }
+
+        const preview = {
+          network,
+          networkName: networkConfig.displayName,
+          to: options.to,
+          amount: options.amount,
+          amountFormatted,
+          amountUsd,
+          token: options.token,
+          tokenSymbol,
+          estimatedFee: feeQuote.fee,
+          estimatedFeeFormatted: feeQuote.feeFormatted,
+          estimatedFeeUsd,
+        }
 
         if (options.dryRun) {
-          let amountFormatted: string
-          let tokenSymbol: string | undefined
-          if (options.token) {
-            const tokenConfig = getTokenConfig(network, options.token)
-            amountFormatted = tokenConfig
-              ? formatAmount(amountBigInt, tokenConfig.decimals, tokenConfig.symbol)
-              : `${options.amount} tokens (base units)`
-            tokenSymbol = tokenConfig?.symbol
-          } else {
-            amountFormatted = formatAmount(amountBigInt, networkConfig.decimals, networkConfig.nativeSymbol)
-          }
-          let amountUsd: number | undefined
-          let estimatedFeeUsd: number | undefined
-          try { amountUsd = await convertToUsd(network as NetworkName, amountBigInt, options.token) } catch { /* price unavailable */ }
-          try { estimatedFeeUsd = await convertToUsd(network as NetworkName, BigInt(feeQuote.fee)) } catch { /* price unavailable */ }
-
-          const result = {
-            network,
-            networkName: networkConfig.displayName,
-            to: options.to,
-            amount: options.amount,
-            amountFormatted,
-            amountUsd,
-            token: options.token,
-            tokenSymbol,
-            estimatedFee: feeQuote.fee,
-            estimatedFeeFormatted: feeQuote.feeFormatted,
-            estimatedFeeUsd,
-          }
-
           if (program.opts().json) {
-            console.log(JSON.stringify(result))
+            console.log(JSON.stringify(preview))
           } else {
             console.log()
             console.log(chalk.bold('Transaction Preview (dry run):'))
-            console.log(`  Network:   ${formatNetworkLabel(result.network)}`)
-            console.log(`  To:        ${formatAddress(result.to)}`)
-            let amountLine = `  Amount:    ${result.amountFormatted}`
-            if (result.amountUsd && result.amountUsd > 0) amountLine += ` (~$${result.amountUsd.toFixed(2)})`
+            console.log(`  Network:   ${formatNetworkLabel(preview.network)}`)
+            console.log(`  To:        ${formatAddress(preview.to)}`)
+            let amountLine = `  Amount:    ${preview.amountFormatted}`
+            if (preview.amountUsd && preview.amountUsd > 0) amountLine += ` (~$${preview.amountUsd.toFixed(2)})`
             console.log(amountLine)
-            if (result.token) {
-              console.log(`  Token:     ${result.token}`)
+            if (preview.token) {
+              console.log(`  Token:     ${preview.token}`)
             }
-            let feeLine = `  Est. Fee:  ${result.estimatedFeeFormatted}`
-            if (result.estimatedFeeUsd && result.estimatedFeeUsd > 0) feeLine += ` (~$${result.estimatedFeeUsd.toFixed(2)})`
+            let feeLine = `  Est. Fee:  ${preview.estimatedFeeFormatted}`
+            if (preview.estimatedFeeUsd && preview.estimatedFeeUsd > 0) feeLine += ` (~$${preview.estimatedFeeUsd.toFixed(2)})`
             console.log(feeLine)
             console.log()
           }
@@ -137,58 +129,26 @@ export function registerSendCommand(program: Command): void {
         }
 
         if (!program.opts().json) {
-          let amountFormatted: string
-          if (options.token) {
-            const tokenConfig = getTokenConfig(network, options.token)
-            amountFormatted = tokenConfig
-              ? formatAmount(amountBigInt, tokenConfig.decimals, tokenConfig.symbol)
-              : `${options.amount} tokens (base units)`
-          } else {
-            amountFormatted = formatAmount(amountBigInt, networkConfig.decimals, networkConfig.nativeSymbol)
-          }
-          let amountUsd: number | undefined
-          let estimatedFeeUsd: number | undefined
-          try { amountUsd = await convertToUsd(network as NetworkName, amountBigInt, options.token) } catch { /* price unavailable */ }
-          try { estimatedFeeUsd = await convertToUsd(network as NetworkName, BigInt(feeQuote.fee)) } catch { /* price unavailable */ }
-
           console.log()
           console.log(chalk.bold('Transaction Summary:'))
-          console.log(`  Network:   ${formatNetworkLabel(network)}`)
-          console.log(`  To:        ${formatAddress(options.to)}`)
-          let amountLine = `  Amount:    ${amountFormatted}`
-          if (amountUsd && amountUsd > 0) amountLine += ` (~$${amountUsd.toFixed(2)})`
+          console.log(`  Network:   ${formatNetworkLabel(preview.network)}`)
+          console.log(`  To:        ${formatAddress(preview.to)}`)
+          let amountLine = `  Amount:    ${preview.amountFormatted}`
+          if (preview.amountUsd && preview.amountUsd > 0) amountLine += ` (~$${preview.amountUsd.toFixed(2)})`
           console.log(amountLine)
-          if (options.token) {
-            console.log(`  Token:     ${options.token}`)
+          if (preview.token) {
+            console.log(`  Token:     ${preview.token}`)
           }
-          let feeLine = `  Est. Fee:  ${feeQuote.feeFormatted}`
-          if (estimatedFeeUsd && estimatedFeeUsd > 0) feeLine += ` (~$${estimatedFeeUsd.toFixed(2)})`
+          let feeLine = `  Est. Fee:  ${preview.estimatedFeeFormatted}`
+          if (preview.estimatedFeeUsd && preview.estimatedFeeUsd > 0) feeLine += ` (~$${preview.estimatedFeeUsd.toFixed(2)})`
           console.log(feeLine)
           console.log()
-        }
-
-        if (!options.yes) {
-          const confirmed = await promptConfirm('Send this transaction?')
-          if (!confirmed) {
-            console.log('Transaction cancelled.')
-            return
-          }
         }
 
         const sendSpinner = ora('Broadcasting transaction...').start()
         try {
           const sendData = await daemonClient.send(network, index, options.to, options.amount, options.token, wallet)
           sendSpinner.succeed('Transaction sent!')
-
-          let amountFormatted: string
-          if (options.token) {
-            const tokenConfig = getTokenConfig(network, options.token)
-            amountFormatted = tokenConfig
-              ? formatAmount(amountBigInt, tokenConfig.decimals, tokenConfig.symbol)
-              : `${options.amount} tokens (base units)`
-          } else {
-            amountFormatted = formatAmount(amountBigInt, networkConfig.decimals, networkConfig.nativeSymbol)
-          }
 
           const result = {
             network,

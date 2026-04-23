@@ -27,21 +27,21 @@ export class KeyService {
     return WalletManager.isValidSeedPhrase(seedPhrase)
   }
 
-  async store(seedPhrase: string, password: string, name: string): Promise<void> {
+  async store(seedPhrase: string, passphrase: string, name: string): Promise<void> {
     if (!this.validate(seedPhrase)) {
       throw new WdkCliError('Invalid seed phrase. Must be 12 or 24 BIP-39 words.', ErrorCode.INVALID_SEED_PHRASE)
     }
-    await this.walletKeyring.store(seedPhrase, password, name)
+    await this.walletKeyring.store(seedPhrase, passphrase, name)
   }
 
-  async unlock(password: string, name: string): Promise<string> {
+  async unlock(passphrase: string, name: string): Promise<string> {
     if (!(await this.walletKeyring.exists(name))) {
       throw new WdkCliError('No key found.', ErrorCode.KEY_NOT_FOUND)
     }
     try {
-      return await this.walletKeyring.retrieve(password, name)
+      return await this.walletKeyring.retrieve(passphrase, name)
     } catch {
-      throw new WdkCliError('Incorrect passphrase.', ErrorCode.WRONG_PASSWORD)
+      throw new WdkCliError('Incorrect passphrase.', ErrorCode.WRONG_PASSPHRASE)
     }
   }
 

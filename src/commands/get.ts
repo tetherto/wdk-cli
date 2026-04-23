@@ -22,6 +22,7 @@ import { configService } from '../services/config-service.js'
 import { isIndexerSupported, INDEXER_TOKENS } from '../services/indexer-service.js'
 import type { IndexerToken } from '../services/indexer-service.js'
 import { createTable } from '../ui/tables.js'
+import { configureHelp } from '../ui/help.js'
 import { convertToUsd } from '../services/price-service.js'
 import { daemonClient } from '../daemon/client.js'
 import type { NetworkName } from '../types/index.js'
@@ -31,14 +32,28 @@ export function registerGetCommand(program: Command): void {
     .command('get')
     .description('Query wallet address, balance, and transaction history')
 
-  get
+  configureHelp(get, {})
+
+  const address = get
     .command('address')
     .description('Derive wallet address for a network. Omit --network to show all.')
     .option('--wallet <name>', 'Wallet name')
     .option('--network <network>', 'Blockchain network (omit for all)')
     .option('--index <n>', 'Account index')
     .option('--testnet', 'Include testnet networks (for all-network mode)')
-    .action(async (options) => {
+
+  configureHelp(address, {
+    params: [
+      { flags: '--network <network>', description: 'Blockchain network (omit for all)' },
+    ],
+    options: [
+      { flags: '--wallet <name>', description: 'Wallet name (default: default wallet)' },
+      { flags: '--index <n>', description: 'Account index (default: 0)' },
+      { flags: '--testnet', description: 'Include testnet networks (for all-network mode)' },
+    ],
+  })
+
+  address.action(async (options) => {
       try {
         const index = options.index ? resolveIndex(options.index) : configService.getDefaultIndex()
         const networkOpt = options.network
@@ -114,7 +129,7 @@ export function registerGetCommand(program: Command): void {
       }
     })
 
-  get
+  const balance = get
     .command('balance')
     .description('Check wallet balance (native, ERC-20, or SPL token). Omit --network to show all.')
     .option('--wallet <name>', 'Wallet name')
@@ -122,7 +137,20 @@ export function registerGetCommand(program: Command): void {
     .option('--index <n>', 'Account index')
     .option('--token <address>', 'Token contract address (ERC-20 or SPL mint)')
     .option('--testnet', 'Include testnet networks (for all-network mode)')
-    .action(async (options) => {
+
+  configureHelp(balance, {
+    params: [
+      { flags: '--network <network>', description: 'Blockchain network (omit for all)' },
+      { flags: '--token <address>', description: 'Token contract address (ERC-20 or SPL mint), omit for native token' },
+    ],
+    options: [
+      { flags: '--wallet <name>', description: 'Wallet name (default: default wallet)' },
+      { flags: '--index <n>', description: 'Account index (default: 0)' },
+      { flags: '--testnet', description: 'Include testnet networks (for all-network mode)' },
+    ],
+  })
+
+  balance.action(async (options) => {
       try {
         const index = options.index ? resolveIndex(options.index) : configService.getDefaultIndex()
         const networkOpt = options.network
@@ -221,17 +249,32 @@ export function registerGetCommand(program: Command): void {
       }
     })
 
-  get
+  const history = get
     .command('history')
     .description('Get token transfer history (requires indexer API key)')
     .option('--wallet <name>', 'Wallet name')
-    .option('--network <network>', 'Blockchain network')
+    .requiredOption('--network <network>', 'Blockchain network')
     .option('--index <n>', 'Account index')
     .option('--token <token>', `Token: ${INDEXER_TOKENS.join(', ')} (default: usdt)`)
     .option('--limit <n>', 'Number of transfers (default: 30)')
     .option('--from-date <date>', 'Start date (ISO 8601, e.g. 2026-01-01)')
     .option('--to-date <date>', 'End date (ISO 8601, e.g. 2026-12-31)')
-    .action(async (options) => {
+
+  configureHelp(history, {
+    options: [
+      { flags: '--wallet <name>', description: 'Wallet name (default: default wallet)' },
+      { flags: '--index <n>', description: 'Account index (default: 0)' },
+    ],
+    params: [
+      { flags: '--network <network>', description: 'Blockchain network', required: true },
+      { flags: '--token <token>', description: `Token: ${INDEXER_TOKENS.join(', ')} (default: usdt)` },
+      { flags: '--limit <n>', description: 'Number of transfers (default: 30)' },
+      { flags: '--from-date <date>', description: 'Start date (ISO 8601, e.g. 2026-01-01)' },
+      { flags: '--to-date <date>', description: 'End date (ISO 8601, e.g. 2026-12-31)' },
+    ],
+  })
+
+  history.action(async (options) => {
       try {
         const network = resolveNetwork(options.network)
         if (!isValidNetwork(network)) throw new WdkCliError(`Network '${network}' is not supported.`, ErrorCode.NETWORK_NOT_SUPPORTED)

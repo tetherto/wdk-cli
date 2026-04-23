@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import { getNetworkConfig } from '../config/networks.js'
+import { getTokenConfig } from '../config/tokens.js'
 
 export function formatAmount(raw: bigint, decimals: number, symbol: string): string {
   const divisor = 10n ** BigInt(decimals)
@@ -42,5 +43,21 @@ export function formatNetworkLabel(network: string): string {
 export function formatDate(dateStr: string): string {
   const date = new Date(dateStr)
   return date.toLocaleString()
+}
+
+export function formatTokenAmount(
+  amount: bigint,
+  rawAmount: string,
+  network: string,
+  token?: string,
+): { formatted: string; symbol?: string } {
+  if (token) {
+    const tokenConfig = getTokenConfig(network, token)
+    return tokenConfig
+      ? { formatted: formatAmount(amount, tokenConfig.decimals, tokenConfig.symbol), symbol: tokenConfig.symbol }
+      : { formatted: `${rawAmount} tokens (base units)` }
+  }
+  const config = getNetworkConfig(network)
+  return { formatted: formatAmount(amount, config.decimals, config.nativeSymbol), symbol: config.nativeSymbol }
 }
 

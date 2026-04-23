@@ -21,17 +21,17 @@ import type { EncryptedPayload } from '../types/index.js'
 export class Keyring {
   constructor(private readonly path: string) {}
 
-  async store(seedPhrase: string, password: string): Promise<void> {
-    const payload = encrypt(seedPhrase, password)
+  async store(seedPhrase: string, passphrase: string): Promise<void> {
+    const payload = encrypt(seedPhrase, passphrase)
     await mkdir(dirname(this.path), { recursive: true })
     await writeFile(this.path, JSON.stringify(payload, null, 2), { encoding: 'utf8', mode: 0o600 })
     await chmod(this.path, 0o600)
   }
 
-  async retrieve(password: string): Promise<string> {
+  async retrieve(passphrase: string): Promise<string> {
     const data = await readFile(this.path, 'utf8')
     const payload: EncryptedPayload = JSON.parse(data)
-    return decrypt(payload, password)
+    return decrypt(payload, passphrase)
   }
 
   async exists(): Promise<boolean> {
@@ -51,16 +51,16 @@ export class Keyring {
 }
 
 export class WalletKeyring {
-  async store(seedPhrase: string, password: string, name: string): Promise<void> {
+  async store(seedPhrase: string, passphrase: string, name: string): Promise<void> {
     const walletPath = getWalletPath(name)
     const keyring = new Keyring(walletPath)
-    await keyring.store(seedPhrase, password)
+    await keyring.store(seedPhrase, passphrase)
   }
 
-  async retrieve(password: string, name: string): Promise<string> {
+  async retrieve(passphrase: string, name: string): Promise<string> {
     const walletPath = getWalletPath(name)
     const keyring = new Keyring(walletPath)
-    return keyring.retrieve(password)
+    return keyring.retrieve(passphrase)
   }
 
   async exists(name: string): Promise<boolean> {

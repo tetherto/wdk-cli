@@ -15,8 +15,8 @@
 import { input, password, confirm } from '@inquirer/prompts'
 
 export async function promptPassphrase(message: string = 'Enter passphrase:'): Promise<string> {
-  const envPassword = process.env.WDK_PASSWORD
-  if (envPassword) return envPassword
+  const envPassphrase = process.env.WDK_PASSPHRASE
+  if (envPassphrase) return envPassphrase
   return password({ message })
 }
 

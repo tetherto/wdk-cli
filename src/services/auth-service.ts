@@ -35,8 +35,8 @@ export async function getSeedPhrase(walletName: string = configService.getDefaul
       throw new WdkCliError('No key found.', ErrorCode.KEY_NOT_FOUND)
     }
 
-    const password = await promptPassphrase('Enter passphrase to unlock wallet:')
-    const phrase = await keyService.unlock(password, walletName)
+    const passphrase = await promptPassphrase('Enter passphrase to unlock wallet:')
+    const phrase = await keyService.unlock(passphrase, walletName)
     seedPhraseCache.set(walletName, phrase)
     return phrase
   })()

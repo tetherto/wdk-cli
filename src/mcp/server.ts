@@ -20,7 +20,7 @@ import { convertToUsd } from '../services/price-service.js'
 import {
   getAllNetworks,
   getAllNetworkNames,
-  isValidNetwork,
+  validateNetwork,
   getNetworkConfig,
   isTestnet,
 } from '../config/networks.js'
@@ -34,13 +34,6 @@ function errorResult(message: string) {
 
 function jsonResult(data: unknown) {
   return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] }
-}
-
-function validateNetwork(network: string): network is NetworkName {
-  if (!isValidNetwork(network)) {
-    throw new Error(`Network '${network}' is not supported. Run get_networks to see available networks.`)
-  }
-  return true
 }
 
 async function requireDaemon(): Promise<void> {

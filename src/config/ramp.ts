@@ -13,8 +13,12 @@
 // limitations under the License.
 
 import walletsFile from '../../wdk.config.json' with { type: 'json' }
+import { WdkCliError, ErrorCode } from '../errors/index.js'
 
 type ModuleAssets = Record<string, string>
+
+const SUPPORTED_MODULES = ['moonpay'] as const
+export type RampModule = typeof SUPPORTED_MODULES[number]
 
 const moduleConfigs: Record<string, Record<string, ModuleAssets>> = {}
 
@@ -29,4 +33,24 @@ for (const [name, entry] of Object.entries(walletsFile.networks)) {
 
 export function getModuleAssets(network: string, module: string): ModuleAssets | undefined {
   return moduleConfigs[network]?.[module]
+}
+
+export function validateModule(module: string): RampModule {
+  if (!SUPPORTED_MODULES.includes(module as RampModule)) {
+    throw new WdkCliError(`Unsupported module '${module}'. Available: ${SUPPORTED_MODULES.join(', ')}`, ErrorCode.UNSUPPORTED_MODULE)
+  }
+  return module as RampModule
+}
+
+export function resolveAsset(network: string, token: string, module: RampModule): { code: string; token: string } {
+  const assets = getModuleAssets(network, module)
+  if (!assets) {
+    throw new WdkCliError(`Network '${network}' does not support ${module}.`, ErrorCode.NETWORK_NOT_SUPPORTED)
+  }
+  const asset = assets[token.toLowerCase()]
+  if (!asset) {
+    const supported = Object.keys(assets).join(', ')
+    throw new WdkCliError(`Token '${token}' on '${network}' is not supported by ${module}. Supported: ${supported}`, ErrorCode.TOKEN_NOT_SUPPORTED)
+  }
+  return { code: asset, token: token.toLowerCase() }
 }

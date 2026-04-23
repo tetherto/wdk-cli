@@ -22,6 +22,7 @@ import { configService } from '../services/config-service.js'
 import { SESSION_TTL_MINUTES } from '../config/constants.js'
 import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
 import { promptPassphrase, promptSeedPhrase, promptConfirm } from '../ui/prompts.js'
+import { configureHelp } from '../ui/help.js'
 
 function createKeyService(): KeyService {
   return new KeyService(new WalletKeyring())
@@ -31,19 +32,32 @@ export function registerWalletCommand(program: Command): void {
   const wallet = program
     .command('wallet')
     .description('Manage wallets, keys, and sessions')
-    .hook('preAction', () => {
+
+  configureHelp(wallet, {})
+
+  wallet.hook('preAction', () => {
       if (program.opts().json) {
         console.error(chalk.red('Error: --json is not supported for wallet commands.'))
         process.exit(1)
       }
     })
 
-  wallet
+  const create = wallet
     .command('create')
     .description('Create a new wallet with a generated seed phrase')
     .requiredOption('--name <name>', 'Wallet name')
     .option('--words <count>', 'Word count: 12 or 24', '12')
-    .action(async (options) => {
+
+  configureHelp(create, {
+    params: [
+      { flags: '--name <name>', description: 'Wallet name', required: true },
+    ],
+    options: [
+      { flags: '--words <count>', description: 'Word count: 12 or 24 (default: 12)' },
+    ],
+  })
+
+  create.action(async (options) => {
       const name: string = options.name
       try {
         const wordCount = parseInt(options.words, 10) as 12 | 24
@@ -63,14 +77,14 @@ export function registerWalletCommand(program: Command): void {
         console.log(chalk.dim('Enter a passphrase to encrypt your seed phrase. Remember the passphrase to unlock this wallet in the future.'))
         console.log()
 
-        const password = await promptPassphrase('Passphrase (empty for none):')
+        const passphrase = await promptPassphrase('Passphrase (empty for none):')
         const confirmPw = await promptPassphrase('Confirm passphrase:')
-        if (password !== confirmPw) {
+        if (passphrase !== confirmPw) {
           throw new WdkCliError('Passphrases do not match.', ErrorCode.PASSPHRASE_MISMATCH)
         }
 
         const spinner = ora('Encrypting and storing seed phrase...').start()
-        await keyService.store(seedPhrase, password, name)
+        await keyService.store(seedPhrase, passphrase, name)
         spinner.succeed(`Seed phrase encrypted and stored as '${name}'.`)
 
         console.log()
@@ -90,11 +104,18 @@ export function registerWalletCommand(program: Command): void {
       }
     })
 
-  wallet
+  const importCmd = wallet
     .command('import')
     .description('Import a wallet from an existing seed phrase')
     .requiredOption('--name <name>', 'Wallet name')
-    .action(async (options) => {
+
+  configureHelp(importCmd, {
+    params: [
+      { flags: '--name <name>', description: 'Wallet name', required: true },
+    ],
+  })
+
+  importCmd.action(async (options) => {
       const name: string = options.name
       try {
         const keyService = createKeyService()
@@ -114,14 +135,14 @@ export function registerWalletCommand(program: Command): void {
         console.log(chalk.dim('Enter a passphrase to encrypt your seed phrase. Remember the passphrase to unlock this wallet in the future.'))
         console.log()
 
-        const password = await promptPassphrase('Passphrase (empty for none):')
+        const passphrase = await promptPassphrase('Passphrase (empty for none):')
         const confirmPw = await promptPassphrase('Confirm passphrase:')
-        if (password !== confirmPw) {
+        if (passphrase !== confirmPw) {
           throw new WdkCliError('Passphrases do not match.', ErrorCode.PASSPHRASE_MISMATCH)
         }
 
         const spinner = ora('Encrypting and storing seed phrase...').start()
-        await keyService.store(seedPhrase, password, name)
+        await keyService.store(seedPhrase, passphrase, name)
         spinner.succeed(`Seed phrase imported and encrypted as '${name}'.`)
 
         if (!configService.getDefaultWallet()) {
@@ -133,11 +154,18 @@ export function registerWalletCommand(program: Command): void {
       }
     })
 
-  wallet
+  const exportCmd = wallet
     .command('export')
     .description('Export seed phrase (decrypt and display)')
     .requiredOption('--name <name>', 'Wallet name')
-    .action(async (options) => {
+
+  configureHelp(exportCmd, {
+    params: [
+      { flags: '--name <name>', description: 'Wallet name', required: true },
+    ],
+  })
+
+  exportCmd.action(async (options) => {
       const name: string = options.name
       try {
         const keyService = createKeyService()
@@ -146,8 +174,8 @@ export function registerWalletCommand(program: Command): void {
           throw new WdkCliError('No key found.', ErrorCode.KEY_NOT_FOUND)
         }
 
-        const password = await promptPassphrase('Enter passphrase:')
-        const seedPhrase = await keyService.unlock(password, name)
+        const passphrase = await promptPassphrase('Enter passphrase:')
+        const seedPhrase = await keyService.unlock(passphrase, name)
 
         console.log()
         console.log(chalk.bold.yellow('WARNING: Do not share your seed phrase with anyone!'))
@@ -161,10 +189,13 @@ export function registerWalletCommand(program: Command): void {
       }
     })
 
-  wallet
+  const listCmd = wallet
     .command('list')
     .description('List all wallets')
-    .action(async () => {
+
+  configureHelp(listCmd, {})
+
+  listCmd.action(async () => {
       try {
         const keyService = createKeyService()
 
@@ -209,11 +240,18 @@ export function registerWalletCommand(program: Command): void {
       }
     })
 
-  wallet
+  const deleteCmd = wallet
     .command('delete')
     .description('Delete a wallet')
     .requiredOption('--name <name>', 'Wallet name')
-    .action(async (options) => {
+
+  configureHelp(deleteCmd, {
+    params: [
+      { flags: '--name <name>', description: 'Wallet name', required: true },
+    ],
+  })
+
+  deleteCmd.action(async (options) => {
       const name: string = options.name
       try {
         const keyService = createKeyService()
@@ -223,8 +261,8 @@ export function registerWalletCommand(program: Command): void {
           process.exit(1)
         }
 
-        const password = await promptPassphrase('Enter passphrase to confirm deletion:')
-        await keyService.unlock(password, name)
+        const passphrase = await promptPassphrase('Enter passphrase to confirm deletion:')
+        await keyService.unlock(passphrase, name)
 
         const confirm = await promptConfirm(`Delete wallet '${name}'? This cannot be undone.`)
         if (!confirm) {
@@ -255,12 +293,22 @@ export function registerWalletCommand(program: Command): void {
       }
     })
 
-  wallet
+  const unlockCmd = wallet
     .command('unlock')
     .description('Unlock a wallet (starts background daemon if needed)')
     .requiredOption('--name <name>', 'Wallet name')
     .option('--ttl <minutes>', 'Session duration in minutes (0 = unlimited)', String(SESSION_TTL_MINUTES))
-    .action(async (options) => {
+
+  configureHelp(unlockCmd, {
+    params: [
+      { flags: '--name <name>', description: 'Wallet name', required: true },
+    ],
+    options: [
+      { flags: '--ttl <minutes>', description: `Session duration in minutes, 0 = unlimited (default: ${SESSION_TTL_MINUTES})` },
+    ],
+  })
+
+  unlockCmd.action(async (options) => {
       const name: string = options.name
       try {
         const keyService = createKeyService()
@@ -287,13 +335,13 @@ export function registerWalletCommand(program: Command): void {
           } catch { /* daemon unreachable, continue */ }
         }
 
-        const password = await promptPassphrase(`Enter passphrase to unlock '${name}':`)
+        const passphrase = await promptPassphrase(`Enter passphrase to unlock '${name}':`)
 
-        await keyService.unlock(password, name)
+        await keyService.unlock(passphrase, name)
 
         const spinner = ora(`Unlocking '${name}'...`).start()
         await daemonClient.ensureRunning()
-        await daemonClient.unlockWallet(name, password, ttl)
+        await daemonClient.unlockWallet(name, passphrase, ttl)
 
         spinner.succeed(`Wallet '${name}' unlocked`)
 
@@ -310,15 +358,21 @@ export function registerWalletCommand(program: Command): void {
       }
     })
 
-  wallet
+  const lockCmd = wallet
     .command('lock')
-    .description('Lock a wallet')
+    .description('Lock a wallet (omit --name to lock all)')
     .option('--name <name>', 'Wallet name')
-    .option('--all', 'Lock all wallets')
-    .action(async (options) => {
+
+  configureHelp(lockCmd, {
+    params: [
+      { flags: '--name <name>', description: 'Wallet name (omit to lock all)' },
+    ],
+  })
+
+  lockCmd.action(async (options) => {
       const name: string | undefined = options.name
       try {
-        if (options.all) {
+        if (!name) {
           if (await daemonClient.isRunning()) {
             await daemonClient.lock()
           }
@@ -330,11 +384,6 @@ export function registerWalletCommand(program: Command): void {
           console.log(chalk.green('  All wallets locked'))
           console.log()
           return
-        }
-
-        if (!name) {
-          console.error(chalk.red('Error: --name <name> or --all is required'))
-          process.exit(1)
         }
 
         if (!(await daemonClient.isRunning())) {
@@ -352,11 +401,18 @@ export function registerWalletCommand(program: Command): void {
       }
     })
 
-  wallet
+  const defaultCmd = wallet
     .command('default')
     .description('Set the default wallet')
     .requiredOption('--name <name>', 'Wallet name')
-    .action(async (options) => {
+
+  configureHelp(defaultCmd, {
+    params: [
+      { flags: '--name <name>', description: 'Wallet name', required: true },
+    ],
+  })
+
+  defaultCmd.action(async (options) => {
       const name: string = options.name
       try {
         const keyService = createKeyService()
@@ -372,12 +428,20 @@ export function registerWalletCommand(program: Command): void {
       }
     })
 
-  wallet
+  const renameCmd = wallet
     .command('rename')
     .description('Rename a wallet')
     .requiredOption('--name <name>', 'Current wallet name')
     .requiredOption('--new-name <name>', 'New wallet name')
-    .action(async (options) => {
+
+  configureHelp(renameCmd, {
+    params: [
+      { flags: '--name <name>', description: 'Current wallet name', required: true },
+      { flags: '--new-name <name>', description: 'New wallet name', required: true },
+    ],
+  })
+
+  renameCmd.action(async (options) => {
       const oldName: string = options.name
       const newName: string = options.newName
       try {

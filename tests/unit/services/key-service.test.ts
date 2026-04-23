@@ -90,7 +90,7 @@ describe('KeyService', () => {
   it('throws WrongPasswordError on bad password', async () => {
     const phrase = keyService.generate(12)
     await keyService.store(phrase, 'correctpass', 'default')
-    await expect(keyService.unlock('wrongpass', 'default')).rejects.toThrow('Incorrect password')
+    await expect(keyService.unlock('wrongpass', 'default')).rejects.toThrow('Incorrect passphrase')
   })
 
   it('throws InvalidSeedPhraseError for invalid phrases', async () => {
@@ -120,7 +120,7 @@ describe('KeyService', () => {
     expect(retrieved2).toBe(phrase2)
 
     // Wrong password for wallet-a should fail
-    await expect(keyService.unlock('pass2', 'wallet-a')).rejects.toThrow('Incorrect password')
+    await expect(keyService.unlock('pass2', 'wallet-a')).rejects.toThrow('Incorrect passphrase')
   })
 
   it('lists wallets', async () => {

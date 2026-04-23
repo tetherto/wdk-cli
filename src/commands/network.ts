@@ -28,6 +28,7 @@ import {
 import { configService } from '../services/config-service.js'
 import { createTable } from '../ui/tables.js'
 import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
+import { configureHelp } from '../ui/help.js'
 import type { NetworkConfig } from '../types/index.js'
 import walletsFile from '../../wdk.config.json' with { type: 'json' }
 
@@ -44,12 +45,22 @@ export function registerNetworkCommand(program: Command): void {
     .command('network')
     .description('Manage blockchain networks')
 
-  network
+  configureHelp(network, {})
+
+  const listCmd = network
     .command('list')
     .description('List supported blockchain networks')
     .option('--testnet', 'Show only testnets')
     .option('--mainnet', 'Show only mainnets')
-    .action((options: { testnet?: boolean; mainnet?: boolean }) => {
+
+  configureHelp(listCmd, {
+    options: [
+      { flags: '--testnet', description: 'Show only testnets' },
+      { flags: '--mainnet', description: 'Show only mainnets' },
+    ],
+  })
+
+  listCmd.action((options: { testnet?: boolean; mainnet?: boolean }) => {
       let names = getAllNetworkNames()
       const allNetworks = getAllNetworks()
 
@@ -57,6 +68,15 @@ export function registerNetworkCommand(program: Command): void {
         names = names.filter((n) => isTestnet(n))
       } else if (options.mainnet) {
         names = names.filter((n) => !isTestnet(n))
+      }
+
+      if (program.opts().json) {
+        const networks = names.map(name => {
+          const config = allNetworks[name]
+          return { name, displayName: config.displayName, module: config.module, symbol: config.nativeSymbol, decimals: config.decimals, testnet: isTestnet(name), custom: !!config.custom }
+        })
+        console.log(JSON.stringify({ networks, count: networks.length }, null, 2))
+        return
       }
 
       const table = createTable(['Name', 'Network', 'Type', 'Symbol', 'Testnet'])
@@ -77,12 +97,20 @@ export function registerNetworkCommand(program: Command): void {
       console.log(chalk.dim(`\n  ${names.length} networks available`))
     })
 
-  network
+  const createCmd = network
     .command('create')
     .description('Create a custom network')
     .requiredOption('--name <name>', 'Network identifier (e.g. base, optimism)')
     .requiredOption('--network-data <json>', 'JSON with network definition (displayName, module, nativeSymbol, decimals, testnet, indexerBlockchain, tokens, config)')
-    .action((options) => {
+
+  configureHelp(createCmd, {
+    params: [
+      { flags: '--name <name>', description: 'Network identifier (e.g. base, optimism)', required: true },
+      { flags: '--network-data <json>', description: 'JSON with network definition', required: true },
+    ],
+  })
+
+  createCmd.action((options) => {
       const name: string = options.name
 
       let jsonData: Record<string, unknown>
@@ -166,14 +194,24 @@ export function registerNetworkCommand(program: Command): void {
       if (Object.keys(networkConfig).length > 0) console.log(`  Config:     ${Object.keys(networkConfig).length} keys`)
       console.log()
       if (Object.keys(networkConfig).length === 0) {
-        console.log(chalk.dim(`Use wdk config set <key> <value> --network ${name} to configure network settings.`))
+        console.log(chalk.dim(`Use wdk config set --key <key> --value <value> --network ${name} to configure network settings.`))
       }
     })
 
-  network
-    .command('delete <name>')
+  const deleteCmd = network
+    .command('delete')
     .description('Delete a custom network')
-    .action((name: string) => {
+    .requiredOption('--name <name>', 'Network name to delete')
+
+  configureHelp(deleteCmd, {
+    params: [
+      { flags: '--name <name>', description: 'Network name to delete', required: true },
+    ],
+  })
+
+  deleteCmd.action((options: { name: string }) => {
+      const name = options.name
+
       if (isBuiltinNetwork(name)) {
         console.error(chalk.red(`Error: '${name}' is a built-in network and cannot be deleted.`))
         process.exit(1)
@@ -186,20 +224,28 @@ export function registerNetworkCommand(program: Command): void {
 
       deleteCustomNetwork(name)
       configService.delete(`networks.${name}`)
-      console.log(chalk.green(`Network '${name}' deleted.`))
+
+      if (program.opts().json) {
+        console.log(JSON.stringify({ name, deleted: true }))
+      } else {
+        console.log(chalk.green(`Network '${name}' deleted.`))
+      }
     })
 
-  network
+  const info = network
     .command('info')
     .description('Show network details and configuration')
-    .option('--network <network>', 'Blockchain network')
-    .action((options) => {
+    .requiredOption('--network <network>', 'Blockchain network')
+
+  configureHelp(info, {
+    params: [
+      { flags: '--network <network>', description: 'Blockchain network', required: true },
+    ],
+  })
+
+  info.action((options) => {
       try {
         const networkName = options.network
-        if (!networkName) {
-          console.error(chalk.red('Error: --network is required.'))
-          process.exit(1)
-        }
         if (!isValidNetwork(networkName)) throw new WdkCliError(`Network '${networkName}' is not supported.`, ErrorCode.NETWORK_NOT_SUPPORTED)
 
         const config = getNetworkConfig(networkName)

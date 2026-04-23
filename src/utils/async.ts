@@ -12,35 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-export type DaemonAction =
-  | 'get_address'
-  | 'get_balance'
-  | 'get_history'
-  | 'estimate_fee'
-  | 'send'
-  | 'list_wallets'
-  | 'status'
-  | 'unlock_wallet'
-  | 'lock_wallet'
-  | 'lock'
-
-export interface DaemonRequest {
-  action: DaemonAction
-  wallet?: string
-  passphrase?: string
-  ttl?: number
-  network?: string
-  index?: number
-  token?: string
-  to?: string
-  amount?: string
-  limit?: number
-  fromTs?: number
-  toTs?: number
-}
-
-export interface DaemonResponse {
-  ok: boolean
-  data?: unknown
-  error?: string
+export function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>
+  return Promise.race([
+    promise.then((v) => { clearTimeout(timer); return v }),
+    new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s. The RPC provider may be slow or unreachable.`)), ms)
+    }),
+  ])
 }

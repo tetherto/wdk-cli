@@ -60,7 +60,7 @@ export class WalletDaemon {
     await chmod(pidPath, 0o600)
   }
 
-  private unlockWalletSync(name: string, password: string, ttlMinutes: number): void {
+  private unlockWalletSync(name: string, passphrase: string, ttlMinutes: number): void {
     // If already unlocked, just reset the timer
     const existing = this.wallets.get(name)
     if (existing) {
@@ -72,7 +72,7 @@ export class WalletDaemon {
     const data = readFileSync(walletPath, 'utf8')
     const payload: EncryptedPayload = JSON.parse(data)
     const salt = Buffer.from(payload.salt, 'hex')
-    const key = deriveKey(password, salt)
+    const key = deriveKey(passphrase, salt)
     try {
       const seed = decryptWithKey(payload, key)
       const wdk = new WdkService()
@@ -177,12 +177,12 @@ export class WalletDaemon {
         if (!wallet) {
           return { ok: false, error: 'Missing wallet name' }
         }
-        if (!req.password) {
-          return { ok: false, error: 'Missing password' }
+        if (!req.passphrase) {
+          return { ok: false, error: 'Missing passphrase' }
         }
         try {
           const ttl = req.ttl ?? 5
-          this.unlockWalletSync(wallet, req.password, ttl)
+          this.unlockWalletSync(wallet, req.passphrase, ttl)
           return { ok: true, data: { message: `Wallet '${wallet}' unlocked`, wallet } }
         } catch (e) {
           return { ok: false, error: e instanceof Error ? e.message : String(e) }

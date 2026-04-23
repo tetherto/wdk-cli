@@ -149,7 +149,7 @@ wdk network list              # List all networks (built-in + custom)
 wdk network list --testnet    # Show only testnets
 wdk network list --mainnet    # Show only mainnets
 wdk network info --network <network>  # Show network details and config
-wdk network delete <name>     # Delete a custom network
+wdk network delete --name <name>      # Delete a custom network
 ```
 
 #### Adding Custom Networks
@@ -216,7 +216,6 @@ Wallets are derived deterministically from your seed phrase using HD paths (BIP-
 wdk send --to <address> --amount <base-units> --network <network>
 wdk send --to <address> --amount <base-units> --network ethereum --token <contract>  # ERC-20 transfer
 wdk send --to <address> --amount <base-units> --network solana --token <mint>        # SPL transfer
-wdk send --to <address> --amount <base-units> --network ethereum --yes               # skip confirmation
 wdk send --to <address> --amount <base-units> --network ethereum --dry-run           # preview without sending
 ```
 
@@ -236,12 +235,12 @@ wdk sell --network ethereum --token eth --fiat-amount 200        # Sell ETH for 
 wdk sell --network polygon --token usdt --crypto-amount 50       # Sell 50 USDT on Polygon
 ```
 
-Uses MoonPay as the fiat provider. Requires API key configuration:
+Uses MoonPay as the fiat provider. All three config values are required:
 
 ```bash
 wdk config set moonpay.apiKey <your-publishable-key>
-wdk config set moonpay.environment production    # or sandbox (default)
-wdk config set moonpay.signUrl <your-sign-url>   # optional, for URL signing
+wdk config set moonpay.signUrl <your-sign-url>
+wdk config set moonpay.environment sandbox       # or production
 ```
 
 **Options:**
@@ -259,20 +258,29 @@ Supported tokens per network are defined in [`wdk.config.json`](wdk.config.json)
 
 Environment variables: `WDK_MOONPAY_API_KEY`, `WDK_MOONPAY_SIGN_URL`, `WDK_MOONPAY_ENVIRONMENT`.
 
-### Configuration
+### Configuration (Interactive Only)
+
+Config commands are interactive and do not support `--json`.
 
 ```bash
-wdk config list                                                     # Show all config
-wdk config get                                                      # Show global settings
-wdk config get --network ethereum                                   # Show Ethereum config
-wdk config set provider <rpc-url> --network ethereum                # Custom RPC for Ethereum
-wdk config set transferMaxFee 50000000000 --network ethereum        # Max fee for Ethereum
-wdk config set host electrum.example.com --network bitcoin          # Custom Electrum host for BTC
-wdk config set port 50002 --network bitcoin                         # Custom Electrum port
-wdk config set protocol tls --network bitcoin                       # Electrum transport (tcp/tls/ssl)
-wdk config reset provider --network ethereum                        # Reset to default
-wdk config path                                                     # Config file location
+# Get
+wdk config get                                                  # Show all config
+wdk config get --key moonpay.apiKey                             # Show a specific value
+wdk config get --network ethereum                               # Show Ethereum config
+wdk config get --key provider --network ethereum                # Show a network-specific value
+
+# Set
+wdk config set --key moonpay.apiKey --value pk_test_...         # Set a value
+wdk config set --key provider --value <rpc-url> --network ethereum              # Network-scoped value
+wdk config set --key moonpay --value '{"apiKey":"...","signUrl":"...","environment":"sandbox"}'  # JSON object
+wdk config set --value '{"provider":"https://...","transferMaxFee":5000}' --network optimism    # Full network config
+
+# Reset / Path
+wdk config reset --key provider --network ethereum              # Reset to default
+wdk config path                                                 # Config file path
 ```
+
+Values passed to `--value` support JSON — objects and arrays are parsed and stored as structured data. Use `--network` to scope config to a specific network. When `--key` is omitted with `--network`, the entire network config is set.
 
 Network configuration is passed directly to the wallet SDK. Refer to each [wallet module's documentation](https://docs.wdk.tether.io/sdk/wallet-modules) for supported config keys. Default values are in [`wdk.config.json`](wdk.config.json).
 
@@ -280,11 +288,9 @@ Network configuration is passed directly to the wallet SDK. Refer to each [walle
 
 | Flag | Description |
 |------|-------------|
-| `--network <network>` | Override default network |
 | `--index <n>` | Account index (default: 0) |
 | `--wallet <name>` | Wallet name (uses default wallet if omitted) |
-| `--json` | Machine-readable JSON output |
-
+| `--json` | Machine-readable JSON output (not supported by wallet/config commands) |
 | `--verbose` | Debug logging |
 
 ## Supported Networks
@@ -299,7 +305,7 @@ Environment variables override config values at runtime without modifying the co
 
 | Variable | Description |
 |----------|-------------|
-| `WDK_PASSWORD` | Wallet unlock passphrase (skip interactive prompt) |
+| `WDK_PASSPHRASE` | Wallet passphrase (skip interactive prompt) |
 | `WDK_INDEXER_BASE_URL` | Override `indexer.baseUrl` from config |
 | `WDK_INDEXER_API_KEY` | Override `indexer.apiKey` from config |
 | `WDK_MOONPAY_API_KEY` | Override `moonpay.apiKey` from config |
@@ -338,16 +344,18 @@ AI agents interact with wdk-wallet in two ways, depending on their environment:
 
 ### MCP — for sandboxed AI models
 
-For AI models that run as applications with limited system access (Claude Desktop, ChatGPT Desktop, etc.). The model can only interact with the wallet through structured MCP tools — it cannot run commands or access the filesystem.
+For AI models that run as applications with limited system access (Claude Desktop, OpenClaw, etc.). The model can only interact with the wallet through structured MCP tools — it cannot run commands or access the filesystem.
 
 ```bash
-wdk setup claude-desktop    # Claude Desktop
-wdk setup claude-code       # Claude Code
-wdk setup chatgpt           # ChatGPT Desktop
-wdk setup openclaw          # OpenClaw
+wdk mcp setup --ai-tool claude-desktop    # Claude Desktop
+wdk mcp setup --ai-tool claude-code       # Claude Code
+wdk mcp setup --ai-tool openclaw          # OpenClaw
+
+wdk mcp setup --ai-tool claude-desktop --remove   # Uninstall
+wdk mcp status                                     # Show which AI tools are configured
 ```
 
-Each command auto-detects the Node.js path, validates prerequisites, and writes the config. Use `--remove` to uninstall.
+Each command auto-detects the Node.js path, validates the MCP server, and writes the config.
 
 **MCP Tools:** `get_networks`, `get_address`, `get_balance`, `get_history`, `send_token`
 
@@ -360,7 +368,7 @@ For AI agents with full system access (Claude Code, OpenClaw, custom agents). Th
 ```bash
 wdk get balance --network ethereum --json
 wdk send --to 0xRECIPIENT --amount 1000000 --network ethereum --dry-run
-wdk send --to 0xRECIPIENT --amount 1000000 --network ethereum --json --yes
+wdk send --to 0xRECIPIENT --amount 1000000 --network ethereum --json
 ```
 
 The `wdk-wallet/SKILL.md` file contains complete instructions for AI agents — commands, workflows, error handling, and amount conversions. Feed it as context to your agent.

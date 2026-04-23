@@ -16,8 +16,9 @@ import { Command } from 'commander'
 import chalk from 'chalk'
 import { configService } from '../services/config-service.js'
 import { CONFIG_DEFAULTS } from '../config/constants.js'
-import { isValidNetwork } from '../config/networks.js'
-import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
+import { validateNetwork } from '../config/networks.js'
+import { handleError } from '../errors/index.js'
+import { configureHelp } from '../ui/help.js'
 
 function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
   return path.split('.').reduce((o: Record<string, unknown> | undefined, k) => (o as Record<string, unknown> | undefined)?.[k] as Record<string, unknown> | undefined, obj as Record<string, unknown> | undefined) as unknown
@@ -45,21 +46,37 @@ function printEntries(entries: [string, string][]): void {
   }
 }
 
-function validateNetwork(network: string): void {
-  if (!isValidNetwork(network)) throw new WdkCliError(`Network '${network}' is not supported.`, ErrorCode.NETWORK_NOT_SUPPORTED)
-}
-
 export function registerConfigCommand(program: Command): void {
   const config = program
     .command('config')
     .description('Manage CLI configuration')
+    .option('--network <network>', 'Scope to a specific network')
 
-  config
-    .command('get [key]')
-    .description('Get config value (add --network for per-network config)')
-    .action((key?: string) => {
+  config.hook('preAction', () => {
+    if (program.opts().json) {
+      console.error(chalk.red('Error: --json is not supported for config commands.'))
+      process.exit(1)
+    }
+  })
+
+  configureHelp(config, { hideFlags: ['--json'] })
+
+  const getCmd = config
+    .command('get')
+    .description('Get a config value, or all values if key is omitted')
+    .option('--key <key>', 'Config key (omit to show all)')
+
+  configureHelp(getCmd, { hideFlags: ['--json'],
+    params: [
+      { flags: '--key <key>', description: 'Config key (omit to show all)' },
+      { flags: '--network <network>', description: 'Scope to a specific network' },
+    ],
+  })
+
+  getCmd.action((options: { key?: string }) => {
       try {
-        const network = program.opts().network
+        const network = config.opts().network
+        const key = options.key
 
         if (network) {
           validateNetwork(network)
@@ -71,15 +88,17 @@ export function registerConfigCommand(program: Command): void {
               console.log(typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value))
             }
           } else {
-            const networkConfig = configService.get(`networks.${network}`)
+            const networkConfig = configService.get(`networks.${network}`) as Record<string, unknown> | undefined
             if (networkConfig && typeof networkConfig === 'object') {
+              console.log()
               console.log(chalk.bold(`  ${network}:`))
-              const entries = flatten(networkConfig as Record<string, unknown>)
+              const entries = flatten(networkConfig)
               const maxKey = Math.max(...entries.map(([k]) => k.length))
               for (const [k, v] of entries) {
                 const display = v || chalk.dim('(not set)')
                 console.log(`    ${k.padEnd(maxKey)}  ${display}`)
               }
+              console.log()
             } else {
               console.log(chalk.yellow(`No config found for network '${network}'.`))
             }
@@ -93,70 +112,74 @@ export function registerConfigCommand(program: Command): void {
           }
         } else {
           const all = configService.list()
-          const global: Record<string, unknown> = {}
-          for (const [k, v] of Object.entries(all)) {
-            if (k !== 'networks') global[k] = v
-          }
-          printEntries(flatten(global))
+          printEntries(flatten(all))
+          console.log(chalk.dim(`\n  Config file: ${configService.configPath}`))
         }
       } catch (error) {
-        handleError(error, false, program.opts().json)
+        handleError(error, false)
       }
     })
 
-  config
-    .command('set <key> [value]')
-    .description('Set config value or full network config with JSON (add --network for per-network config)')
-    .action((key: string, value: string | undefined) => {
+  const setCmd = config
+    .command('set')
+    .description('Set a config value (supports JSON for objects)')
+    .option('--key <key>', 'Config key')
+    .requiredOption('--value <value>', 'Config value (supports JSON for objects)')
+
+  configureHelp(setCmd, { hideFlags: ['--json'],
+    params: [
+      { flags: '--key <key>', description: 'Config key (required without --network)' },
+      { flags: '--value <value>', description: 'Config value (supports JSON for objects)', required: true },
+      { flags: '--network <network>', description: 'Scope to a specific network' },
+    ],
+  })
+
+  setCmd.action((options: { key?: string; value: string }) => {
       try {
-        const network = program.opts().network
+        const network = config.opts().network
+        const { key, value } = options
 
-        if (network && key.startsWith('{')) {
-          validateNetwork(network)
-          let jsonConfig: unknown
-          try {
-            jsonConfig = JSON.parse(key)
-          } catch {
-            console.log(chalk.red('Error: Invalid JSON'))
-            return
-          }
-          configService.set(`networks.${network}`, jsonConfig)
-          console.log(chalk.green(`Updated config for ${network}`))
-          return
-        }
-
-        if (value === undefined) {
-          console.log(chalk.red('Error: <value> is required'))
+        if (!key && !network) {
+          console.log(chalk.red('Error: --key is required (or use --network to set network config)'))
           return
         }
 
         if (network) validateNetwork(network)
 
-        let fullKey = key
-        if (network) {
-          fullKey = `networks.${network}.${key}`
-        }
-
         let parsed: unknown = value
         try { parsed = JSON.parse(value) } catch { /* not JSON, use raw value */ }
 
-        configService.set(fullKey, parsed)
-        if (network) {
+        if (network && !key) {
+          configService.set(`networks.${network}`, parsed)
+          console.log(chalk.green(`Updated config for ${network}`))
+        } else if (network && key) {
+          configService.set(`networks.${network}.${key}`, parsed)
           console.log(chalk.green(`Set ${key} = ${value} (${network})`))
         } else {
+          configService.set(key!, parsed)
           console.log(chalk.green(`Set ${key} = ${value}`))
         }
       } catch (error) {
-        handleError(error, false, program.opts().json)
+        handleError(error, false)
       }
     })
 
-  config
-    .command('reset <key>')
-    .description('Reset config value to default (add --network for per-network config)')
-    .action((key: string) => {
+  const resetCmd = config
+    .command('reset')
+    .description('Reset a config value to its default')
+    .requiredOption('--key <key>', 'Config key')
+
+  configureHelp(resetCmd, { hideFlags: ['--json'],
+    params: [
+      { flags: '--key <key>', description: 'Config key', required: true },
+      { flags: '--network <network>', description: 'Scope to a specific network' },
+    ],
+  })
+
+  resetCmd.action((options: { key: string }) => {
       try {
-        const network = program.opts().network
+        const network = config.opts().network
+        const { key } = options
 
         if (network) validateNetwork(network)
 
@@ -171,60 +194,24 @@ export function registerConfigCommand(program: Command): void {
         } else {
           configService.delete(fullKey)
         }
+
         if (network) {
           console.log(chalk.green(`Reset ${key} to default (${network}).`))
         } else {
           console.log(chalk.green(`Reset ${key} to default.`))
         }
       } catch (error) {
-        handleError(error, false, program.opts().json)
+        handleError(error, false)
       }
     })
 
-  config
-    .command('list')
-    .description('List all configuration values')
-    .action(() => {
-      try {
-        const parentOpts = program.opts()
-        const network = parentOpts.network
-        const all = configService.list()
-
-        if (parentOpts.json) {
-          console.log(JSON.stringify(all, null, 2))
-          return
-        }
-
-        if (network) {
-          validateNetwork(network)
-          const netConf = configService.get(`networks.${network}`) as Record<string, unknown> || {}
-
-          console.log()
-          console.log(chalk.bold(`  Configuration for ${network}:`))
-          console.log()
-
-          const entries = flatten(netConf)
-          if (entries.length === 0) {
-            console.log(chalk.dim('  No configuration set.'))
-          } else {
-            printEntries(entries)
-          }
-          console.log()
-          console.log(chalk.dim(`  Set with: wdk config set <key> <value> --network ${network}`))
-        } else {
-          printEntries(flatten(all))
-        }
-
-        console.log(chalk.dim(`\n  Config file: ${configService.configPath}`))
-      } catch (error) {
-        handleError(error, false, program.opts().json)
-      }
-    })
-
-  config
+  const pathCmd = config
     .command('path')
-    .description('Show config file location')
-    .action(() => {
+    .description('Show config file path')
+
+  configureHelp(pathCmd, { hideFlags: ['--json'] })
+
+  pathCmd.action(() => {
       console.log(configService.configPath)
     })
 }

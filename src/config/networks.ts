@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import type { NetworkConfig } from '../types/index.js'
+import type { NetworkConfig, NetworkName } from '../types/index.js'
 import { configService } from '../services/config-service.js'
+import { WdkCliError, ErrorCode } from '../errors/index.js'
 import walletsFile from '../../wdk.config.json' with { type: 'json' }
 
 const NETWORKS: Record<string, NetworkConfig> = {}
@@ -86,4 +87,10 @@ export function saveCustomNetwork(name: string, config: NetworkConfig): void {
 
 export function deleteCustomNetwork(name: string): void {
   configService.delete(`customNetworks.${name}`)
+}
+
+export function validateNetwork(network: string): asserts network is NetworkName {
+  if (!isValidNetwork(network)) {
+    throw new WdkCliError(`Network '${network}' is not supported.`, ErrorCode.NETWORK_NOT_SUPPORTED)
+  }
 }

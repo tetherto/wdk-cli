@@ -21,9 +21,8 @@ Operate a self-custody multi-chain wallet through the `wdk` CLI. All commands ru
 
 1. Always append `--json` to get machine-parseable output (errors also return JSON: `{"error":"...","code":"...","suggestion":"..."}`)
 2. Before sending, use `--dry-run` to preview, show summary to user, and wait for confirmation in chat
-3. Use `--yes` when sending (user already confirmed in chat, CLI prompt would hang)
-4. Amounts are always in **base units** (wei, satoshis, lamports) — never decimals
-5. Never ask for or log seed phrases or passphrases
+3. Amounts are always in **base units** (wei, satoshis, lamports) — never decimals
+4. Never ask for or log seed phrases or passphrases
 
 ## Prerequisites
 
@@ -43,7 +42,7 @@ Users can create multiple named wallets. Use `--wallet <name>` on any command to
 # Use --wallet <name> on data/send commands to target a specific wallet:
 wdk get address --network ethereum --wallet trading --json
 wdk get balance --network ethereum --wallet savings --json
-wdk send --to 0x... --amount 1000 --network ethereum --wallet trading --json --yes
+wdk send --to 0x... --amount 1000 --network ethereum --wallet trading --json
 ```
 
 ## Commands
@@ -99,10 +98,10 @@ wdk send --to 0xRECIPIENT --amount 1000000000000000000 --network ethereum --dry-
 
 Step 2: Show the summary to the user and wait for confirmation in chat.
 
-Step 3: Execute the transfer with `--yes` (user already confirmed):
+Step 3: Execute the transfer:
 
 ```bash
-wdk send --to 0xRECIPIENT --amount 1000000000000000000 --network ethereum --json --yes
+wdk send --to 0xRECIPIENT --amount 1000000000000000000 --network ethereum --json
 ```
 
 ### Transaction History
@@ -150,11 +149,11 @@ Amounts are in base units. Common conversions:
 | "No wallet found" | Ask user to run `wdk wallet create --name <name>` |
 | "Wallet is locked" | Ask user to run `wdk wallet unlock --name <name>` |
 | "Insufficient balance" | Inform user, show current balance |
-| "403 Forbidden" (indexer) | Ask user to set API key: `wdk config set indexer.apiKey <key>` |
+| "403 Forbidden" (indexer) | Ask user to set API key: `wdk config set --key indexer.apiKey --value <key>` |
 | "Unknown token" | Token not in known registry, provide contract address |
-| "MoonPay API key not configured" | Ask user to run `wdk config set moonpay.apiKey <key>` |
-| "Cannot use production MoonPay with testnet" | Ask user to run `wdk config set moonpay.environment sandbox` |
-| "Cannot use sandbox MoonPay with mainnet" | Ask user to run `wdk config set moonpay.environment production` |
+| "MoonPay API key not configured" | Ask user to run `wdk config set --key moonpay.apiKey --value <key>` |
+| "Cannot use production MoonPay with testnet" | Ask user to run `wdk config set --key moonpay.environment --value sandbox` |
+| "Cannot use sandbox MoonPay with mainnet" | Ask user to run `wdk config set --key moonpay.environment --value production` |
 
 ## Restricted Actions (NEVER do these)
 

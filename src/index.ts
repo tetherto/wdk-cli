@@ -19,7 +19,7 @@ import { registerWalletCommand } from './commands/wallet.js'
 import { registerGetCommand } from './commands/get.js'
 import { registerSendCommand } from './commands/send.js'
 import { registerNetworkCommand } from './commands/network.js'
-import { registerSetupCommand } from './commands/setup.js'
+import { registerMcpCommand } from './commands/mcp-setup.js'
 import { registerRampCommands } from './commands/ramp.js'
 
 export function createProgram(): Command {
@@ -28,21 +28,17 @@ export function createProgram(): Command {
     .name(APP_NAME)
     .description('CLI tool for Wallet Development Kit (WDK)')
     .version(APP_VERSION)
-    .option('--network <network>', 'Override default network')
-    .option('--index <n>', 'Account index (default: 0)', '0')
-    .option('--wallet <name>', 'Wallet name (default: "default")')
     .option('--json', 'Output as JSON')
-
     .option('--verbose', 'Enable debug logging')
     .showHelpAfterError()
 
-  registerConfigCommand(program)
   registerWalletCommand(program)
   registerGetCommand(program)
   registerSendCommand(program)
-  registerNetworkCommand(program)
-  registerSetupCommand(program)
   registerRampCommands(program)
+  registerConfigCommand(program)
+  registerNetworkCommand(program)
+  registerMcpCommand(program)
 
   return program
 }
