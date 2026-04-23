@@ -35,7 +35,7 @@ Each wallet is unlocked individually with its own passphrase and TTL. These requ
 
 ## Multi-Wallet
 
-Users can create multiple named wallets. Use `--wallet <name>` on any command to target a specific wallet (defaults to `"default"`).
+Users can create multiple named wallets. Use `--wallet <name>` on any command to target a specific wallet (defaults to the wallet set via `wdk wallet default`).
 
 ```bash
 # Wallet commands are interactive only (no --json). AI agents cannot run them.
@@ -92,7 +92,7 @@ wdk get balance --testnet --json
 Step 1: Preview the transaction with `--dry-run` to get accurate fee and USD values:
 
 ```bash
-wdk send --to 0xRECIPIENT --amount 1000000000000000000 --network ethereum --dry-run
+wdk send --to 0xRECIPIENT --amount 1000000000000000000 --network ethereum --dry-run --json
 # {"network":"ethereum","networkName":"Ethereum","to":"0x...","amount":"1000000000000000000","amountFormatted":"1.00 ETH","amountUsd":2100.50,"estimatedFee":"21000","estimatedFeeFormatted":"0.00000002 ETH","estimatedFeeUsd":0.04}
 ```
 

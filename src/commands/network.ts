@@ -29,6 +29,9 @@ import { configService } from '../services/config-service.js'
 import { createTable } from '../ui/tables.js'
 import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
 import { configureHelp } from '../ui/help.js'
+import { promptPassphrase } from '../ui/prompts.js'
+import { KeyService } from '../services/key-service.js'
+import { WalletKeyring } from '../security/keyring.js'
 import type { NetworkConfig } from '../types/index.js'
 import walletsFile from '../../wdk.config.json' with { type: 'json' }
 
@@ -110,8 +113,15 @@ export function registerNetworkCommand(program: Command): void {
     ],
   })
 
-  createCmd.action((options) => {
-      const name: string = options.name
+  createCmd.action(async (options) => {
+      try {
+        const keyService = new KeyService(new WalletKeyring())
+        const defaultWallet = configService.getDefaultWallet()
+        if (defaultWallet && await keyService.hasKey(defaultWallet)) {
+          const passphrase = await promptPassphrase(`Enter passphrase of '${defaultWallet}' wallet to confirm:`)
+          await keyService.unlock(passphrase, defaultWallet)
+        }
+        const name: string = options.name
 
       let jsonData: Record<string, unknown>
       try {
@@ -196,6 +206,9 @@ export function registerNetworkCommand(program: Command): void {
       if (Object.keys(networkConfig).length === 0) {
         console.log(chalk.dim(`Use wdk config set --key <key> --value <value> --network ${name} to configure network settings.`))
       }
+      } catch (error) {
+        handleError(error, program.opts().verbose, program.opts().json)
+      }
     })
 
   const deleteCmd = network
@@ -209,26 +222,34 @@ export function registerNetworkCommand(program: Command): void {
     ],
   })
 
-  deleteCmd.action((options: { name: string }) => {
-      const name = options.name
+  deleteCmd.action(async (options: { name: string }) => {
+      try {
+        const keyService = new KeyService(new WalletKeyring())
+        const defaultWallet = configService.getDefaultWallet()
+        if (defaultWallet && await keyService.hasKey(defaultWallet)) {
+          const passphrase = await promptPassphrase(`Enter passphrase of '${defaultWallet}' wallet to confirm:`)
+          await keyService.unlock(passphrase, defaultWallet)
+        }
+        const name = options.name
 
-      if (isBuiltinNetwork(name)) {
-        console.error(chalk.red(`Error: '${name}' is a built-in network and cannot be deleted.`))
-        process.exit(1)
-      }
+        if (isBuiltinNetwork(name)) {
+          throw new WdkCliError(`'${name}' is a built-in network and cannot be deleted.`, ErrorCode.INVALID_ARGUMENT)
+        }
 
-      if (!isCustomNetwork(name)) {
-        console.error(chalk.red(`Error: Custom network '${name}' not found.`))
-        process.exit(1)
-      }
+        if (!isCustomNetwork(name)) {
+          throw new WdkCliError(`Custom network '${name}' not found.`, ErrorCode.NETWORK_NOT_SUPPORTED)
+        }
 
-      deleteCustomNetwork(name)
-      configService.delete(`networks.${name}`)
+        deleteCustomNetwork(name)
+        configService.delete(`networks.${name}`)
 
-      if (program.opts().json) {
-        console.log(JSON.stringify({ name, deleted: true }))
-      } else {
-        console.log(chalk.green(`Network '${name}' deleted.`))
+        if (program.opts().json) {
+          console.log(JSON.stringify({ name, deleted: true }))
+        } else {
+          console.log(chalk.green(`Network '${name}' deleted.`))
+        }
+      } catch (error) {
+        handleError(error, program.opts().verbose, program.opts().json)
       }
     })
 

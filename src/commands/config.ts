@@ -19,6 +19,9 @@ import { CONFIG_DEFAULTS } from '../config/constants.js'
 import { validateNetwork } from '../config/networks.js'
 import { handleError } from '../errors/index.js'
 import { configureHelp } from '../ui/help.js'
+import { promptPassphrase } from '../ui/prompts.js'
+import { KeyService } from '../services/key-service.js'
+import { WalletKeyring } from '../security/keyring.js'
 
 function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
   return path.split('.').reduce((o: Record<string, unknown> | undefined, k) => (o as Record<string, unknown> | undefined)?.[k] as Record<string, unknown> | undefined, obj as Record<string, unknown> | undefined) as unknown
@@ -116,7 +119,7 @@ export function registerConfigCommand(program: Command): void {
           console.log(chalk.dim(`\n  Config file: ${configService.configPath}`))
         }
       } catch (error) {
-        handleError(error, false)
+        handleError(error, program.opts().verbose)
       }
     })
 
@@ -134,8 +137,14 @@ export function registerConfigCommand(program: Command): void {
     ],
   })
 
-  setCmd.action((options: { key?: string; value: string }) => {
+  setCmd.action(async (options: { key?: string; value: string }) => {
       try {
+        const keyService = new KeyService(new WalletKeyring())
+        const defaultWallet = configService.getDefaultWallet()
+        if (defaultWallet && await keyService.hasKey(defaultWallet)) {
+          const passphrase = await promptPassphrase(`Enter passphrase of '${defaultWallet}' wallet to confirm:`)
+          await keyService.unlock(passphrase, defaultWallet)
+        }
         const network = config.opts().network
         const { key, value } = options
 
@@ -160,7 +169,7 @@ export function registerConfigCommand(program: Command): void {
           console.log(chalk.green(`Set ${key} = ${value}`))
         }
       } catch (error) {
-        handleError(error, false)
+        handleError(error, program.opts().verbose)
       }
     })
 
@@ -176,8 +185,14 @@ export function registerConfigCommand(program: Command): void {
     ],
   })
 
-  resetCmd.action((options: { key: string }) => {
+  resetCmd.action(async (options: { key: string }) => {
       try {
+        const keyService = new KeyService(new WalletKeyring())
+        const defaultWallet = configService.getDefaultWallet()
+        if (defaultWallet && await keyService.hasKey(defaultWallet)) {
+          const passphrase = await promptPassphrase(`Enter passphrase of '${defaultWallet}' wallet to confirm:`)
+          await keyService.unlock(passphrase, defaultWallet)
+        }
         const network = config.opts().network
         const { key } = options
 
@@ -201,7 +216,7 @@ export function registerConfigCommand(program: Command): void {
           console.log(chalk.green(`Reset ${key} to default.`))
         }
       } catch (error) {
-        handleError(error, false)
+        handleError(error, program.opts().verbose)
       }
     })
 

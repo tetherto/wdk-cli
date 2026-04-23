@@ -13,19 +13,10 @@
 // limitations under the License.
 
 import { describe, it, expect } from 'vitest'
-import {
-  WdkCliError,
-  KeyNotFoundError,
-  InvalidSeedPhraseError,
-  WrongPasswordError,
-  NetworkNotSupportedError,
-  InsufficientBalanceError,
-  TransactionFailedError,
-  NetworkError,
-} from '../../../src/errors/index.js'
+import { WdkCliError, ErrorCode } from '../../../src/errors/index.js'
 
-describe('error classes', () => {
-  it('WdkCliError has code and suggestion', () => {
+describe('WdkCliError', () => {
+  it('has code and suggestion', () => {
     const err = new WdkCliError('test message', 'TEST_CODE', 'try again')
     expect(err.message).toBe('test message')
     expect(err.code).toBe('TEST_CODE')
@@ -33,44 +24,37 @@ describe('error classes', () => {
     expect(err).toBeInstanceOf(Error)
   })
 
-  it('KeyNotFoundError', () => {
-    const err = new KeyNotFoundError()
+  it('works without suggestion', () => {
+    const err = new WdkCliError('no hint', ErrorCode.KEY_NOT_FOUND)
     expect(err.code).toBe('KEY_NOT_FOUND')
-    expect(err.suggestion).toContain('wdk wallet create')
+    expect(err.suggestion).toBeUndefined()
   })
 
-  it('InvalidSeedPhraseError', () => {
-    const err = new InvalidSeedPhraseError()
-    expect(err.code).toBe('INVALID_SEED_PHRASE')
+  it('name is WdkCliError', () => {
+    const err = new WdkCliError('test', ErrorCode.UNKNOWN_ERROR)
+    expect(err.name).toBe('WdkCliError')
   })
 
-  it('WrongPasswordError', () => {
-    const err = new WrongPasswordError()
-    expect(err.code).toBe('WRONG_PASSWORD')
+  it('display is callable', () => {
+    const err = new WdkCliError('test', ErrorCode.UNKNOWN_ERROR, 'hint')
+    expect(typeof err.display).toBe('function')
   })
+})
 
-  it('NetworkNotSupportedError includes network name', () => {
-    const err = new NetworkNotSupportedError('solana')
-    expect(err.message).toContain('solana')
-    expect(err.code).toBe('NETWORK_NOT_SUPPORTED')
-  })
-
-  it('InsufficientBalanceError shows amounts', () => {
-    const err = new InsufficientBalanceError('100', '200', 'ETH')
-    expect(err.message).toContain('100')
-    expect(err.message).toContain('200')
-    expect(err.message).toContain('ETH')
-  })
-
-  it('TransactionFailedError includes reason', () => {
-    const err = new TransactionFailedError('gas too low', '0xabc')
-    expect(err.message).toContain('gas too low')
-    expect(err.message).toContain('0xabc')
-  })
-
-  it('NetworkError includes provider URL', () => {
-    const err = new NetworkError('https://eth.drpc.org')
-    expect(err.message).toContain('eth.drpc.org')
-    expect(err.suggestion).toContain('RPC URL')
+describe('ErrorCode', () => {
+  it('has all expected codes', () => {
+    expect(ErrorCode.KEY_NOT_FOUND).toBe('KEY_NOT_FOUND')
+    expect(ErrorCode.INVALID_SEED_PHRASE).toBe('INVALID_SEED_PHRASE')
+    expect(ErrorCode.WRONG_PASSPHRASE).toBe('WRONG_PASSPHRASE')
+    expect(ErrorCode.NETWORK_NOT_SUPPORTED).toBe('NETWORK_NOT_SUPPORTED')
+    expect(ErrorCode.INSUFFICIENT_BALANCE).toBe('INSUFFICIENT_BALANCE')
+    expect(ErrorCode.TRANSACTION_FAILED).toBe('TRANSACTION_FAILED')
+    expect(ErrorCode.NETWORK_ERROR).toBe('NETWORK_ERROR')
+    expect(ErrorCode.WALLET_LOCKED).toBe('WALLET_LOCKED')
+    expect(ErrorCode.WALLET_NOT_UNLOCKED).toBe('WALLET_NOT_UNLOCKED')
+    expect(ErrorCode.INVALID_ARGUMENT).toBe('INVALID_ARGUMENT')
+    expect(ErrorCode.INVALID_AMOUNT).toBe('INVALID_AMOUNT')
+    expect(ErrorCode.PASSPHRASE_MISMATCH).toBe('PASSPHRASE_MISMATCH')
+    expect(ErrorCode.ENVIRONMENT_MISMATCH).toBe('ENVIRONMENT_MISMATCH')
   })
 })

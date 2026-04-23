@@ -174,7 +174,7 @@ export function registerWalletCommand(program: Command): void {
           throw new WdkCliError('No key found.', ErrorCode.KEY_NOT_FOUND)
         }
 
-        const passphrase = await promptPassphrase('Enter passphrase:')
+        const passphrase = await promptPassphrase(`Enter passphrase of '${name}' wallet:`)
         const seedPhrase = await keyService.unlock(passphrase, name)
 
         console.log()
@@ -261,7 +261,7 @@ export function registerWalletCommand(program: Command): void {
           process.exit(1)
         }
 
-        const passphrase = await promptPassphrase('Enter passphrase to confirm deletion:')
+        const passphrase = await promptPassphrase(`Enter passphrase of '${name}' wallet to confirm deletion:`)
         await keyService.unlock(passphrase, name)
 
         const confirm = await promptConfirm(`Delete wallet '${name}'? This cannot be undone.`)

@@ -114,7 +114,7 @@ wdk network list
 wdk wallet lock --name trading
 
 # Lock all wallets when done
-wdk wallet lock --all
+wdk wallet lock
 ```
 
 ## Commands
@@ -130,7 +130,7 @@ wdk wallet export --name <name>                       # Display the seed phrase 
 wdk wallet list                                       # List all wallets with lock/default status
 wdk wallet unlock --name <name> [--ttl <minutes>]     # Unlock a wallet for signing transactions
 wdk wallet lock --name <name>                         # Lock a single wallet
-wdk wallet lock --all                                 # Lock all wallets (stops daemon)
+wdk wallet lock                                       # Lock all wallets (stops daemon)
 wdk wallet delete --name <name>                       # Delete a wallet (requires passphrase)
 wdk wallet default --name <name>                      # Set the default wallet
 wdk wallet rename --name <old> --new-name <new>       # Rename a wallet
@@ -149,12 +149,12 @@ wdk network list              # List all networks (built-in + custom)
 wdk network list --testnet    # Show only testnets
 wdk network list --mainnet    # Show only mainnets
 wdk network info --network <network>  # Show network details and config
-wdk network delete --name <name>      # Delete a custom network
+wdk network delete --name <name>      # Delete a custom network (requires unlocked wallet)
 ```
 
 #### Adding Custom Networks
 
-Use `wdk network create` with `--name` and `--network-data` (JSON):
+Use `wdk network create` with `--name` and `--network-data` (JSON). Requires an unlocked wallet:
 
 ```bash
 wdk network create --name optimism --network-data '{
@@ -187,7 +187,7 @@ wdk network create --name optimism --network-data '{
 | `tokens` | No | Known tokens: `[{ address, symbol, decimals }]` |
 | `config` | No | Network config passed to SDK (provider, chainId, etc.) |
 
-Custom networks are stored in config and work with all commands (`get balance`, `send`, `get address`, etc.). Network config can also be updated later with `wdk config set <key> <value> --network <name>`.
+Custom networks are stored in config and work with all commands (`get balance`, `send`, `get address`, etc.). Network config can also be updated later with `wdk config set --key <key> --value <value> --network <name>`.
 
 ### Get
 
@@ -238,9 +238,9 @@ wdk sell --network polygon --token usdt --crypto-amount 50       # Sell 50 USDT 
 Uses MoonPay as the fiat provider. All three config values are required:
 
 ```bash
-wdk config set moonpay.apiKey <your-publishable-key>
-wdk config set moonpay.signUrl <your-sign-url>
-wdk config set moonpay.environment sandbox       # or production
+wdk config set --key moonpay.apiKey --value <your-publishable-key>
+wdk config set --key moonpay.signUrl --value <your-sign-url>
+wdk config set --key moonpay.environment --value sandbox       # or production
 ```
 
 **Options:**
@@ -260,7 +260,7 @@ Environment variables: `WDK_MOONPAY_API_KEY`, `WDK_MOONPAY_SIGN_URL`, `WDK_MOONP
 
 ### Configuration (Interactive Only)
 
-Config commands are interactive and do not support `--json`.
+Config commands are interactive and do not support `--json`. Write operations (`set`, `reset`) require an unlocked wallet.
 
 ```bash
 # Get
