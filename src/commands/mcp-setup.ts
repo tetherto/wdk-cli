@@ -15,6 +15,7 @@
 import type { Command } from 'commander'
 import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs'
 import { join, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { homedir, platform } from 'node:os'
 import { execSync } from 'node:child_process'
 import chalk from 'chalk'
@@ -89,13 +90,9 @@ function getOpenClawConfigPath(): string {
 }
 
 function getWdkMcpCommand(): { command: string; args?: string[] } {
-  const nodePath = process.execPath
-  const distDir = dirname(new URL(import.meta.url).pathname)
-  const scriptPath = join(distDir, '..', 'bin', 'wdk-mcp.mjs')
-  if (existsSync(scriptPath)) return { command: nodePath, args: [scriptPath] }
-
+  // On Windows, invoke the globally-installed `wdk-mcp` shim via cmd.
   if (platform() === 'win32') {
-    return { command: 'cmd', args: ['/c', 'npx', '-y', '-p', 'wdk-cli', 'wdk-mcp'] }
+    return { command: 'cmd', args: ['/c', 'wdk-mcp'] }
   }
   return { command: 'npx', args: ['-y', '-p', 'wdk-cli', 'wdk-mcp'] }
 }
@@ -227,7 +224,7 @@ function getSetupTarget(aiTool: string): SetupTarget {
           ...(platform() === 'win32' ? [
             '  "wdk-wallet": {',
             '    "command": "cmd",',
-            '    "args": ["/c", "npx", "-y", "-p", "wdk-cli", "wdk-mcp"]',
+            '    "args": ["/c", "wdk-mcp"]',
             '  }',
           ] : [
             '  "wdk-wallet": {',
