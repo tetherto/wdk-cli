@@ -377,9 +377,6 @@ export function registerWalletCommand(program: Command): void {
             await daemonClient.lock()
           }
 
-          const { sessionService } = await import('../services/session-service.js')
-          await sessionService.destroy()
-
           console.log()
           console.log(chalk.green('  All wallets locked'))
           console.log()

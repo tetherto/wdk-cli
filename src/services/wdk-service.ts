@@ -13,30 +13,45 @@
 // limitations under the License.
 
 import WDK from '@tetherto/wdk'
-import { isValidNetwork, getNetworkConfig } from '../config/networks.js'
+import { isValidNetwork, getNetworkConfig, parseModuleName } from '../config/networks.js'
 import { configService } from './config-service.js'
+import { CONFIG_DEFAULTS } from '../config/constants.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 import type { NetworkName } from '../types/index.js'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const walletManagerCache = new Map<string, any>()
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function loadWalletManager(moduleName: string): Promise<any> {
-  if (walletManagerCache.has(moduleName)) {
-    return walletManagerCache.get(moduleName)
+async function loadWalletManager(moduleSpec: string): Promise<any> {
+  if (walletManagerCache.has(moduleSpec)) {
+    return walletManagerCache.get(moduleSpec)
   }
 
+  const { name, version } = parseModuleName(moduleSpec)
+
   try {
-    const mod = await import(moduleName)
+    const mod = await import(name)
     const Manager = mod.default || mod
-    walletManagerCache.set(moduleName, Manager)
+
+    if (version) {
+      try {
+        const { createRequire } = await import('node:module')
+        const require = createRequire(import.meta.url)
+        const pkg = require(`${name}/package.json`)
+        if (pkg.version && pkg.version !== version) {
+          console.warn(`Warning: ${name} installed ${pkg.version}, config expects ${version}. Run: npm install ${moduleSpec}`)
+        }
+      } catch { /* skip check if package.json not readable */ }
+    }
+
+    walletManagerCache.set(moduleSpec, Manager)
     return Manager
   } catch (err) {
     const error = err as NodeJS.ErrnoException
     if (error.code === 'ERR_MODULE_NOT_FOUND' || error.code === 'MODULE_NOT_FOUND') {
       throw new Error(
-        `Wallet module '${moduleName}' is not installed.\n` +
-        `Install it with: npm install ${moduleName}`
+        `Wallet module '${moduleSpec}' is not installed.\n` +
+        `Install it with: npm install ${moduleSpec}`
       )
     }
     throw err
@@ -86,7 +101,9 @@ export class WdkService {
     const WalletManager = await loadWalletManager(networkConfig.module)
     if (!WalletManager) throw new WdkCliError(`Network '${network}' is not supported.`, ErrorCode.NETWORK_NOT_SUPPORTED)
 
-    const sdkConfig = configService.get(`networks.${network}`) as Record<string, unknown> || {}
+    const networkDefaults = (CONFIG_DEFAULTS as Record<string, unknown>).networks as Record<string, Record<string, unknown>> || {}
+    const fromService = configService.get(`networks.${network}`) as Record<string, unknown> | undefined
+    const sdkConfig = fromService || networkDefaults[network] || {}
 
     ;(this.wdk as typeof WDKAny).registerWallet(network, WalletManager, sdkConfig)
     this.registeredNetworks.add(network)
@@ -135,5 +152,3 @@ export class WdkService {
     }
   }
 }
-
-export const wdkService = new WdkService()

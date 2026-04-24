@@ -33,13 +33,15 @@ import { promptPassphrase } from '../ui/prompts.js'
 import { KeyService } from '../services/key-service.js'
 import { WalletKeyring } from '../security/keyring.js'
 import type { NetworkConfig } from '../types/index.js'
+import { parseModuleName } from '../config/networks.js'
 import walletsFile from '../../wdk.config.json' with { type: 'json' }
 
-const VALID_WALLET_TYPES = [...new Set(Object.values(walletsFile.networks).map(w => w.module))]
+const VALID_WALLET_TYPES = [...new Set(Object.values(walletsFile.networks).map(w => parseModuleName(w.module).name))]
 const DEFAULT_DECIMALS: Record<string, number> = {}
 for (const entry of Object.values(walletsFile.networks)) {
-  if (!(entry.module in DEFAULT_DECIMALS)) {
-    DEFAULT_DECIMALS[entry.module] = entry.decimals
+  const mod = parseModuleName(entry.module).name
+  if (!(mod in DEFAULT_DECIMALS)) {
+    DEFAULT_DECIMALS[mod] = entry.decimals
   }
 }
 

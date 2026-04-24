@@ -45,7 +45,7 @@ describe('networks', () => {
       const config = NETWORKS[network]
       expect(config.name).toBe(network)
       expect(config.displayName).toBeTruthy()
-      expect(config.module).toMatch(/^@tetherto\/wdk-wallet-(evm|btc|solana|spark|evm-erc-4337|tron)$/)
+      expect(config.module).toMatch(/^@tetherto\/wdk-wallet-(evm|btc|solana|spark|evm-erc-4337|tron)(@.+)?$/)
       expect(config.nativeSymbol).toBeTruthy()
       expect(config.decimals).toBeGreaterThan(0)
     }

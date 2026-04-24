@@ -18,7 +18,6 @@ import { join, dirname } from 'node:path'
 import { homedir, platform } from 'node:os'
 import { execSync } from 'node:child_process'
 import chalk from 'chalk'
-import { getKeyringPath, getWalletsDir } from '../config/constants.js'
 import { handleError } from '../errors/index.js'
 import { configureHelp } from '../ui/help.js'
 

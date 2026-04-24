@@ -29,7 +29,6 @@ export const CONFIG_DEFAULTS: Record<string, unknown> = {
 export const APP_NAME = 'wdk-cli'
 export const APP_VERSION = '0.0.1'
 export const CONFIG_DIR = APP_NAME
-export const KEYRING_FILENAME = 'keyring.enc'
 export const WALLETS_DIR = 'wallets'
 
 function getConfigDir(): string {
@@ -38,7 +37,6 @@ function getConfigDir(): string {
   return join(base, CONFIG_DIR)
 }
 
-export const SESSION_FILENAME = 'session.json'
 export const SESSION_TTL_MINUTES = 5
 export const DAEMON_SOCKET = 'daemon.sock'
 export const DAEMON_PID = 'daemon.pid'
@@ -49,10 +47,6 @@ export function getDaemonSocketPath(): string {
 
 export function getDaemonPidPath(): string {
   return join(getConfigDir(), DAEMON_PID)
-}
-
-export function getKeyringPath(): string {
-  return join(getConfigDir(), KEYRING_FILENAME)
 }
 
 export function getWalletsDir(): string {
@@ -75,6 +69,3 @@ export function getWalletPath(name: string): string {
   return join(getWalletDir(name), 'seed.enc')
 }
 
-export function getSessionPath(): string {
-  return join(getConfigDir(), SESSION_FILENAME)
-}

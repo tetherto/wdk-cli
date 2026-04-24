@@ -17,14 +17,23 @@ import { configService } from '../services/config-service.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 import walletsFile from '../../wdk.config.json' with { type: 'json' }
 
+export function parseModuleName(moduleSpec: string): { name: string; version?: string } {
+  const idx = moduleSpec.startsWith('@') ? moduleSpec.indexOf('@', 1) : moduleSpec.indexOf('@')
+  if (idx > 0) {
+    return { name: moduleSpec.slice(0, idx), version: moduleSpec.slice(idx + 1) }
+  }
+  return { name: moduleSpec }
+}
+
 const NETWORKS: Record<string, NetworkConfig> = {}
 for (const [name, entry] of Object.entries(walletsFile.networks)) {
   const net = entry as Record<string, unknown>
+  const moduleSpec = net.module as string
   NETWORKS[name] = {
     name,
     displayName: net.displayName as string,
-    type: net.module as string,
-    module: net.module as string,
+    type: parseModuleName(moduleSpec).name,
+    module: moduleSpec,
     nativeSymbol: net.nativeSymbol as string,
     decimals: net.decimals as number,
     testnet: (net.testnet as boolean) ?? false,
