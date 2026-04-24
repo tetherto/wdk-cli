@@ -50,10 +50,11 @@ describe('ConfigService', () => {
     expect(typeof path).toBe('string')
   })
 
-  it('prefers env var for indexer baseUrl', () => {
-    process.env.WDK_INDEXER_BASE_URL = 'https://custom-indexer.example.com'
-    const value = configService.get('indexer.baseUrl')
-    expect(value).toBe('https://custom-indexer.example.com')
+  it('prefers env var for indexer apiKey', () => {
+    process.env.WDK_INDEXER_API_KEY = 'test-api-key-123'
+    const value = configService.get('indexer.apiKey')
+    expect(value).toBe('test-api-key-123')
+    delete process.env.WDK_INDEXER_API_KEY
   })
 
   it('deletes config values', () => {

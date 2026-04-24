@@ -70,8 +70,10 @@ export function registerWalletCommand(program: Command): void {
 
         const seedPhrase = keyService.generate(wordCount)
 
-        console.log(chalk.dim('Enter a passphrase to encrypt your seed phrase. Remember the passphrase to unlock this wallet in the future.'))
-        console.log()
+        if (!isJson()) {
+          console.log(chalk.dim('Enter a passphrase to encrypt your seed phrase. Remember the passphrase to unlock this wallet in the future.'))
+          console.log()
+        }
 
         const passphrase = await promptPassphrase('Passphrase (empty for none):')
         const confirmPw = await promptPassphrase('Confirm passphrase:')
@@ -126,15 +128,17 @@ export function registerWalletCommand(program: Command): void {
           throw new WdkCliError(`Wallet '${name}' already exists.`, ErrorCode.WALLET_EXISTS)
         }
 
-        console.log(chalk.dim('Enter your BIP-39 seed phrase (12 or 24 words).'))
+        if (!isJson()) console.log(chalk.dim('Enter your BIP-39 seed phrase (12 or 24 words).'))
         const seedPhrase = (await promptSeedPhrase()).trim()
 
         if (!keyService.validate(seedPhrase)) {
           throw new WdkCliError('Invalid seed phrase. Must be 12 or 24 valid BIP-39 words.', ErrorCode.INVALID_ARGUMENT)
         }
 
-        console.log(chalk.dim('Enter a passphrase to encrypt your seed phrase. Remember the passphrase to unlock this wallet in the future.'))
-        console.log()
+        if (!isJson()) {
+          console.log(chalk.dim('Enter a passphrase to encrypt your seed phrase. Remember the passphrase to unlock this wallet in the future.'))
+          console.log()
+        }
 
         const passphrase = await promptPassphrase('Passphrase (empty for none):')
         const confirmPw = await promptPassphrase('Confirm passphrase:')
@@ -289,10 +293,12 @@ export function registerWalletCommand(program: Command): void {
         const passphrase = await promptPassphrase(`Enter passphrase of '${name}' wallet to confirm deletion:`)
         await keyService.unlock(passphrase, name)
 
-        const confirm = await promptConfirm(`Delete wallet '${name}'? This cannot be undone.`)
-        if (!confirm) {
-          console.log('Cancelled.')
-          return
+        if (!process.env.WDK_PASSPHRASE) {
+          const confirm = await promptConfirm(`Delete wallet '${name}'? This cannot be undone.`)
+          if (!confirm) {
+            console.log('Cancelled.')
+            return
+          }
         }
 
         try {
