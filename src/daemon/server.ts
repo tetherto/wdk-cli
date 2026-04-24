@@ -180,7 +180,7 @@ export class WalletDaemon {
         if (!wallet) {
           return { ok: false, error: 'Missing wallet name' }
         }
-        if (!req.passphrase) {
+        if (req.passphrase == null) {
           return { ok: false, error: 'Missing passphrase' }
         }
         try {
