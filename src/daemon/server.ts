@@ -23,6 +23,7 @@ import { WdkService } from '../services/wdk-service.js'
 import { isValidNetwork, getNetworkConfig } from '../config/networks.js'
 import { getTokenConfig } from '../config/tokens.js'
 import { getTokenTransfers } from '../services/indexer-service.js'
+import { WdkCliError, ErrorCode } from '../errors/index.js'
 import type { DaemonRequest, DaemonResponse } from './protocol.js'
 import type { EncryptedPayload } from '../types/index.js'
 import type { NetworkName } from '../types/index.js'
@@ -136,7 +137,7 @@ export class WalletDaemon {
 
   private async ensureInitialized(network: NetworkName, wallet: string): Promise<WdkService> {
     const state = this.wallets.get(wallet)
-    if (!state) throw new Error(`Wallet '${wallet}' is not unlocked`)
+    if (!state) throw new WdkCliError(`Wallet '${wallet}' is not unlocked.`, ErrorCode.WALLET_NOT_UNLOCKED, `Run: wdk wallet unlock --name ${wallet}`)
 
     if (!state.wdk.isNetworkRegistered(network)) {
       await state.wdk.registerNetworkPublic(network)

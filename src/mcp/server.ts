@@ -16,6 +16,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
 import { daemonClient } from '../daemon/client.js'
+import { configService } from '../services/config-service.js'
 import { convertToUsd } from '../services/price-service.js'
 import {
   getAllNetworks,
@@ -24,11 +25,17 @@ import {
   getNetworkConfig,
   isTestnet,
 } from '../config/networks.js'
+import { isIndexerSupported } from '../services/indexer-service.js'
 import { APP_VERSION } from '../config/constants.js'
 import { formatAmount } from '../ui/formatters.js'
+import { WdkCliError, ErrorCode } from '../errors/index.js'
 import type { NetworkName } from '../types/index.js'
 
-function errorResult(message: string) {
+function errorResult(error: unknown) {
+  if (error instanceof WdkCliError) {
+    return { content: [{ type: 'text' as const, text: JSON.stringify({ error: error.message, code: error.code, ...(error.suggestion ? { suggestion: error.suggestion } : {}) }) }], isError: true }
+  }
+  const message = error instanceof Error ? error.message : String(error)
   return { content: [{ type: 'text' as const, text: JSON.stringify({ error: message }) }], isError: true }
 }
 
@@ -36,10 +43,15 @@ function jsonResult(data: unknown) {
   return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] }
 }
 
-async function requireDaemon(): Promise<void> {
-  if (!(await daemonClient.isRunning())) {
-    throw new Error('Wallet is locked. Please run `wdk wallet unlock` first, then restart the MCP server.')
+async function requireWallet(wallet?: string): Promise<string> {
+  const resolved = wallet || configService.getDefaultWallet()
+  if (!resolved) {
+    throw new WdkCliError('No default wallet configured.', ErrorCode.MISSING_CONFIG, 'Set one with: wdk wallet default --name <name>, or pass the wallet parameter.')
   }
+  if (!(await daemonClient.isWalletUnlocked(resolved))) {
+    throw new WdkCliError(`Wallet '${resolved}' is not unlocked.`, ErrorCode.WALLET_NOT_UNLOCKED, `Run: wdk wallet unlock --name ${resolved}`)
+  }
+  return resolved
 }
 
 export async function startMcpServer(): Promise<void> {
@@ -89,11 +101,11 @@ export async function startMcpServer(): Promise<void> {
     },
     async ({ network, index, testnet, wallet }) => {
       try {
-        await requireDaemon()
+        const resolvedWallet = await requireWallet(wallet)
 
         if (network) {
           validateNetwork(network)
-          const address = await daemonClient.getAddress(network, index, wallet)
+          const address = await daemonClient.getAddress(network, index, resolvedWallet)
           return jsonResult({ network, index, address })
         }
 
@@ -103,13 +115,13 @@ export async function startMcpServer(): Promise<void> {
         const addresses: { network: string; address: string }[] = []
         for (const name of names) {
           try {
-            const address = await daemonClient.getAddress(name, index, wallet)
+            const address = await daemonClient.getAddress(name, index, resolvedWallet)
             addresses.push({ network: name, address })
           } catch { /* skip networks that fail */ }
         }
         return jsonResult({ index, addresses })
       } catch (e) {
-        return errorResult(e instanceof Error ? e.message : String(e))
+        return errorResult(e)
       }
     },
   )
@@ -126,11 +138,11 @@ export async function startMcpServer(): Promise<void> {
     },
     async ({ network, token, index, testnet, wallet }) => {
       try {
-        await requireDaemon()
+        const resolvedWallet = await requireWallet(wallet)
 
         if (network) {
           validateNetwork(network)
-          const result = await daemonClient.getBalance(network, index, token, wallet)
+          const result = await daemonClient.getBalance(network, index, token, resolvedWallet)
           const formatted = formatAmount(BigInt(result.balance), result.decimals, result.symbol)
           let usd = 0
           try { usd = await convertToUsd(network as NetworkName, BigInt(result.balance), token) } catch { /* no price */ }
@@ -145,8 +157,8 @@ export async function startMcpServer(): Promise<void> {
 
         for (const name of names) {
           try {
-            const address = await daemonClient.getAddress(name, index, wallet)
-            const result = await daemonClient.getBalance(name, index, undefined, wallet)
+            const address = await daemonClient.getAddress(name, index, resolvedWallet)
+            const result = await daemonClient.getBalance(name, index, undefined, resolvedWallet)
             const formatted = formatAmount(BigInt(result.balance), result.decimals, result.symbol)
             let usd = 0
             try { usd = await convertToUsd(name as NetworkName, BigInt(result.balance)) } catch { /* no price */ }
@@ -157,28 +169,36 @@ export async function startMcpServer(): Promise<void> {
 
         return jsonResult({ index, balances, totalUsd: Math.round(totalUsd * 100) / 100 })
       } catch (e) {
-        return errorResult(e instanceof Error ? e.message : String(e))
+        return errorResult(e)
       }
     },
   )
 
   server.tool(
     'get_history',
-    'Get transaction history for a network',
+    'Get transaction history for a network (requires indexer API)',
     {
       network: z.string().describe('Network name (required)'),
-      token: z.string().optional().describe('Token filter (e.g. usdt)'),
-      limit: z.number().optional().default(20).describe('Max results (default: 20)'),
+      token: z.string().optional().describe('Token filter (e.g. usdt, default: usdt)'),
+      limit: z.number().optional().default(30).describe('Max results (default: 30)'),
+      index: z.number().optional().default(0).describe('Account index (default: 0)'),
+      fromDate: z.string().optional().describe('Start date (ISO 8601, e.g. 2026-01-01)'),
+      toDate: z.string().optional().describe('End date (ISO 8601, e.g. 2026-12-31)'),
       wallet: z.string().optional().describe('Wallet name (uses default wallet if omitted)'),
     },
-    async ({ network, token, limit, wallet }) => {
+    async ({ network, token, limit, index, fromDate, toDate, wallet }) => {
       try {
-        await requireDaemon()
+        const resolvedWallet = await requireWallet(wallet)
         validateNetwork(network)
-        const result = await daemonClient.getHistory(network, token, limit, wallet)
-        return jsonResult({ network, ...result })
+        if (!isIndexerSupported(network as NetworkName)) {
+          throw new WdkCliError(`Network '${network}' is not supported by the indexer API.`, ErrorCode.NETWORK_NOT_SUPPORTED)
+        }
+        const fromTs = fromDate ? Math.floor(new Date(fromDate).getTime() / 1000) : undefined
+        const toTs = toDate ? Math.floor(new Date(toDate).getTime() / 1000) : undefined
+        const result = await daemonClient.getHistory(network, token, limit, resolvedWallet, fromTs, toTs)
+        return jsonResult({ network, index, ...result })
       } catch (e) {
-        return errorResult(e instanceof Error ? e.message : String(e))
+        return errorResult(e)
       }
     },
   )
@@ -197,11 +217,19 @@ export async function startMcpServer(): Promise<void> {
     },
     async ({ to, amount, network, token, index, confirm, wallet }) => {
       try {
-        await requireDaemon()
+        const resolvedWallet = await requireWallet(wallet)
         validateNetwork(network)
 
+        if (!/^\d+$/.test(amount) || amount === '0') {
+          throw new WdkCliError(
+            'Invalid amount. Must be a positive integer in base units (wei/satoshis/lamports).',
+            ErrorCode.INVALID_AMOUNT,
+            'Do not use decimal points. Example: 1000000 for 1 USDT (6 decimals).',
+          )
+        }
+
         if (!confirm) {
-          const feeQuote = await daemonClient.estimateFee(network, index, to, amount, token, wallet)
+          const feeQuote = await daemonClient.estimateFee(network, index, to, amount, token, resolvedWallet)
           const config = getNetworkConfig(network as NetworkName)
           let amountUsd = 0
           let feeUsd = 0
@@ -222,7 +250,8 @@ export async function startMcpServer(): Promise<void> {
           })
         }
 
-        const result = await daemonClient.send(network, index, to, amount, token, wallet)
+        const result = await daemonClient.send(network, index, to, amount, token, resolvedWallet)
+        const config = getNetworkConfig(network as NetworkName)
 
         return jsonResult({
           success: true,
@@ -232,9 +261,10 @@ export async function startMcpServer(): Promise<void> {
           to: result.to,
           amount: result.amount,
           fee: result.fee,
+          feeFormatted: result.fee ? formatAmount(BigInt(result.fee), config.decimals, config.nativeSymbol) : undefined,
         })
       } catch (e) {
-        return errorResult(e instanceof Error ? e.message : String(e))
+        return errorResult(e)
       }
     },
   )
