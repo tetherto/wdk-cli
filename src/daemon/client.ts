@@ -35,9 +35,11 @@ function getDaemonScript(): string {
 
 function spawnDaemon(): Promise<void> {
   return new Promise((resolve, reject) => {
+    const isWindows = process.platform === 'win32'
     const child = spawn(process.execPath, ['--disable-warning=ExperimentalWarning', getDaemonScript()], {
       stdio: ['ignore', 'ignore', 'pipe'],
-      detached: true,
+      detached: !isWindows, // On Windows, detached opens a new console window; use windowsHide instead
+      windowsHide: true,
     })
 
     let stderr = ''
@@ -67,15 +69,21 @@ export class DaemonClient {
   private socketPath = getDaemonSocketPath()
 
   async isRunning(): Promise<boolean> {
+    const isWindows = process.platform === 'win32'
     try {
-      await access(this.socketPath)
       const pidPath = getDaemonPidPath()
+      // On Unix, check socket file exists; on Windows, named pipes can't be checked via access()
+      if (!isWindows) {
+        await access(this.socketPath)
+      }
       const pid = parseInt(await readFile(pidPath, 'utf8'), 10)
       try {
         process.kill(pid, 0)
         return true
       } catch {
-        try { await unlink(this.socketPath) } catch { /* */ }
+        if (!isWindows) {
+          try { await unlink(this.socketPath) } catch { /* */ }
+        }
         try { await unlink(pidPath) } catch { /* */ }
         return false
       }

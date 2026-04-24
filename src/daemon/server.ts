@@ -40,24 +40,27 @@ export class WalletDaemon {
 
   async start(): Promise<void> {
     const socketPath = getDaemonSocketPath()
-    await mkdir(dirname(socketPath), { recursive: true })
+    const isWin = process.platform === 'win32'
 
-    try { await unlink(socketPath) } catch { /* socket may not exist */ }
+    if (!isWin) {
+      await mkdir(dirname(socketPath), { recursive: true })
+      try { await unlink(socketPath) } catch { /* socket may not exist */ }
+    }
 
     this.server = createServer((socket) => this.handleConnection(socket))
 
-    const oldUmask = process.umask(0o077)
+    const oldUmask = isWin ? 0 : process.umask(0o077)
     await new Promise<void>((resolve, reject) => {
       this.server!.on('error', reject)
       this.server!.listen(socketPath, () => {
-        process.umask(oldUmask)
+        if (!isWin) process.umask(oldUmask)
         resolve()
       })
     })
 
     const pidPath = getDaemonPidPath()
     await writeFile(pidPath, String(process.pid), 'utf8')
-    await chmod(pidPath, 0o600)
+    await chmod(pidPath, 0o600) // owner-only; prevents other users from reading/killing the daemon
   }
 
   private unlockWalletSync(name: string, passphrase: string, ttlMinutes: number): void {
@@ -421,7 +424,10 @@ export class WalletDaemon {
       this.server = null
     }
 
-    try { await unlink(getDaemonSocketPath()) } catch { /* */ }
+    // Only unlink socket on Unix; on Windows the pipe vanishes with the process
+    if (process.platform !== 'win32') {
+      try { await unlink(getDaemonSocketPath()) } catch { /* */ }
+    }
     try { await unlink(getDaemonPidPath()) } catch { /* */ }
 
     process.exit(0)
@@ -434,4 +440,8 @@ export async function startDaemon(): Promise<void> {
 
   process.on('SIGTERM', () => process.exit(0))
   process.on('SIGINT', () => process.exit(0))
+  // On Windows, SIGTERM is not supported; listen for the 'beforeExit' event as a fallback
+  if (process.platform === 'win32') {
+    process.on('SIGHUP', () => process.exit(0))
+  }
 }

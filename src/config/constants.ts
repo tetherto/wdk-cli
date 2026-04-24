@@ -42,6 +42,9 @@ export const DAEMON_SOCKET = 'daemon.sock'
 export const DAEMON_PID = 'daemon.pid'
 
 export function getDaemonSocketPath(): string {
+  if (process.platform === 'win32') {
+    return '\\\\.\\pipe\\wdk-cli-daemon'
+  }
   return join(getConfigDir(), DAEMON_SOCKET)
 }
 
