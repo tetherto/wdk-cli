@@ -365,9 +365,19 @@ wdk mcp status                                     # Show which AI tools are con
 
 Each command auto-detects the Node.js path, validates the MCP server, and writes the config.
 
-**MCP Tools:** `get_networks`, `get_address`, `get_balance`, `get_history`, `send_token`
+**MCP Tools:**
 
-All wallet-dependent tools accept an optional `wallet` parameter (uses default wallet if omitted).
+| Tool | Parameters | Description |
+|------|-----------|-------------|
+| `get_networks` | `testnet?`, `mainnet?` | List all supported blockchain networks |
+| `get_address` | `network?`, `index?`, `testnet?`, `wallet?` | Get wallet address (omit network for all) |
+| `get_balance` | `network?`, `token?`, `index?`, `testnet?`, `wallet?` | Get balance with USD values (omit network for all) |
+| `get_history` | `network`, `token?`, `limit?`, `index?`, `fromDate?`, `toDate?`, `wallet?` | Transaction history (requires indexer API) |
+| `send_token` | `to`, `amount`, `network`, `token?`, `index?`, `confirm?`, `wallet?` | Send tokens. Returns preview by default; set `confirm=true` to execute |
+
+All wallet-dependent tools accept an optional `wallet` parameter (uses default wallet if omitted). The `send_token` tool uses a two-step flow: first call without `confirm` to preview fees and amounts, then call with `confirm=true` to execute.
+
+The AI model interacts exclusively through these structured tools — it cannot run shell commands, access the filesystem, or read private keys. All operations route through the daemon over a Unix socket.
 
 ### CLI — for local AI agents
 
@@ -379,7 +389,7 @@ wdk send --to 0xRECIPIENT --amount 1000000 --network ethereum --dry-run
 wdk send --to 0xRECIPIENT --amount 1000000 --network ethereum --json
 ```
 
-The `wdk-wallet/SKILL.md` file contains complete instructions for AI agents — commands, workflows, error handling, and amount conversions. Feed it as context to your agent.
+The `SKILL.md` file contains complete instructions for AI agents — commands, workflows, error handling, and amount conversions. Feed it as context to your agent.
 
 ### Before using either mode
 
