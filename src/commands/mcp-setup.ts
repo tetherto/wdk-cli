@@ -13,13 +13,38 @@
 // limitations under the License.
 
 import type { Command } from 'commander'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { homedir, platform } from 'node:os'
 import { execSync } from 'node:child_process'
 import chalk from 'chalk'
 import { handleError } from '../errors/index.js'
 import { configureHelp } from '../ui/help.js'
+
+function isClaudeDesktopInstalled(): boolean {
+  const os = platform()
+  const home = homedir()
+  if (os === 'darwin') {
+    return existsSync('/Applications/Claude.app') || existsSync(join(home, 'Applications', 'Claude.app'))
+  }
+  if (os === 'win32') {
+    const localAppData = process.env.LOCALAPPDATA || join(home, 'AppData', 'Local')
+    const candidates = [
+      join(localAppData, 'Programs', 'claude-desktop', 'Claude.exe'),
+      join(localAppData, 'AnthropicClaude', 'Claude.exe'),
+      join(localAppData, 'Claude', 'Claude.exe'),
+    ]
+    return candidates.some(p => existsSync(p))
+  }
+  if (os === 'linux') {
+    try {
+      execSync('which claude-desktop 2>/dev/null', { encoding: 'utf8', timeout: 3000 })
+      return true
+    } catch { /* */ }
+    return existsSync('/opt/Claude/claude-desktop') || existsSync(join(home, '.local', 'bin', 'claude-desktop'))
+  }
+  return false
+}
 
 function getClaudeDesktopConfigPath(): string | null {
   const home = homedir()
@@ -44,6 +69,9 @@ function getWdkMcpCommand(): { command: string; args?: string[] } {
   const scriptPath = join(distDir, '..', 'bin', 'wdk-mcp.mjs')
   if (existsSync(scriptPath)) return { command: nodePath, args: [scriptPath] }
 
+  if (platform() === 'win32') {
+    return { command: 'cmd', args: ['/c', 'npx', '-y', '-p', 'wdk-cli', 'wdk-mcp'] }
+  }
   return { command: 'npx', args: ['-y', '-p', 'wdk-cli', 'wdk-mcp'] }
 }
 
@@ -158,9 +186,32 @@ function getSetupTarget(aiTool: string): SetupTarget {
       return {
         name: 'Claude Desktop',
         configPath,
-        checkInstalled: () => existsSync(dirname(configPath)),
-        notInstalledMessage: ['Download from https://claude.ai/download'],
-        restartMessage: 'Restart Claude Desktop (Cmd+Q, then reopen)',
+        checkInstalled: () => {
+          if (existsSync(dirname(configPath))) return true
+          if (isClaudeDesktopInstalled()) {
+            mkdirSync(dirname(configPath), { recursive: true })
+            return true
+          }
+          return false
+        },
+        notInstalledMessage: [
+          'If not installed, download from https://claude.ai/download',
+          'If already installed, configure MCP directly in Claude Desktop:',
+          'Settings → Developer → Edit Config, then add to mcpServers:',
+          '',
+          ...(platform() === 'win32' ? [
+            '  "wdk-wallet": {',
+            '    "command": "cmd",',
+            '    "args": ["/c", "npx", "-y", "-p", "wdk-cli", "wdk-mcp"]',
+            '  }',
+          ] : [
+            '  "wdk-wallet": {',
+            '    "command": "npx",',
+            '    "args": ["-y", "-p", "wdk-cli", "wdk-mcp"]',
+            '  }',
+          ]),
+        ],
+        restartMessage: `Restart Claude Desktop${platform() === 'darwin' ? ' (Cmd+Q, then reopen)' : ''}`,
       }
     }
     case 'claude-code': {
