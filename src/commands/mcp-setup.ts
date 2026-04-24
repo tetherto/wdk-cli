@@ -13,13 +13,33 @@
 // limitations under the License.
 
 import type { Command } from 'commander'
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { homedir, platform } from 'node:os'
 import { execSync } from 'node:child_process'
 import chalk from 'chalk'
 import { handleError } from '../errors/index.js'
 import { configureHelp } from '../ui/help.js'
+
+function getWindowsLocalAppData(): string {
+  return process.env.LOCALAPPDATA || join(homedir(), 'AppData', 'Local')
+}
+
+// Claude Desktop ships on Windows as either a Squirrel installer or an
+// MSIX/Microsoft Store package. MSIX apps are sandboxed, so their %APPDATA%
+// writes land at %LOCALAPPDATA%\Packages\Claude_<publisherHash>\LocalCache\Roaming\...
+// We match the folder by prefix since the publisher hash varies per signing identity.
+function findClaudeMsixPackageDir(): string | null {
+  if (platform() !== 'win32') return null
+  const packagesDir = join(getWindowsLocalAppData(), 'Packages')
+  if (!existsSync(packagesDir)) return null
+  try {
+    const match = readdirSync(packagesDir).find(name => name.startsWith('Claude_'))
+    return match ? join(packagesDir, match) : null
+  } catch {
+    return null
+  }
+}
 
 function isClaudeDesktopInstalled(): boolean {
   const os = platform()
@@ -28,7 +48,8 @@ function isClaudeDesktopInstalled(): boolean {
     return existsSync('/Applications/Claude.app') || existsSync(join(home, 'Applications', 'Claude.app'))
   }
   if (os === 'win32') {
-    const localAppData = process.env.LOCALAPPDATA || join(home, 'AppData', 'Local')
+    if (findClaudeMsixPackageDir()) return true
+    const localAppData = getWindowsLocalAppData()
     const candidates = [
       join(localAppData, 'Programs', 'claude-desktop', 'Claude.exe'),
       join(localAppData, 'AnthropicClaude', 'Claude.exe'),
@@ -50,7 +71,11 @@ function getClaudeDesktopConfigPath(): string | null {
   const home = homedir()
   const os = platform()
   if (os === 'darwin') return join(home, 'Library', 'Application Support', 'Claude', 'claude_desktop_config.json')
-  if (os === 'win32') return join(process.env.APPDATA || join(home, 'AppData', 'Roaming'), 'Claude', 'claude_desktop_config.json')
+  if (os === 'win32') {
+    const msixPackageDir = findClaudeMsixPackageDir()
+    if (msixPackageDir) return join(msixPackageDir, 'LocalCache', 'Roaming', 'Claude', 'claude_desktop_config.json')
+    return join(process.env.APPDATA || join(home, 'AppData', 'Roaming'), 'Claude', 'claude_desktop_config.json')
+  }
   if (os === 'linux') return join(process.env.XDG_CONFIG_HOME || join(home, '.config'), 'Claude', 'claude_desktop_config.json')
   return null
 }
