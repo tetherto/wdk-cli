@@ -119,9 +119,9 @@ wdk wallet lock
 
 ## Commands
 
-### Wallet (Interactive Only)
+### Wallet
 
-Wallet commands are interactive — they require terminal input (passphrase, confirmation) and do not support `--json`. AI agents cannot run these commands.
+Wallet commands that require passphrase input (create, import, unlock, export, delete) are interactive by default. Set `WDK_PASSPHRASE` env var to skip the interactive prompt for automation and `--json` output.
 
 ```bash
 wdk wallet create --name <name> [--words 12|24]       # Create a new wallet with a generated seed phrase
@@ -256,11 +256,11 @@ wdk config set --key moonpay.environment --value sandbox       # or production
 
 Supported tokens per network are defined in [`wdk.config.json`](wdk.config.json) under each network's `moonpay` key. Environment validation prevents using production MoonPay with testnet networks (and vice versa).
 
-Environment variables: `WDK_MOONPAY_API_KEY`, `WDK_MOONPAY_SIGN_URL`, `WDK_MOONPAY_ENVIRONMENT`.
+Configure via `wdk config set --key moonpay.apiKey --value <key>`, `moonpay.signUrl`, and `moonpay.environment`.
 
-### Configuration (Interactive Only)
+### Configuration
 
-Config commands are interactive and do not support `--json`. Write operations (`set`, `reset`) require an unlocked wallet.
+Config read commands (`get`, `path`) work without a wallet. Write operations (`set`, `reset`) require an unlocked wallet. All config commands support `--json`.
 
 ```bash
 # Get
@@ -290,7 +290,7 @@ Network configuration is passed directly to the wallet SDK. Refer to each [walle
 |------|-------------|
 | `--index <n>` | Account index (default: 0) |
 | `--wallet <name>` | Wallet name (uses default wallet if omitted) |
-| `--json` | Machine-readable JSON output (not supported by wallet/config commands) |
+| `--json` | Machine-readable JSON output |
 | `--verbose` | Debug logging |
 
 ## Supported Networks
@@ -299,20 +299,28 @@ All built-in networks are defined in [`wdk.config.json`](wdk.config.json). Run `
 
 Additional networks can be added with `wdk network create`. See [Adding Custom Networks](#adding-custom-networks).
 
-## Environment Variables
+## Non-Interactive Mode
 
-Environment variables override config values at runtime without modifying the config file. Useful for CI/CD, Docker, or temporary overrides.
+All commands support `--json` for machine-parseable output. Commands that require passphrase input (wallet create, import, unlock, export, delete, and config set/reset) can be run non-interactively by setting the `WDK_PASSPHRASE` environment variable.
+
+```bash
+# CI/CD: create and unlock a wallet without interactive prompts
+WDK_PASSPHRASE=mypass wdk wallet create --name ci-wallet --json
+WDK_PASSPHRASE=mypass wdk wallet unlock --name ci-wallet --ttl 0 --json
+
+# Docker: unlock at container start
+WDK_PASSPHRASE=$WALLET_PASS wdk wallet unlock --name default --ttl 0 --json
+
+# Scripting: check balance and parse output
+wdk get balance --network ethereum --json | jq '.balance'
+```
+
+## Environment Variables
 
 | Variable | Description |
 |----------|-------------|
 | `WDK_PASSPHRASE` | Wallet passphrase (skip interactive prompt) |
-| `WDK_INDEXER_BASE_URL` | Override `indexer.baseUrl` from config |
-| `WDK_INDEXER_API_KEY` | Override `indexer.apiKey` from config |
-| `WDK_MOONPAY_API_KEY` | Override `moonpay.apiKey` from config |
-| `WDK_MOONPAY_SIGN_URL` | Override `moonpay.signUrl` from config |
-| `WDK_MOONPAY_ENVIRONMENT` | Override `moonpay.environment` from config (`sandbox` or `production`) |
-
-Priority: environment variable > `wdk config set` > `wdk.config.json` defaults.
+| `WDK_INDEXER_API_KEY` | Indexer API key (avoids storing secrets in config file) |
 
 ## Security
 

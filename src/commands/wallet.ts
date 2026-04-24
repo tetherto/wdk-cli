@@ -35,12 +35,9 @@ export function registerWalletCommand(program: Command): void {
 
   configureHelp(wallet, {})
 
-  wallet.hook('preAction', () => {
-      if (program.opts().json) {
-        console.error(chalk.red('Error: --json is not supported for wallet commands.'))
-        process.exit(1)
-      }
-    })
+  function isJson(): boolean {
+    return !!program.opts().json
+  }
 
   const create = wallet
     .command('create')
@@ -62,8 +59,7 @@ export function registerWalletCommand(program: Command): void {
       try {
         const wordCount = parseInt(options.words, 10) as 12 | 24
         if (wordCount !== 12 && wordCount !== 24) {
-          console.error(chalk.red('Error: --words must be 12 or 24'))
-          process.exit(1)
+          throw new WdkCliError('--words must be 12 or 24', ErrorCode.INVALID_ARGUMENT)
         }
 
         const keyService = createKeyService()
@@ -83,24 +79,30 @@ export function registerWalletCommand(program: Command): void {
           throw new WdkCliError('Passphrases do not match.', ErrorCode.PASSPHRASE_MISMATCH)
         }
 
-        const spinner = ora('Encrypting and storing seed phrase...').start()
+        const spinner = isJson() ? null : ora('Encrypting and storing seed phrase...').start()
         await keyService.store(seedPhrase, passphrase, name)
-        spinner.succeed(`Seed phrase encrypted and stored as '${name}'.`)
+        spinner?.succeed(`Seed phrase encrypted and stored as '${name}'.`)
 
-        console.log()
-        console.log(chalk.bold.yellow('WARNING: Store this seed phrase safely. Do not share it with anyone.'))
-        console.log()
-        console.log(chalk.bold('Seed phrase:'))
-        console.log()
-        console.log(`  ${seedPhrase}`)
-        console.log()
-
+        let setAsDefault = false
         if (!configService.getDefaultWallet()) {
           configService.setDefaultWallet(name)
-          console.log(chalk.dim(`  Set as default wallet.`))
+          setAsDefault = true
+        }
+
+        if (isJson()) {
+          console.log(JSON.stringify({ wallet: name, seedPhrase, setAsDefault }))
+        } else {
+          console.log()
+          console.log(chalk.bold.yellow('WARNING: Store this seed phrase safely. Do not share it with anyone.'))
+          console.log()
+          console.log(chalk.bold('Seed phrase:'))
+          console.log()
+          console.log(`  ${seedPhrase}`)
+          console.log()
+          if (setAsDefault) console.log(chalk.dim(`  Set as default wallet.`))
         }
       } catch (error) {
-        handleError(error, program.opts().verbose)
+        handleError(error, program.opts().verbose, isJson())
       }
     })
 
@@ -128,8 +130,7 @@ export function registerWalletCommand(program: Command): void {
         const seedPhrase = (await promptSeedPhrase()).trim()
 
         if (!keyService.validate(seedPhrase)) {
-          console.error(chalk.red('Error: Invalid seed phrase. Must be 12 or 24 valid BIP-39 words.'))
-          process.exit(1)
+          throw new WdkCliError('Invalid seed phrase. Must be 12 or 24 valid BIP-39 words.', ErrorCode.INVALID_ARGUMENT)
         }
 
         console.log(chalk.dim('Enter a passphrase to encrypt your seed phrase. Remember the passphrase to unlock this wallet in the future.'))
@@ -141,16 +142,23 @@ export function registerWalletCommand(program: Command): void {
           throw new WdkCliError('Passphrases do not match.', ErrorCode.PASSPHRASE_MISMATCH)
         }
 
-        const spinner = ora('Encrypting and storing seed phrase...').start()
+        const spinner = isJson() ? null : ora('Encrypting and storing seed phrase...').start()
         await keyService.store(seedPhrase, passphrase, name)
-        spinner.succeed(`Seed phrase imported and encrypted as '${name}'.`)
+        spinner?.succeed(`Seed phrase imported and encrypted as '${name}'.`)
 
+        let setAsDefault = false
         if (!configService.getDefaultWallet()) {
           configService.setDefaultWallet(name)
-          console.log(chalk.dim(`  Set as default wallet.`))
+          setAsDefault = true
+        }
+
+        if (isJson()) {
+          console.log(JSON.stringify({ wallet: name, imported: true, setAsDefault }))
+        } else {
+          if (setAsDefault) console.log(chalk.dim(`  Set as default wallet.`))
         }
       } catch (error) {
-        handleError(error, program.opts().verbose)
+        handleError(error, program.opts().verbose, isJson())
       }
     })
 
@@ -177,15 +185,19 @@ export function registerWalletCommand(program: Command): void {
         const passphrase = await promptPassphrase(`Enter passphrase of '${name}' wallet:`)
         const seedPhrase = await keyService.unlock(passphrase, name)
 
-        console.log()
-        console.log(chalk.bold.yellow('WARNING: Do not share your seed phrase with anyone!'))
-        console.log()
-        console.log(chalk.bold('Seed phrase:'))
-        console.log()
-        console.log(`  ${seedPhrase}`)
-        console.log()
+        if (isJson()) {
+          console.log(JSON.stringify({ wallet: name, seedPhrase }))
+        } else {
+          console.log()
+          console.log(chalk.bold.yellow('WARNING: Do not share your seed phrase with anyone!'))
+          console.log()
+          console.log(chalk.bold('Seed phrase:'))
+          console.log()
+          console.log(`  ${seedPhrase}`)
+          console.log()
+        }
       } catch (error) {
-        handleError(error, program.opts().verbose)
+        handleError(error, program.opts().verbose, isJson())
       }
     })
 
@@ -201,11 +213,6 @@ export function registerWalletCommand(program: Command): void {
 
         const wallets = await keyService.list()
 
-        if (wallets.length === 0) {
-          console.log(chalk.dim('  No wallets found. Run `wdk wallet create --name <name>` to get started.'))
-          return
-        }
-
         let unlockedWallets: { name: string; ttlMs: number; ttlRemaining: number }[] = []
         try {
           if (await daemonClient.isRunning()) {
@@ -214,6 +221,25 @@ export function registerWalletCommand(program: Command): void {
         } catch { /* daemon not running */ }
 
         const defaultWallet = configService.getDefaultWallet()
+
+        if (isJson()) {
+          const result = wallets.map((name) => {
+            const unlocked = unlockedWallets.find((w) => w.name === name)
+            return {
+              name,
+              default: name === defaultWallet,
+              unlocked: !!unlocked,
+              ...(unlocked ? { ttlMs: unlocked.ttlMs, ttlRemaining: unlocked.ttlRemaining } : {}),
+            }
+          })
+          console.log(JSON.stringify({ wallets: result, count: result.length }))
+          return
+        }
+
+        if (wallets.length === 0) {
+          console.log(chalk.dim('  No wallets found. Run `wdk wallet create --name <name>` to get started.'))
+          return
+        }
 
         console.log()
         console.log(chalk.bold('Wallets:'))
@@ -236,7 +262,7 @@ export function registerWalletCommand(program: Command): void {
         }
         console.log()
       } catch (error) {
-        handleError(error, program.opts().verbose)
+        handleError(error, program.opts().verbose, isJson())
       }
     })
 
@@ -257,8 +283,7 @@ export function registerWalletCommand(program: Command): void {
         const keyService = createKeyService()
 
         if (!(await keyService.hasKey(name))) {
-          console.error(chalk.red(`Error: Wallet '${name}' not found.`))
-          process.exit(1)
+          throw new WdkCliError(`Wallet '${name}' not found.`, ErrorCode.KEY_NOT_FOUND)
         }
 
         const passphrase = await promptPassphrase(`Enter passphrase of '${name}' wallet to confirm deletion:`)
@@ -277,19 +302,26 @@ export function registerWalletCommand(program: Command): void {
         } catch { /* */ }
 
         await keyService.destroy(name)
-        console.log(chalk.green(`  Wallet '${name}' deleted.`))
 
+        let newDefault: string | undefined
         if (configService.getDefaultWallet() === name) {
           const remaining = await keyService.list()
           if (remaining.length > 0) {
             configService.setDefaultWallet(remaining[0])
-            console.log(chalk.dim(`  Default wallet changed to '${remaining[0]}'.`))
+            newDefault = remaining[0]
           } else {
             configService.setDefaultWallet('')
           }
         }
+
+        if (isJson()) {
+          console.log(JSON.stringify({ wallet: name, deleted: true, ...(newDefault ? { newDefault } : {}) }))
+        } else {
+          console.log(chalk.green(`  Wallet '${name}' deleted.`))
+          if (newDefault) console.log(chalk.dim(`  Default wallet changed to '${newDefault}'.`))
+        }
       } catch (error) {
-        handleError(error, program.opts().verbose)
+        handleError(error, program.opts().verbose, isJson())
       }
     })
 
@@ -325,7 +357,9 @@ export function registerWalletCommand(program: Command): void {
             const existing = status.wallets.find((w) => w.name === name)
             if (existing) {
               await daemonClient.unlockWallet(name, '', ttl)
-              if (ttl === 0) {
+              if (isJson()) {
+                console.log(JSON.stringify({ wallet: name, unlocked: true, alreadyUnlocked: true, ttl }))
+              } else if (ttl === 0) {
                 console.log(chalk.yellow(`  Wallet '${name}' already unlocked (timer set to unlimited)`))
               } else {
                 console.log(chalk.yellow(`  Wallet '${name}' already unlocked (timer reset to ${ttl} min)`))
@@ -339,22 +373,26 @@ export function registerWalletCommand(program: Command): void {
 
         await keyService.unlock(passphrase, name)
 
-        const spinner = ora(`Unlocking '${name}'...`).start()
+        const spinner = isJson() ? null : ora(`Unlocking '${name}'...`).start()
         await daemonClient.ensureRunning()
         await daemonClient.unlockWallet(name, passphrase, ttl)
 
-        spinner.succeed(`Wallet '${name}' unlocked`)
+        spinner?.succeed(`Wallet '${name}' unlocked`)
 
-        console.log()
-        if (ttl === 0) {
-          console.log(chalk.dim('  Session will not expire'))
+        if (isJson()) {
+          console.log(JSON.stringify({ wallet: name, unlocked: true, ttl }))
         } else {
-          console.log(chalk.dim(`  Session locks after ${ttl} minutes`))
+          console.log()
+          if (ttl === 0) {
+            console.log(chalk.dim('  Session will not expire'))
+          } else {
+            console.log(chalk.dim(`  Session locks after ${ttl} minutes`))
+          }
+          console.log(chalk.dim(`  Run \`wdk wallet lock --name ${name}\` to end session`))
+          console.log()
         }
-        console.log(chalk.dim(`  Run \`wdk wallet lock --name ${name}\` to end session`))
-        console.log()
       } catch (error) {
-        handleError(error, program.opts().verbose)
+        handleError(error, program.opts().verbose, isJson())
       }
     })
 
@@ -377,24 +415,36 @@ export function registerWalletCommand(program: Command): void {
             await daemonClient.lock()
           }
 
-          console.log()
-          console.log(chalk.green('  All wallets locked'))
-          console.log()
+          if (isJson()) {
+            console.log(JSON.stringify({ locked: true, all: true }))
+          } else {
+            console.log()
+            console.log(chalk.green('  All wallets locked'))
+            console.log()
+          }
           return
         }
 
         if (!(await daemonClient.isRunning())) {
-          console.log(chalk.dim(`  Wallet '${name}' is already locked.`))
+          if (isJson()) {
+            console.log(JSON.stringify({ wallet: name, locked: true, alreadyLocked: true }))
+          } else {
+            console.log(chalk.dim(`  Wallet '${name}' is already locked.`))
+          }
           return
         }
 
         await daemonClient.lockWallet(name)
 
-        console.log()
-        console.log(chalk.green(`  Wallet '${name}' locked`))
-        console.log()
+        if (isJson()) {
+          console.log(JSON.stringify({ wallet: name, locked: true }))
+        } else {
+          console.log()
+          console.log(chalk.green(`  Wallet '${name}' locked`))
+          console.log()
+        }
       } catch (error) {
-        handleError(error, program.opts().verbose)
+        handleError(error, program.opts().verbose, isJson())
       }
     })
 
@@ -414,14 +464,17 @@ export function registerWalletCommand(program: Command): void {
       try {
         const keyService = createKeyService()
         if (!(await keyService.hasKey(name))) {
-          console.error(chalk.red(`Error: Wallet '${name}' not found.`))
-          process.exit(1)
+          throw new WdkCliError(`Wallet '${name}' not found.`, ErrorCode.KEY_NOT_FOUND)
         }
 
         configService.setDefaultWallet(name)
-        console.log(chalk.green(`  Default wallet set to '${name}'.`))
+        if (isJson()) {
+          console.log(JSON.stringify({ wallet: name, default: true }))
+        } else {
+          console.log(chalk.green(`  Default wallet set to '${name}'.`))
+        }
       } catch (error) {
-        handleError(error, program.opts().verbose)
+        handleError(error, program.opts().verbose, isJson())
       }
     })
 
@@ -445,13 +498,11 @@ export function registerWalletCommand(program: Command): void {
         const keyService = createKeyService()
 
         if (!(await keyService.hasKey(oldName))) {
-          console.error(chalk.red(`Error: Wallet '${oldName}' not found.`))
-          process.exit(1)
+          throw new WdkCliError(`Wallet '${oldName}' not found.`, ErrorCode.KEY_NOT_FOUND)
         }
 
         if (await keyService.hasKey(newName)) {
-          console.error(chalk.red(`Error: Wallet '${newName}' already exists.`))
-          process.exit(1)
+          throw new WdkCliError(`Wallet '${newName}' already exists.`, ErrorCode.WALLET_EXISTS)
         }
 
         try {
@@ -468,9 +519,13 @@ export function registerWalletCommand(program: Command): void {
           configService.setDefaultWallet(newName)
         }
 
-        console.log(chalk.green(`  Wallet '${oldName}' renamed to '${newName}'.`))
+        if (isJson()) {
+          console.log(JSON.stringify({ oldName, newName, renamed: true }))
+        } else {
+          console.log(chalk.green(`  Wallet '${oldName}' renamed to '${newName}'.`))
+        }
       } catch (error) {
-        handleError(error, program.opts().verbose)
+        handleError(error, program.opts().verbose, isJson())
       }
     })
 }

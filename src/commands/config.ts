@@ -55,22 +55,18 @@ export function registerConfigCommand(program: Command): void {
     .description('Manage CLI configuration')
     .option('--network <network>', 'Scope to a specific network')
 
-  config.hook('preAction', () => {
-    if (program.opts().json) {
-      console.error(chalk.red('Error: --json is not supported for config commands.'))
-      process.exit(1)
-    }
-  })
+  function isJson(): boolean {
+    return !!program.opts().json
+  }
 
-  configureHelp(config, { hideFlags: ['--json'] })
+  configureHelp(config, {})
 
   const getCmd = config
     .command('get')
     .description('Get a config value, or all values if key is omitted')
     .option('--key <key>', 'Config key (omit to show all)')
 
-  configureHelp(getCmd, { hideFlags: ['--json'],
-    params: [
+  configureHelp(getCmd, {     params: [
       { flags: '--key <key>', description: 'Config key (omit to show all)' },
       { flags: '--network <network>', description: 'Scope to a specific network' },
     ],
@@ -85,14 +81,18 @@ export function registerConfigCommand(program: Command): void {
           validateNetwork(network)
           if (key) {
             const value = configService.get(`networks.${network}.${key}`)
-            if (value === undefined) {
+            if (isJson()) {
+              console.log(JSON.stringify({ key, network, value: value ?? null }))
+            } else if (value === undefined) {
               console.log(chalk.yellow(`Key '${key}' is not set for ${network}.`))
             } else {
               console.log(typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value))
             }
           } else {
             const networkConfig = configService.get(`networks.${network}`) as Record<string, unknown> | undefined
-            if (networkConfig && typeof networkConfig === 'object') {
+            if (isJson()) {
+              console.log(JSON.stringify({ network, config: networkConfig ?? {} }))
+            } else if (networkConfig && typeof networkConfig === 'object') {
               console.log()
               console.log(chalk.bold(`  ${network}:`))
               const entries = flatten(networkConfig)
@@ -108,18 +108,24 @@ export function registerConfigCommand(program: Command): void {
           }
         } else if (key) {
           const value = configService.get(key)
-          if (value === undefined) {
+          if (isJson()) {
+            console.log(JSON.stringify({ key, value: value ?? null }))
+          } else if (value === undefined) {
             console.log(chalk.yellow(`Key '${key}' is not set.`))
           } else {
             console.log(typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value))
           }
         } else {
           const all = configService.list()
-          printEntries(flatten(all))
-          console.log(chalk.dim(`\n  Config file: ${configService.configPath}`))
+          if (isJson()) {
+            console.log(JSON.stringify(all))
+          } else {
+            printEntries(flatten(all))
+            console.log(chalk.dim(`\n  Config file: ${configService.configPath}`))
+          }
         }
       } catch (error) {
-        handleError(error, program.opts().verbose)
+        handleError(error, program.opts().verbose, isJson())
       }
     })
 
@@ -129,8 +135,7 @@ export function registerConfigCommand(program: Command): void {
     .option('--key <key>', 'Config key')
     .requiredOption('--value <value>', 'Config value (supports JSON for objects)')
 
-  configureHelp(setCmd, { hideFlags: ['--json'],
-    params: [
+  configureHelp(setCmd, {     params: [
       { flags: '--key <key>', description: 'Config key (required without --network)' },
       { flags: '--value <value>', description: 'Config value (supports JSON for objects)', required: true },
       { flags: '--network <network>', description: 'Scope to a specific network' },
@@ -160,16 +165,23 @@ export function registerConfigCommand(program: Command): void {
 
         if (network && !key) {
           configService.set(`networks.${network}`, parsed)
-          console.log(chalk.green(`Updated config for ${network}`))
         } else if (network && key) {
           configService.set(`networks.${network}.${key}`, parsed)
-          console.log(chalk.green(`Set ${key} = ${value} (${network})`))
         } else {
           configService.set(key!, parsed)
+        }
+
+        if (isJson()) {
+          console.log(JSON.stringify({ key: network ? (key ? `networks.${network}.${key}` : `networks.${network}`) : key, value: parsed, success: true }))
+        } else if (network && !key) {
+          console.log(chalk.green(`Updated config for ${network}`))
+        } else if (network && key) {
+          console.log(chalk.green(`Set ${key} = ${value} (${network})`))
+        } else {
           console.log(chalk.green(`Set ${key} = ${value}`))
         }
       } catch (error) {
-        handleError(error, program.opts().verbose)
+        handleError(error, program.opts().verbose, isJson())
       }
     })
 
@@ -178,8 +190,7 @@ export function registerConfigCommand(program: Command): void {
     .description('Reset a config value to its default')
     .requiredOption('--key <key>', 'Config key')
 
-  configureHelp(resetCmd, { hideFlags: ['--json'],
-    params: [
+  configureHelp(resetCmd, {     params: [
       { flags: '--key <key>', description: 'Config key', required: true },
       { flags: '--network <network>', description: 'Scope to a specific network' },
     ],
@@ -210,13 +221,15 @@ export function registerConfigCommand(program: Command): void {
           configService.delete(fullKey)
         }
 
-        if (network) {
+        if (isJson()) {
+          console.log(JSON.stringify({ key: fullKey, reset: true, value: defaultValue ?? null }))
+        } else if (network) {
           console.log(chalk.green(`Reset ${key} to default (${network}).`))
         } else {
           console.log(chalk.green(`Reset ${key} to default.`))
         }
       } catch (error) {
-        handleError(error, program.opts().verbose)
+        handleError(error, program.opts().verbose, isJson())
       }
     })
 
@@ -224,9 +237,13 @@ export function registerConfigCommand(program: Command): void {
     .command('path')
     .description('Show config file path')
 
-  configureHelp(pathCmd, { hideFlags: ['--json'] })
+  configureHelp(pathCmd, {})
 
   pathCmd.action(() => {
-      console.log(configService.configPath)
+      if (isJson()) {
+        console.log(JSON.stringify({ path: configService.configPath }))
+      } else {
+        console.log(configService.configPath)
+      }
     })
 }
