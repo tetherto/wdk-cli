@@ -79,7 +79,7 @@ export async function getTokenTransfers(
   const headers: Record<string, string> = {}
   if (apiKey) headers['x-api-key'] = apiKey
 
-  const response = await fetch(url, { headers })
+  const response = await fetch(url, { headers, signal: AbortSignal.timeout(20000) })
 
   if (!response.ok) {
     if (response.status === 403) {

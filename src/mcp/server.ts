@@ -60,12 +60,14 @@ export async function startMcpServer(): Promise<void> {
     version: APP_VERSION,
   })
 
-  server.tool(
+  server.registerTool(
     'get_networks',
-    'List all supported blockchain networks',
     {
-      testnet: z.boolean().optional().describe('Filter testnets only'),
-      mainnet: z.boolean().optional().describe('Filter mainnets only'),
+      description: 'List all supported blockchain networks',
+      inputSchema: {
+        testnet: z.boolean().optional().describe('Filter testnets only'),
+        mainnet: z.boolean().optional().describe('Filter mainnets only'),
+      },
     },
     async ({ testnet, mainnet }) => {
       const allNetworks = getAllNetworks()
@@ -90,14 +92,16 @@ export async function startMcpServer(): Promise<void> {
     },
   )
 
-  server.tool(
+  server.registerTool(
     'get_address',
-    'Get wallet address. Omit network to get addresses for all networks.',
     {
-      network: z.string().optional().describe('Network name (e.g. ethereum, bitcoin). Omit for all networks.'),
-      index: z.number().optional().default(0).describe('Account index (default: 0)'),
-      testnet: z.boolean().optional().default(false).describe('Include testnet addresses when getting all'),
-      wallet: z.string().optional().describe('Wallet name (uses default wallet if omitted)'),
+      description: 'Get wallet address. Omit network to get addresses for all networks.',
+      inputSchema: {
+        network: z.string().optional().describe('Network name (e.g. ethereum, bitcoin). Omit for all networks.'),
+        index: z.number().optional().default(0).describe('Account index (default: 0)'),
+        testnet: z.boolean().optional().default(false).describe('Include testnet addresses when getting all'),
+        wallet: z.string().optional().describe('Wallet name (uses default wallet if omitted)'),
+      },
     },
     async ({ network, index, testnet, wallet }) => {
       try {
@@ -126,15 +130,17 @@ export async function startMcpServer(): Promise<void> {
     },
   )
 
-  server.tool(
+  server.registerTool(
     'get_balance',
-    'Get wallet balance. Omit network to get balances for all networks with USD values.',
     {
-      network: z.string().optional().describe('Network name. Omit for all networks.'),
-      token: z.string().optional().describe('Token contract address for ERC-20/SPL balance'),
-      index: z.number().optional().default(0).describe('Account index (default: 0)'),
-      testnet: z.boolean().optional().default(false).describe('Include testnets when getting all'),
-      wallet: z.string().optional().describe('Wallet name (uses default wallet if omitted)'),
+      description: 'Get wallet balance. Omit network to get balances for all networks with USD values.',
+      inputSchema: {
+        network: z.string().optional().describe('Network name. Omit for all networks.'),
+        token: z.string().optional().describe('Token contract address for ERC-20/SPL balance'),
+        index: z.number().optional().default(0).describe('Account index (default: 0)'),
+        testnet: z.boolean().optional().default(false).describe('Include testnets when getting all'),
+        wallet: z.string().optional().describe('Wallet name (uses default wallet if omitted)'),
+      },
     },
     async ({ network, token, index, testnet, wallet }) => {
       try {
@@ -174,17 +180,19 @@ export async function startMcpServer(): Promise<void> {
     },
   )
 
-  server.tool(
+  server.registerTool(
     'get_history',
-    'Get transaction history for a network (requires indexer API)',
     {
-      network: z.string().describe('Network name (required)'),
-      token: z.string().optional().describe('Token filter (e.g. usdt, default: usdt)'),
-      limit: z.number().optional().default(30).describe('Max results (default: 30)'),
-      index: z.number().optional().default(0).describe('Account index (default: 0)'),
-      fromDate: z.string().optional().describe('Start date (ISO 8601, e.g. 2026-01-01)'),
-      toDate: z.string().optional().describe('End date (ISO 8601, e.g. 2026-12-31)'),
-      wallet: z.string().optional().describe('Wallet name (uses default wallet if omitted)'),
+      description: 'Get transaction history for a network (requires indexer API)',
+      inputSchema: {
+        network: z.string().describe('Network name (required)'),
+        token: z.string().optional().describe('Token filter (e.g. usdt, default: usdt)'),
+        limit: z.number().optional().default(30).describe('Max results (default: 30)'),
+        index: z.number().optional().default(0).describe('Account index (default: 0)'),
+        fromDate: z.string().optional().describe('Start date (ISO 8601, e.g. 2026-01-01)'),
+        toDate: z.string().optional().describe('End date (ISO 8601, e.g. 2026-12-31)'),
+        wallet: z.string().optional().describe('Wallet name (uses default wallet if omitted)'),
+      },
     },
     async ({ network, token, limit, index, fromDate, toDate, wallet }) => {
       try {
@@ -203,17 +211,19 @@ export async function startMcpServer(): Promise<void> {
     },
   )
 
-  server.tool(
+  server.registerTool(
     'send_token',
-    'Send native tokens or ERC-20/SPL tokens. Returns a preview by default (dry run). Set confirm=true to execute after reviewing the preview.',
     {
-      to: z.string().describe('Recipient address'),
-      amount: z.string().describe('Amount in base units (wei, satoshis, lamports)'),
-      network: z.string().describe('Network name (e.g. ethereum, bitcoin)'),
-      token: z.string().optional().describe('Token contract address (for ERC-20/SPL transfers)'),
-      index: z.number().optional().default(0).describe('Account index (default: 0)'),
-      confirm: z.boolean().optional().default(false).describe('Set true to execute. Default false returns a preview only.'),
-      wallet: z.string().optional().describe('Wallet name (uses default wallet if omitted)'),
+      description: 'Send native tokens or ERC-20/SPL tokens. Returns a preview by default (dry run). Set confirm=true to execute after reviewing the preview.',
+      inputSchema: {
+        to: z.string().describe('Recipient address'),
+        amount: z.string().describe('Amount in base units (wei, satoshis, lamports)'),
+        network: z.string().describe('Network name (e.g. ethereum, bitcoin)'),
+        token: z.string().optional().describe('Token contract address (for ERC-20/SPL transfers)'),
+        index: z.number().optional().default(0).describe('Account index (default: 0)'),
+        confirm: z.boolean().optional().default(false).describe('Set true to execute. Default false returns a preview only.'),
+        wallet: z.string().optional().describe('Wallet name (uses default wallet if omitted)'),
+      },
     },
     async ({ to, amount, network, token, index, confirm, wallet }) => {
       try {
