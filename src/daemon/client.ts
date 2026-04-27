@@ -38,8 +38,8 @@ function spawnDaemon(): Promise<void> {
     const isWindows = process.platform === 'win32'
     const child = spawn(process.execPath, ['--disable-warning=ExperimentalWarning', getDaemonScript()], {
       stdio: ['ignore', 'ignore', 'pipe'],
-      detached: !isWindows, // On Windows, detached opens a new console window; use windowsHide instead
-      windowsHide: true,
+      detached: true, // Daemon must outlive the parent process on all platforms
+      windowsHide: true, // Prevents a new console window on Windows when detached
     })
 
     let stderr = ''
@@ -80,7 +80,11 @@ export class DaemonClient {
       try {
         process.kill(pid, 0)
         return true
-      } catch {
+      } catch (err) {
+        // On Windows, process.kill(pid, 0) throws EPERM for running processes — treat as alive
+        if (isWindows && (err as NodeJS.ErrnoException).code === 'EPERM') {
+          return true
+        }
         if (!isWindows) {
           try { await unlink(this.socketPath) } catch { /* */ }
         }
