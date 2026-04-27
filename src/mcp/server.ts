@@ -214,18 +214,18 @@ export async function startMcpServer(): Promise<void> {
   server.registerTool(
     'send_token',
     {
-      description: 'Send native tokens or ERC-20/SPL tokens. Returns a preview by default (dry run). Set confirm=true to execute after reviewing the preview.',
+      description: 'Send native tokens or ERC-20/SPL tokens. Returns a dry-run preview by default. Set dryRun=false to execute after reviewing the preview.',
       inputSchema: {
         to: z.string().describe('Recipient address'),
         amount: z.string().describe('Amount in base units (wei, satoshis, lamports)'),
         network: z.string().describe('Network name (e.g. ethereum, bitcoin)'),
         token: z.string().optional().describe('Token contract address (for ERC-20/SPL transfers)'),
         index: z.number().optional().default(0).describe('Account index (default: 0)'),
-        confirm: z.boolean().optional().default(false).describe('Set true to execute. Default false returns a preview only.'),
+        dryRun: z.boolean().optional().default(true).describe('Preview transaction without sending (default: true). Set false to execute.'),
         wallet: z.string().optional().describe('Wallet name (uses default wallet if omitted)'),
       },
     },
-    async ({ to, amount, network, token, index, confirm, wallet }) => {
+    async ({ to, amount, network, token, index, dryRun, wallet }) => {
       try {
         const resolvedWallet = await requireWallet(wallet)
         validateNetwork(network)
@@ -238,7 +238,7 @@ export async function startMcpServer(): Promise<void> {
           )
         }
 
-        if (!confirm) {
+        if (dryRun) {
           const feeQuote = await daemonClient.estimateFee(network, index, to, amount, token, resolvedWallet)
           const config = getNetworkConfig(network as NetworkName)
           let amountUsd = 0
@@ -256,7 +256,7 @@ export async function startMcpServer(): Promise<void> {
             estimatedFee: feeQuote.fee,
             estimatedFeeFormatted: feeQuote.feeFormatted,
             estimatedFeeUsd: Math.round(feeUsd * 100) / 100,
-            message: 'This is a preview. Call send_token again with confirm=true to execute.',
+            message: 'This is a dry-run preview. Call send_token again with dryRun=false to execute.',
           })
         }
 

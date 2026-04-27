@@ -373,9 +373,9 @@ Each command auto-detects the Node.js path, validates the MCP server, and writes
 | `get_address` | `network?`, `index?`, `testnet?`, `wallet?` | Get wallet address (omit network for all) |
 | `get_balance` | `network?`, `token?`, `index?`, `testnet?`, `wallet?` | Get balance with USD values (omit network for all) |
 | `get_history` | `network`, `token?`, `limit?`, `index?`, `fromDate?`, `toDate?`, `wallet?` | Transaction history (requires indexer API) |
-| `send_token` | `to`, `amount`, `network`, `token?`, `index?`, `confirm?`, `wallet?` | Send tokens. Returns preview by default; set `confirm=true` to execute |
+| `send_token` | `to`, `amount`, `network`, `token?`, `index?`, `dryRun?`, `wallet?` | Send tokens. Returns dry-run preview by default; set `dryRun=false` to execute |
 
-All wallet-dependent tools accept an optional `wallet` parameter (uses default wallet if omitted). The `send_token` tool uses a two-step flow: first call without `confirm` to preview fees and amounts, then call with `confirm=true` to execute.
+All wallet-dependent tools accept an optional `wallet` parameter (uses default wallet if omitted). The `send_token` tool defaults to dry-run mode: first call to preview fees and amounts, then call with `dryRun=false` to execute.
 
 The AI model interacts exclusively through these structured tools — it cannot run shell commands, access the filesystem, or read private keys. All operations route through the daemon over a Unix socket.
 
