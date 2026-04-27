@@ -35,7 +35,6 @@ function getDaemonScript(): string {
 
 function spawnDaemon(): Promise<void> {
   return new Promise((resolve, reject) => {
-    const isWindows = process.platform === 'win32'
     const child = spawn(process.execPath, ['--disable-warning=ExperimentalWarning', getDaemonScript()], {
       stdio: ['ignore', 'ignore', 'pipe'],
       detached: true, // Daemon must outlive the parent process on all platforms
