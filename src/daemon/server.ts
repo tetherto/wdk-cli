@@ -61,7 +61,9 @@ export class WalletDaemon {
 
     const pidPath = getDaemonPidPath()
     await writeFile(pidPath, String(process.pid), 'utf8')
-    await chmod(pidPath, 0o600) // owner-only; prevents other users from reading/killing the daemon
+    if (!isWin) {
+      await chmod(pidPath, 0o600) // owner-only; prevents other users from reading/killing the daemon
+    }
   }
 
   private unlockWalletSync(name: string, passphrase: string, ttlMinutes: number): void {
