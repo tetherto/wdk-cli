@@ -29,6 +29,8 @@ import { isIndexerSupported } from '../services/indexer-service.js'
 import { APP_VERSION } from '../config/constants.js'
 import { formatAmount } from '../ui/formatters.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
+import { validateModule, resolveAsset } from '../config/ramp.js'
+import { getMoonPayConfig, validateEnvironment, signMoonPayUrl, buildMoonPayUrl } from '../services/moonpay.js'
 import type { NetworkName } from '../types/index.js'
 
 function errorResult(error: unknown) {
@@ -214,7 +216,7 @@ export async function startMcpServer(): Promise<void> {
   server.registerTool(
     'send_token',
     {
-      description: 'Send native tokens or ERC-20/SPL tokens. Returns a dry-run preview by default. Set dryRun=false to execute after reviewing the preview.',
+      description: 'Send native tokens or ERC-20/SPL tokens. IMPORTANT: Always call with dryRun=true first to preview fees and amounts, show the preview to the user, and only call again with dryRun=false after user confirms.',
       inputSchema: {
         to: z.string().describe('Recipient address'),
         amount: z.string().describe('Amount in base units (wei, satoshis, lamports)'),
@@ -277,6 +279,71 @@ export async function startMcpServer(): Promise<void> {
         return errorResult(e)
       }
     },
+  )
+
+  const rampInputSchema = {
+    network: z.string().describe('Network name (e.g. ethereum, bitcoin)'),
+    token: z.string().describe('Crypto asset code (e.g. usdt, eth, btc)'),
+    fiatCurrency: z.string().optional().default('usd').describe('Fiat currency code (default: usd)'),
+    fiatAmount: z.string().optional().describe('Fiat amount (e.g. 100 for $100). Mutually exclusive with cryptoAmount.'),
+    cryptoAmount: z.string().optional().describe('Crypto amount (e.g. 0.05). Mutually exclusive with fiatAmount.'),
+    index: z.number().optional().default(0).describe('Account index (default: 0)'),
+    wallet: z.string().optional().describe('Wallet name (uses default wallet if omitted)'),
+  }
+
+  async function handleRamp(
+    direction: 'buy' | 'sell',
+    { network, token, fiatCurrency, fiatAmount, cryptoAmount, index, wallet }: { network: string; token: string; fiatCurrency: string; fiatAmount?: string; cryptoAmount?: string; index: number; wallet?: string },
+  ) {
+    try {
+      if (fiatAmount && cryptoAmount) {
+        throw new WdkCliError('Cannot specify both fiatAmount and cryptoAmount.', ErrorCode.INVALID_ARGUMENT)
+      }
+
+      const resolvedWallet = await requireWallet(wallet)
+      validateNetwork(network)
+      const module = validateModule('moonpay')
+      const { code: cryptoAsset, token: resolvedToken } = resolveAsset(network, token, module)
+
+      const config = getMoonPayConfig()
+      validateEnvironment(network, config.environment)
+      const address = await daemonClient.getAddress(network, index, resolvedWallet)
+
+      let url = buildMoonPayUrl(direction, config, cryptoAsset, address, fiatCurrency, fiatAmount, cryptoAmount)
+      url = await signMoonPayUrl(url, config.signUrl)
+
+      return jsonResult({
+        direction,
+        network,
+        address,
+        token: resolvedToken,
+        module,
+        fiatCurrency,
+        fiatAmount,
+        cryptoAmount,
+        url,
+      })
+    } catch (e) {
+      return errorResult(e)
+    }
+  }
+
+  server.registerTool(
+    'buy_crypto',
+    {
+      description: 'Buy crypto with fiat via on-ramp provider. Returns a signed URL for the user to open.',
+      inputSchema: rampInputSchema,
+    },
+    (args) => handleRamp('buy', args),
+  )
+
+  server.registerTool(
+    'sell_crypto',
+    {
+      description: 'Sell crypto for fiat via off-ramp provider. Returns a signed URL for the user to open.',
+      inputSchema: rampInputSchema,
+    },
+    (args) => handleRamp('sell', args),
   )
 
   const transport = new StdioServerTransport()

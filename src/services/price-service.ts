@@ -58,7 +58,7 @@ async function fetchPrices(): Promise<Map<string, number>> {
   const symbols = getAllBitfinexSymbols()
   const url = `https://api-pub.bitfinex.com/v2/tickers?symbols=${symbols.join(',')}`
 
-  const response = await fetch(url)
+  const response = await fetch(url, { signal: AbortSignal.timeout(5000) })
   if (!response.ok) {
     throw new Error(`Bitfinex API error: ${response.status} ${response.statusText}`)
   }

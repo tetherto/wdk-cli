@@ -69,11 +69,21 @@ export function validateEnvironment(network: string, environment: 'production' |
 }
 
 export async function signMoonPayUrl(url: string, signEndpoint: string): Promise<string> {
-  const response = await fetch(signEndpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ urlForSignature: url }),
-  })
+  let response: Response
+  try {
+    response = await fetch(signEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ urlForSignature: url }),
+    })
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error)
+    throw new WdkCliError(
+      `Cannot reach MoonPay sign server at '${signEndpoint}': ${detail}`,
+      ErrorCode.SIGN_FAILED,
+      'Check that moonpay.signUrl is correct and the server is reachable.',
+    )
+  }
   if (!response.ok) {
     throw new WdkCliError(`Failed to sign MoonPay URL: ${response.status} ${response.statusText}`, ErrorCode.SIGN_FAILED)
   }

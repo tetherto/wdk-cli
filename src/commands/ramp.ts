@@ -52,7 +52,7 @@ async function handleRampAction(
     validateEnvironment(network, config.environment)
     const address = await daemonClient.getAddress(network, index, wallet)
 
-    let url = buildMoonPayUrl(direction, config, cryptoAsset, address, options.fiat, options.fiatAmount, options.cryptoAmount)
+    let url = buildMoonPayUrl(direction, config, cryptoAsset, address, options.fiatCurrency, options.fiatAmount, options.cryptoAmount)
     url = await signMoonPayUrl(url, config.signUrl)
 
     const result = {
@@ -61,7 +61,7 @@ async function handleRampAction(
       address,
       token,
       module,
-      fiat: options.fiat!,
+      fiat: options.fiatCurrency!,
       fiatAmount: options.fiatAmount,
       cryptoAmount: options.cryptoAmount,
       url,
@@ -95,7 +95,7 @@ export function registerRampCommands(program: Command): void {
     .requiredOption('--network <network>', 'Blockchain network')
     .option('--index <n>', 'Account index')
     .requiredOption('--token <token>', 'Crypto asset code (e.g. usdt, eth, btc)')
-    .option('--fiat <currency>', 'Fiat currency code', 'usd')
+    .option('--fiat-currency <currency>', 'Fiat currency code', 'usd')
     .option('--fiat-amount <value>', 'Fiat amount (e.g. 100 for $100)')
     .option('--crypto-amount <value>', 'Crypto amount (e.g. 0.05)')
     .option('--module <module>', 'Fiat provider module', 'moonpay')
@@ -105,7 +105,7 @@ export function registerRampCommands(program: Command): void {
       { flags: '--network <network>', description: 'Blockchain network', required: true },
       { flags: '--token <token>', description: 'Crypto asset code (e.g. usdt, eth, btc)', required: true },
       { flags: '--fiat-amount <value>', description: 'Amount in fiat to spend (e.g. 100), mutually exclusive with --crypto-amount' },
-      { flags: '--fiat <currency>', description: 'Fiat currency code (default: usd)' },
+      { flags: '--fiat-currency <currency>', description: 'Fiat currency code (default: usd)' },
       { flags: '--crypto-amount <value>', description: 'Amount in crypto to buy (e.g. 0.05), mutually exclusive with --fiat-amount' },
       { flags: '--module <module>', description: 'Fiat provider module (default: moonpay)' },
     ],
@@ -130,7 +130,7 @@ export function registerRampCommands(program: Command): void {
     .requiredOption('--network <network>', 'Blockchain network')
     .option('--index <n>', 'Account index')
     .requiredOption('--token <token>', 'Crypto asset code (e.g. usdt, eth, btc)')
-    .option('--fiat <currency>', 'Fiat currency code', 'usd')
+    .option('--fiat-currency <currency>', 'Fiat currency code', 'usd')
     .option('--fiat-amount <value>', 'Fiat amount (e.g. 200 for $200)')
     .option('--crypto-amount <value>', 'Crypto amount (e.g. 50)')
     .option('--module <module>', 'Fiat provider module', 'moonpay')
@@ -140,7 +140,7 @@ export function registerRampCommands(program: Command): void {
       { flags: '--network <network>', description: 'Blockchain network', required: true },
       { flags: '--token <token>', description: 'Crypto asset code (e.g. usdt, eth, btc)', required: true },
       { flags: '--fiat-amount <value>', description: 'Amount in fiat to spend (e.g. 200), mutually exclusive with --crypto-amount' },
-      { flags: '--fiat <currency>', description: 'Fiat currency code (default: usd)' },
+      { flags: '--fiat-currency <currency>', description: 'Fiat currency code (default: usd)' },
       { flags: '--crypto-amount <value>', description: 'Amount in crypto to sell (e.g. 50), mutually exclusive with --fiat-amount' },
       { flags: '--module <module>', description: 'Fiat provider module (default: moonpay)' },
     ],

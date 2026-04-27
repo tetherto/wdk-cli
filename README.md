@@ -250,7 +250,7 @@ wdk config set --key moonpay.environment --value sandbox       # or production
 | `--network <network>` | Blockchain network (required) |
 | `--token <token>` | Crypto asset code, e.g. `usdt`, `eth`, `btc` (required) |
 | `--module <module>` | Fiat provider (default: `moonpay`) |
-| `--fiat <currency>` | Fiat currency code (default: `usd`) |
+| `--fiat-currency <currency>` | Fiat currency code (default: `usd`) |
 | `--fiat-amount <value>` | Fiat amount (mutually exclusive with `--crypto-amount`) |
 | `--crypto-amount <value>` | Crypto amount (mutually exclusive with `--fiat-amount`) |
 
@@ -374,8 +374,15 @@ Each command auto-detects the Node.js path, validates the MCP server, and writes
 | `get_balance` | `network?`, `token?`, `index?`, `testnet?`, `wallet?` | Get balance with USD values (omit network for all) |
 | `get_history` | `network`, `token?`, `limit?`, `index?`, `fromDate?`, `toDate?`, `wallet?` | Transaction history (requires indexer API) |
 | `send_token` | `to`, `amount`, `network`, `token?`, `index?`, `dryRun?`, `wallet?` | Send tokens. Returns dry-run preview by default; set `dryRun=false` to execute |
+| `buy_crypto` | `network`, `token`, `fiatCurrency?`, `fiatAmount?`, `cryptoAmount?`, `index?`, `wallet?` | Buy crypto with fiat. Returns a signed MoonPay URL. |
+| `sell_crypto` | `network`, `token`, `fiatCurrency?`, `fiatAmount?`, `cryptoAmount?`, `index?`, `wallet?` | Sell crypto for fiat. Returns a signed MoonPay URL. |
 
-All wallet-dependent tools accept an optional `wallet` parameter (uses default wallet if omitted). The `send_token` tool defaults to dry-run mode: first call to preview fees and amounts, then call with `dryRun=false` to execute.
+All wallet-dependent tools accept an optional `wallet` parameter (uses default wallet if omitted).
+
+**Important: `send_token` requires two calls.** The tool defaults to `dryRun=true` (preview mode). AI agents must:
+1. Call `send_token` first to get a fee/amount preview
+2. Show the preview to the user and wait for confirmation
+3. Call `send_token` again with `dryRun=false` only after the user confirms
 
 The AI model interacts exclusively through these structured tools — it cannot run shell commands, access the filesystem, or read private keys. All operations route through the daemon over a Unix socket.
 
