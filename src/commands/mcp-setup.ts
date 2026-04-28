@@ -16,7 +16,7 @@ import type { Command } from 'commander'
 import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { homedir, platform } from 'node:os'
-import { execSync } from 'node:child_process'
+import { execSync, spawnSync } from 'node:child_process'
 import chalk from 'chalk'
 import { handleError } from '../errors/index.js'
 import { configureHelp } from '../ui/help.js'
@@ -98,10 +98,14 @@ function getWdkMcpCommand(): { command: string; args?: string[] } {
 
 function testMcpServer(mcpConfig: { command: string; args?: string[] }): boolean {
   try {
-    const args = mcpConfig.args ? mcpConfig.args.join(' ') : ''
-    const cmd = `echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"setup-test","version":"1.0"}}}' | ${mcpConfig.command} ${args}`
-    const result = execSync(cmd, { encoding: 'utf8', timeout: 15000, stdio: ['pipe', 'pipe', 'pipe'] })
-    return result.includes('"wdk-wallet"')
+    const initRequest = '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"setup-test","version":"1.0"}}}\n'
+    const result = spawnSync(mcpConfig.command, mcpConfig.args ?? [], {
+      input: initRequest,
+      encoding: 'utf8',
+      timeout: 15000,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    })
+    return (result.stdout ?? '').includes('"wdk-wallet"')
   } catch {
     return false
   }
@@ -242,7 +246,7 @@ function getSetupTarget(aiTool: string): SetupTarget {
         configPath,
         checkInstalled: () => {
           try {
-            execSync('which claude 2>/dev/null || where claude 2>nul', { encoding: 'utf8', timeout: 5000 })
+            execSync('which claude 2>/dev/null || where claude 2>nul', { encoding: 'utf8', timeout: 5000, stdio: ['ignore', 'pipe', 'pipe'] })
             return true
           } catch {
             return existsSync(join(homedir(), '.claude'))
