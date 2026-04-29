@@ -355,15 +355,16 @@ AI agents interact with wdk-wallet in two ways, depending on their environment:
 For AI models that run as applications with limited system access (Claude Desktop, OpenClaw, etc.). The model can only interact with the wallet through structured MCP tools — it cannot run commands or access the filesystem.
 
 ```bash
-wdk mcp setup --ai-tool claude-desktop    # Claude Desktop
-wdk mcp setup --ai-tool claude-code       # Claude Code
-wdk mcp setup --ai-tool openclaw          # OpenClaw
+wdk mcp setup --ai-tool claude-desktop    # Configure for Claude Desktop
+wdk mcp setup --ai-tool claude-code       # Configure for Claude Code
+wdk mcp setup --ai-tool openclaw          # Configure for OpenClaw
 
-wdk mcp setup --ai-tool claude-desktop --remove   # Uninstall
-wdk mcp status                                     # Show which AI tools are configured
+wdk mcp remove --ai-tool claude-desktop   # Remove configuration
+wdk mcp verify-setup --ai-tool claude-code # Verify config and test MCP server
+wdk mcp list                               # Show status across all AI tools
 ```
 
-Each command auto-detects the Node.js path, validates the MCP server, and writes the config.
+Setup auto-detects the Node.js path, validates the MCP server, and writes the config. For Claude Code and OpenClaw, it uses their native CLI (`claude mcp add`, `openclaw mcp set`). For Claude Desktop, it writes the config file directly.
 
 **MCP Tools:**
 

@@ -17,6 +17,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync } from 
 import { join, dirname } from 'node:path'
 import { homedir, platform } from 'node:os'
 import { execSync, spawnSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 import chalk from 'chalk'
 import { handleError } from '../errors/index.js'
 import { configureHelp } from '../ui/help.js'
@@ -88,12 +89,19 @@ function getOpenClawConfigPath(): string {
   return join(homedir(), '.openclaw', 'openclaw.json')
 }
 
-function getWdkMcpCommand(): { command: string; args?: string[] } {
-  // On Windows, invoke the globally-installed `wdk-mcp` shim via cmd.
-  if (platform() === 'win32') {
-    return { command: 'cmd', args: ['/c', 'wdk-mcp'] }
+function getMcpScriptPath(): string {
+  const thisFile = fileURLToPath(import.meta.url)
+  let dir = dirname(thisFile)
+  for (let i = 0; i < 5; i++) {
+    const candidate = join(dir, 'bin', 'wdk-mcp.mjs')
+    if (existsSync(candidate)) return candidate
+    dir = dirname(dir)
   }
-  return { command: 'npx', args: ['-y', '-p', 'wdk-cli', 'wdk-mcp'] }
+  throw new Error('Could not find bin/wdk-mcp.mjs relative to the current module')
+}
+
+function getWdkMcpCommand(): { command: string; args: string[] } {
+  return { command: process.execPath, args: [getMcpScriptPath()] }
 }
 
 function testMcpServer(mcpConfig: { command: string; args?: string[] }): boolean {
@@ -119,6 +127,12 @@ interface SetupTarget {
   restartMessage: string
   /** Path to the mcpServers object within the config (default: top-level 'mcpServers') */
   serversPath?: string[]
+  /** Use CLI commands instead of writing config file directly */
+  cliSetup?: {
+    add: (mcpConfig: { command: string; args: string[] }) => boolean
+    remove: () => boolean
+    isConfigured: () => boolean
+  }
 }
 
 function readOrCreateConfig(configPath: string): { mcpServers?: Record<string, unknown>; [key: string]: unknown } {
@@ -146,7 +160,17 @@ function getServersObject(config: Record<string, unknown>, path: string[]): Reco
   return obj
 }
 
-function runSetup(target: SetupTarget, options: { remove?: boolean; skipVerify?: boolean }): void {
+function buildManualMcpJson(): string[] {
+  const mcpConfig = getWdkMcpCommand()
+  return [
+    '  "wdk-wallet": {',
+    `    "command": "${mcpConfig.command}",`,
+    `    "args": ["${mcpConfig.args[0]}"]`,
+    '  }',
+  ]
+}
+
+function runSetup(target: SetupTarget): void {
   console.log()
 
   if (!target.checkInstalled()) {
@@ -157,34 +181,16 @@ function runSetup(target: SetupTarget, options: { remove?: boolean; skipVerify?:
     process.exit(1)
   }
 
-  const config = readOrCreateConfig(target.configPath)
-  const serversPath = target.serversPath ?? ['mcpServers']
-  const servers = getServersObject(config, serversPath)
-
-  if (options.remove) {
-    if ('wdk-wallet' in servers) {
-      delete servers['wdk-wallet']
-      writeFileSync(target.configPath, JSON.stringify(config, null, 2) + '\n')
-      console.log(chalk.green(`  ✓ Removed wdk-wallet from ${target.name}`))
-      console.log(chalk.dim(`    ${target.restartMessage}`))
-    } else {
-      console.log(chalk.dim(`  wdk-wallet is not configured in ${target.name}`))
+  if (target.cliSetup) {
+    if (target.cliSetup.isConfigured()) {
+      console.log(chalk.green(`  ✓ wdk-wallet is already configured in ${target.name}`))
+      console.log(chalk.dim(`    To reinstall: wdk mcp remove --ai-tool <name>, then re-run setup`))
+      console.log()
+      return
     }
-    console.log()
-    return
-  }
 
-  if ('wdk-wallet' in servers) {
-    console.log(chalk.green(`  ✓ wdk-wallet is already configured in ${target.name}`))
-    console.log(chalk.dim(`    Config: ${target.configPath}`))
-    console.log(chalk.dim(`    Use --remove to uninstall, or --remove then re-run to reinstall`))
-    console.log()
-    return
-  }
+    const mcpConfig = getWdkMcpCommand()
 
-  const mcpConfig = getWdkMcpCommand()
-
-  if (!options.skipVerify) {
     process.stdout.write(chalk.dim('  Verifying MCP server... '))
     const works = testMcpServer(mcpConfig)
     if (works) {
@@ -193,6 +199,40 @@ function runSetup(target: SetupTarget, options: { remove?: boolean; skipVerify?:
       console.log(chalk.yellow('SKIP'))
       console.log(chalk.dim('    Could not verify MCP server (may still work)'))
     }
+
+    const ok = target.cliSetup.add(mcpConfig)
+    if (ok) {
+      console.log(chalk.green(`  ✓ Added wdk-wallet to ${target.name}`))
+    } else {
+      console.log(chalk.red(`  ✗ Failed to add wdk-wallet to ${target.name}`))
+    }
+    console.log()
+    console.log(chalk.dim(`  ${target.restartMessage}`))
+    console.log()
+    return
+  }
+
+  const config = readOrCreateConfig(target.configPath)
+  const serversPath = target.serversPath ?? ['mcpServers']
+  const servers = getServersObject(config, serversPath)
+
+  if ('wdk-wallet' in servers) {
+    console.log(chalk.green(`  ✓ wdk-wallet is already configured in ${target.name}`))
+    console.log(chalk.dim(`    Config: ${target.configPath}`))
+    console.log(chalk.dim(`    To reinstall: wdk mcp remove --ai-tool <name>, then re-run setup`))
+    console.log()
+    return
+  }
+
+  const mcpConfig = getWdkMcpCommand()
+
+  process.stdout.write(chalk.dim('  Verifying MCP server... '))
+  const works = testMcpServer(mcpConfig)
+  if (works) {
+    console.log(chalk.green('OK'))
+  } else {
+    console.log(chalk.yellow('SKIP'))
+    console.log(chalk.dim('    Could not verify MCP server (may still work)'))
   }
 
   const serverEntry: Record<string, unknown> = { command: mcpConfig.command }
@@ -200,12 +240,97 @@ function runSetup(target: SetupTarget, options: { remove?: boolean; skipVerify?:
     serverEntry.args = mcpConfig.args
   }
   servers['wdk-wallet'] = serverEntry
+  mkdirSync(dirname(target.configPath), { recursive: true })
   writeFileSync(target.configPath, JSON.stringify(config, null, 2) + '\n')
   console.log(chalk.green(`  ✓ Added wdk-wallet to ${target.name}`))
   console.log(chalk.dim(`    Config: ${target.configPath}`))
 
   console.log()
   console.log(chalk.dim(`  ${target.restartMessage}`))
+  console.log()
+}
+
+function runRemove(target: SetupTarget): void {
+  console.log()
+
+  if (target.cliSetup) {
+    if (!target.cliSetup.isConfigured()) {
+      console.log(chalk.dim(`  wdk-wallet is not configured in ${target.name}`))
+      console.log()
+      return
+    }
+    const ok = target.cliSetup.remove()
+    if (ok) {
+      console.log(chalk.green(`  ✓ Removed wdk-wallet from ${target.name}`))
+      console.log(chalk.dim(`    ${target.restartMessage}`))
+    } else {
+      console.log(chalk.red(`  ✗ Failed to remove wdk-wallet from ${target.name}`))
+    }
+    console.log()
+    return
+  }
+
+  if (!existsSync(target.configPath)) {
+    console.log(chalk.dim(`  wdk-wallet is not configured in ${target.name}`))
+    console.log()
+    return
+  }
+
+  const config = readOrCreateConfig(target.configPath)
+  const serversPath = target.serversPath ?? ['mcpServers']
+  const servers = getServersObject(config, serversPath)
+
+  if ('wdk-wallet' in servers) {
+    delete servers['wdk-wallet']
+    writeFileSync(target.configPath, JSON.stringify(config, null, 2) + '\n')
+    console.log(chalk.green(`  ✓ Removed wdk-wallet from ${target.name}`))
+    console.log(chalk.dim(`    ${target.restartMessage}`))
+  } else {
+    console.log(chalk.dim(`  wdk-wallet is not configured in ${target.name}`))
+  }
+  console.log()
+}
+
+function isConfigured(target: SetupTarget): boolean {
+  if (target.cliSetup) return target.cliSetup.isConfigured()
+  if (!existsSync(target.configPath)) return false
+  try {
+    const raw = readFileSync(target.configPath, 'utf8')
+    const config = JSON.parse(raw) as Record<string, unknown>
+    const path = target.serversPath ?? ['mcpServers']
+    let servers: Record<string, unknown> | undefined = config
+    for (const key of path) {
+      servers = servers?.[key] as Record<string, unknown> | undefined
+    }
+    return !!servers && 'wdk-wallet' in servers
+  } catch {
+    return false
+  }
+}
+
+function runList(): void {
+  console.log()
+  const targets: { name: string; target: SetupTarget | null }[] = [
+    { name: 'Claude Desktop', target: getClaudeDesktopConfigPath() ? getSetupTarget('claude-desktop') : null },
+    { name: 'Claude Code', target: getSetupTarget('claude-code') },
+    { name: 'OpenClaw', target: getSetupTarget('openclaw') },
+  ]
+
+  for (const { name, target } of targets) {
+    if (!target) {
+      console.log(`  ${name.padEnd(20)} ${chalk.dim('n/a')}`)
+      continue
+    }
+    try {
+      if (isConfigured(target)) {
+        console.log(`  ${name.padEnd(20)} ${chalk.green('✓ configured')}`)
+      } else {
+        console.log(`  ${name.padEnd(20)} ${chalk.dim('not configured')}`)
+      }
+    } catch {
+      console.log(`  ${name.padEnd(20)} ${chalk.yellow('error')}`)
+    }
+  }
   console.log()
 }
 
@@ -232,21 +357,13 @@ function getSetupTarget(aiTool: string): SetupTarget {
           return false
         },
         notInstalledMessage: [
-          'If not installed, download from https://claude.ai/download',
-          'If already installed, configure MCP directly in Claude Desktop:',
-          'Settings → Developer → Edit Config, then add to mcpServers:',
+          'Install (if not installed): https://claude.ai/download',
           '',
-          ...(platform() === 'win32' ? [
-            '  "wdk-wallet": {',
-            '    "command": "cmd",',
-            '    "args": ["/c", "wdk-mcp"]',
-            '  }',
-          ] : [
-            '  "wdk-wallet": {',
-            '    "command": "npx",',
-            '    "args": ["-y", "-p", "wdk-cli", "wdk-mcp"]',
-            '  }',
-          ]),
+          'Or configure manually in:',
+          `  ${configPath}`,
+          '',
+          'Add to "mcpServers":',
+          ...buildManualMcpJson(),
         ],
         restartMessage: `Restart Claude Desktop${platform() === 'darwin' ? ' (Cmd+Q, then reopen)' : ''}`,
       }
@@ -265,10 +382,40 @@ function getSetupTarget(aiTool: string): SetupTarget {
           }
         },
         notInstalledMessage: [
-          'Install Claude Code: npm install -g @anthropic-ai/claude-code',
-          'Or visit: https://claude.ai/code',
+          'Install (if not installed): https://docs.anthropic.com/en/docs/claude-code/overview',
+          '',
+          'Or add manually:',
+          `  claude mcp add -s user wdk-wallet -- ${process.execPath} ${getMcpScriptPath()}`,
         ],
         restartMessage: 'Start a new Claude Code session to use wdk-wallet tools',
+        cliSetup: {
+          add: (mcpConfig) => {
+            try {
+              const result = spawnSync('claude', ['mcp', 'add', '-s', 'user', 'wdk-wallet', '--', mcpConfig.command, ...mcpConfig.args], { encoding: 'utf8', timeout: 10000, stdio: ['ignore', 'pipe', 'pipe'] })
+              return result.status === 0
+            } catch {
+              return false
+            }
+          },
+          remove: () => {
+            try {
+              const result = spawnSync('claude', ['mcp', 'remove', '-s', 'user', 'wdk-wallet'], { encoding: 'utf8', timeout: 10000, stdio: ['ignore', 'pipe', 'pipe'] })
+              return result.status === 0
+            } catch {
+              return false
+            }
+          },
+          isConfigured: () => {
+            try {
+              const raw = readFileSync(configPath, 'utf8')
+              const config = JSON.parse(raw) as Record<string, unknown>
+              const servers = config.mcpServers as Record<string, unknown> | undefined
+              return !!servers && 'wdk-wallet' in servers
+            } catch {
+              return false
+            }
+          },
+        },
       }
     }
     case 'openclaw': {
@@ -277,18 +424,79 @@ function getSetupTarget(aiTool: string): SetupTarget {
         name: 'OpenClaw',
         configPath,
         serversPath: ['mcp', 'servers'],
-        checkInstalled: () => existsSync(dirname(configPath)),
+        checkInstalled: () => {
+          const result = spawnSync('openclaw', ['--version'], { encoding: 'utf8', timeout: 5000, stdio: ['ignore', 'pipe', 'pipe'] })
+          if (result.status === 0) return true
+          return existsSync(dirname(configPath))
+        },
         notInstalledMessage: [
-          'Install OpenClaw: https://github.com/openclaw/openclaw',
-          `Expected config at: ${configPath}`,
+          'Install (if not installed): https://docs.openclaw.ai/install',
+          '',
+          'Or add manually:',
+          `  openclaw mcp set wdk-wallet '${JSON.stringify({ command: process.execPath, args: [getMcpScriptPath()] })}'`,
         ],
         restartMessage: 'Restart OpenClaw gateway: openclaw gateway restart',
+        cliSetup: {
+          add: (mcpConfig) => {
+            try {
+              const serverJson = JSON.stringify({ command: mcpConfig.command, args: mcpConfig.args })
+              const result = spawnSync('openclaw', ['mcp', 'set', 'wdk-wallet', serverJson], { encoding: 'utf8', timeout: 10000, stdio: ['ignore', 'pipe', 'pipe'] })
+              return result.status === 0
+            } catch {
+              return false
+            }
+          },
+          remove: () => {
+            try {
+              const result = spawnSync('openclaw', ['mcp', 'unset', 'wdk-wallet'], { encoding: 'utf8', timeout: 10000, stdio: ['ignore', 'pipe', 'pipe'] })
+              return result.status === 0
+            } catch {
+              return false
+            }
+          },
+          isConfigured: () => {
+            try {
+              const result = spawnSync('openclaw', ['mcp', 'list'], { encoding: 'utf8', timeout: 10000, stdio: ['ignore', 'pipe', 'pipe'] })
+              return (result.stdout ?? '').includes('wdk-wallet')
+            } catch {
+              return false
+            }
+          },
+        },
       }
     }
     default:
       console.error(chalk.red(`Error: Unknown AI tool '${aiTool}'. Supported: ${SUPPORTED_AI_TOOLS.join(', ')}`))
       process.exit(1)
   }
+}
+
+function runVerifySetup(aiTool: string): void {
+  const target = getSetupTarget(aiTool)
+  console.log()
+
+  const configOk = isConfigured(target)
+  if (configOk) {
+    console.log(chalk.green(`  ✓ wdk-wallet found in ${target.name}`))
+  } else {
+    console.log(chalk.red(`  ✗ wdk-wallet not found in ${target.name}`))
+    console.log(chalk.dim(`    Run: wdk mcp setup --ai-tool ${aiTool}`))
+  }
+
+  if (configOk) {
+    process.stdout.write(chalk.dim('  Testing MCP server... '))
+    const mcpConfig = getWdkMcpCommand()
+    const works = testMcpServer(mcpConfig)
+    if (works) {
+      console.log(chalk.green('OK'))
+    } else {
+      console.log(chalk.red('FAILED'))
+      console.log(chalk.dim('    MCP server did not respond correctly'))
+      console.log(chalk.dim(`    Command: ${mcpConfig.command} ${mcpConfig.args.join(' ')}`))
+    }
+  }
+
+  console.log()
 }
 
 export function registerMcpCommand(program: Command): void {
@@ -298,71 +506,74 @@ export function registerMcpCommand(program: Command): void {
 
   configureHelp(mcp, {})
 
-  // --- mcp setup ---
   const setup = mcp
     .command('setup')
     .description('Configure WDK MCP server for an AI tool')
     .requiredOption('--ai-tool <name>', `AI tool: ${SUPPORTED_AI_TOOLS.join(', ')}`)
-    .option('--remove', 'Remove wdk-wallet configuration')
-    .option('--skip-verify', 'Skip MCP server verification')
 
   configureHelp(setup, {
     params: [
       { flags: '--ai-tool <name>', description: `AI tool: ${SUPPORTED_AI_TOOLS.join(', ')}`, required: true },
     ],
-    options: [
-      { flags: '--remove', description: 'Remove wdk-wallet configuration' },
-      { flags: '--skip-verify', description: 'Skip MCP server verification' },
-    ],
   })
 
-  setup.action((options: { aiTool: string; remove?: boolean; skipVerify?: boolean }) => {
+  setup.action((options: { aiTool: string }) => {
     try {
       const target = getSetupTarget(options.aiTool)
-      runSetup(target, options)
+      runSetup(target)
     } catch (e) {
       handleError(e, program.opts().verbose, program.opts().json)
     }
   })
 
-  const status = mcp
-    .command('status')
-    .description('Show which AI tools have WDK MCP server configured')
+  const remove = mcp
+    .command('remove')
+    .description('Remove WDK MCP server from an AI tool')
+    .requiredOption('--ai-tool <name>', `AI tool: ${SUPPORTED_AI_TOOLS.join(', ')}`)
 
-  configureHelp(status, {})
+  configureHelp(remove, {
+    params: [
+      { flags: '--ai-tool <name>', description: `AI tool: ${SUPPORTED_AI_TOOLS.join(', ')}`, required: true },
+    ],
+  })
 
-  status.action(() => {
+  remove.action((options: { aiTool: string }) => {
     try {
-      const targets: { name: string; configPath: string | null; serversPath?: string[] }[] = [
-        { name: 'Claude Desktop', configPath: getClaudeDesktopConfigPath() },
-        { name: 'Claude Code', configPath: getClaudeCodeConfigPath() },
-        { name: 'OpenClaw', configPath: getOpenClawConfigPath(), serversPath: ['mcp', 'servers'] },
-      ]
+      const target = getSetupTarget(options.aiTool)
+      runRemove(target)
+    } catch (e) {
+      handleError(e, program.opts().verbose, program.opts().json)
+    }
+  })
 
-      console.log()
-      for (const target of targets) {
-        if (!target.configPath || !existsSync(target.configPath)) {
-          console.log(`  ${target.name.padEnd(20)} ${chalk.dim('not configured')}`)
-          continue
-        }
-        try {
-          const raw = readFileSync(target.configPath, 'utf8')
-          const config = JSON.parse(raw) as Record<string, unknown>
-          const path = target.serversPath ?? ['mcpServers']
-          let servers: Record<string, unknown> | undefined = config
-          for (const key of path) {
-            servers = servers?.[key] as Record<string, unknown> | undefined
-          }
-          if (servers && 'wdk-wallet' in servers) {
-            console.log(`  ${target.name.padEnd(20)} ${chalk.green('✓ configured')}`)
-          } else {
-            console.log(`  ${target.name.padEnd(20)} ${chalk.dim('not configured')}`)
-          }
-        } catch {
-          console.log(`  ${target.name.padEnd(20)} ${chalk.yellow('invalid config')}`)
-        }
-      }
-      console.log()
+  const verifySetup = mcp
+    .command('verify-setup')
+    .description('Verify WDK MCP server is correctly configured for an AI tool')
+    .requiredOption('--ai-tool <name>', `AI tool: ${SUPPORTED_AI_TOOLS.join(', ')}`)
+
+  configureHelp(verifySetup, {
+    params: [
+      { flags: '--ai-tool <name>', description: `AI tool: ${SUPPORTED_AI_TOOLS.join(', ')}`, required: true },
+    ],
+  })
+
+  verifySetup.action((options: { aiTool: string }) => {
+    try {
+      runVerifySetup(options.aiTool)
+    } catch (e) {
+      handleError(e, program.opts().verbose, program.opts().json)
+    }
+  })
+
+  const list = mcp
+    .command('list')
+    .description('Show WDK MCP server status across all AI tools')
+
+  configureHelp(list, {})
+
+  list.action(() => {
+    try {
+      runList()
     } catch (e) {
       handleError(e, program.opts().verbose, program.opts().json)
     }
