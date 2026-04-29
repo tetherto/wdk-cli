@@ -117,6 +117,8 @@ interface SetupTarget {
   checkInstalled: () => boolean
   notInstalledMessage: string[]
   restartMessage: string
+  /** Path to the mcpServers object within the config (default: top-level 'mcpServers') */
+  serversPath?: string[]
 }
 
 function readOrCreateConfig(configPath: string): { mcpServers?: Record<string, unknown>; [key: string]: unknown } {
@@ -135,6 +137,15 @@ function readOrCreateConfig(configPath: string): { mcpServers?: Record<string, u
   return {}
 }
 
+function getServersObject(config: Record<string, unknown>, path: string[]): Record<string, unknown> {
+  let obj = config as Record<string, unknown>
+  for (const key of path) {
+    if (!obj[key] || typeof obj[key] !== 'object') obj[key] = {}
+    obj = obj[key] as Record<string, unknown>
+  }
+  return obj
+}
+
 function runSetup(target: SetupTarget, options: { remove?: boolean; skipVerify?: boolean }): void {
   console.log()
 
@@ -147,11 +158,12 @@ function runSetup(target: SetupTarget, options: { remove?: boolean; skipVerify?:
   }
 
   const config = readOrCreateConfig(target.configPath)
-  if (!config.mcpServers) config.mcpServers = {}
+  const serversPath = target.serversPath ?? ['mcpServers']
+  const servers = getServersObject(config, serversPath)
 
   if (options.remove) {
-    if ('wdk-wallet' in config.mcpServers) {
-      delete config.mcpServers['wdk-wallet']
+    if ('wdk-wallet' in servers) {
+      delete servers['wdk-wallet']
       writeFileSync(target.configPath, JSON.stringify(config, null, 2) + '\n')
       console.log(chalk.green(`  ✓ Removed wdk-wallet from ${target.name}`))
       console.log(chalk.dim(`    ${target.restartMessage}`))
@@ -162,7 +174,7 @@ function runSetup(target: SetupTarget, options: { remove?: boolean; skipVerify?:
     return
   }
 
-  if ('wdk-wallet' in config.mcpServers) {
+  if ('wdk-wallet' in servers) {
     console.log(chalk.green(`  ✓ wdk-wallet is already configured in ${target.name}`))
     console.log(chalk.dim(`    Config: ${target.configPath}`))
     console.log(chalk.dim(`    Use --remove to uninstall, or --remove then re-run to reinstall`))
@@ -187,7 +199,7 @@ function runSetup(target: SetupTarget, options: { remove?: boolean; skipVerify?:
   if (mcpConfig.args && mcpConfig.args.length > 0) {
     serverEntry.args = mcpConfig.args
   }
-  config.mcpServers['wdk-wallet'] = serverEntry
+  servers['wdk-wallet'] = serverEntry
   writeFileSync(target.configPath, JSON.stringify(config, null, 2) + '\n')
   console.log(chalk.green(`  ✓ Added wdk-wallet to ${target.name}`))
   console.log(chalk.dim(`    Config: ${target.configPath}`))
@@ -264,6 +276,7 @@ function getSetupTarget(aiTool: string): SetupTarget {
       return {
         name: 'OpenClaw',
         configPath,
+        serversPath: ['mcp', 'servers'],
         checkInstalled: () => existsSync(dirname(configPath)),
         notInstalledMessage: [
           'Install OpenClaw: https://github.com/openclaw/openclaw',
@@ -320,10 +333,10 @@ export function registerMcpCommand(program: Command): void {
 
   status.action(() => {
     try {
-      const targets: { name: string; configPath: string | null }[] = [
+      const targets: { name: string; configPath: string | null; serversPath?: string[] }[] = [
         { name: 'Claude Desktop', configPath: getClaudeDesktopConfigPath() },
         { name: 'Claude Code', configPath: getClaudeCodeConfigPath() },
-        { name: 'OpenClaw', configPath: getOpenClawConfigPath() },
+        { name: 'OpenClaw', configPath: getOpenClawConfigPath(), serversPath: ['mcp', 'servers'] },
       ]
 
       console.log()
@@ -334,8 +347,13 @@ export function registerMcpCommand(program: Command): void {
         }
         try {
           const raw = readFileSync(target.configPath, 'utf8')
-          const config = JSON.parse(raw) as { mcpServers?: Record<string, unknown> }
-          if (config.mcpServers && 'wdk-wallet' in config.mcpServers) {
+          const config = JSON.parse(raw) as Record<string, unknown>
+          const path = target.serversPath ?? ['mcpServers']
+          let servers: Record<string, unknown> | undefined = config
+          for (const key of path) {
+            servers = servers?.[key] as Record<string, unknown> | undefined
+          }
+          if (servers && 'wdk-wallet' in servers) {
             console.log(`  ${target.name.padEnd(20)} ${chalk.green('✓ configured')}`)
           } else {
             console.log(`  ${target.name.padEnd(20)} ${chalk.dim('not configured')}`)
