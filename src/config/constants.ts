@@ -15,6 +15,7 @@
 import { join } from 'node:path'
 import { homedir } from 'node:os'
 import walletsFile from '../../wdk.config.json' with { type: 'json' }
+import pkg from '../../package.json' with { type: 'json' }
 
 const networkDefaults: Record<string, Record<string, unknown>> = {}
 for (const [name, entry] of Object.entries(walletsFile.networks)) {
@@ -26,8 +27,8 @@ export const CONFIG_DEFAULTS: Record<string, unknown> = {
   networks: networkDefaults,
 }
 
-export const APP_NAME = 'wdk-cli'
-export const APP_VERSION = '0.0.1'
+export const APP_NAME = pkg.name
+export const APP_VERSION = pkg.version
 export const CONFIG_DIR = APP_NAME
 export const WALLETS_DIR = 'wallets'
 

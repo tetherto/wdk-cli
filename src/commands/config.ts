@@ -24,7 +24,12 @@ import { KeyService } from '../services/key-service.js'
 import { WalletKeyring } from '../security/keyring.js'
 
 function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
-  return path.split('.').reduce((o: Record<string, unknown> | undefined, k) => (o as Record<string, unknown> | undefined)?.[k] as Record<string, unknown> | undefined, obj as Record<string, unknown> | undefined) as unknown
+  let cur: unknown = obj
+  for (const key of path.split('.')) {
+    if (cur === null || typeof cur !== 'object') return undefined
+    cur = (cur as Record<string, unknown>)[key]
+  }
+  return cur
 }
 
 function flatten(obj: Record<string, unknown>, prefix = ''): [string, string][] {
