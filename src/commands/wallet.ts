@@ -15,11 +15,12 @@
 import { Command } from 'commander'
 import chalk from 'chalk'
 import ora from 'ora'
+import { rename } from 'node:fs/promises'
 import { KeyService } from '../services/key-service.js'
 import { WalletKeyring } from '../security/keyring.js'
 import { daemonClient } from '../daemon/client.js'
 import { configService } from '../services/config-service.js'
-import { SESSION_TTL_MINUTES } from '../config/constants.js'
+import { SESSION_TTL_MINUTES, getWalletDir } from '../config/constants.js'
 import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
 import { promptPassphrase, promptSeedPhrase, promptConfirm } from '../ui/prompts.js'
 import { configureHelp } from '../ui/help.js'
@@ -517,8 +518,6 @@ export function registerWalletCommand(program: Command): void {
           }
         } catch { /* */ }
 
-        const { rename } = await import('node:fs/promises')
-        const { getWalletDir } = await import('../config/constants.js')
         await rename(getWalletDir(oldName), getWalletDir(newName))
 
         if (configService.getDefaultWallet() === oldName) {

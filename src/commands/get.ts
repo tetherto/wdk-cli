@@ -280,8 +280,7 @@ export function registerGetCommand(program: Command): void {
         if (!isValidNetwork(network)) throw new WdkCliError(`Network '${network}' is not supported.`, ErrorCode.NETWORK_NOT_SUPPORTED)
 
         if (!isIndexerSupported(network)) {
-          console.error(chalk.red(`Error: Network '${network}' is not supported by the indexer API.`))
-          process.exit(1)
+          throw new WdkCliError(`Network '${network}' is not supported by the indexer API.`, ErrorCode.NETWORK_NOT_SUPPORTED)
         }
 
         const index = options.index ? resolveIndex(options.index) : configService.getDefaultIndex()
@@ -291,11 +290,11 @@ export function registerGetCommand(program: Command): void {
           throw new WdkCliError(`Wallet '${wallet}' is not unlocked.`, ErrorCode.WALLET_NOT_UNLOCKED, `Run: wdk wallet unlock --name ${wallet}`)
         }
 
-        const token = (options.token || 'usdt') as IndexerToken
-        if (!INDEXER_TOKENS.includes(token)) {
-          console.error(chalk.red(`Error: Invalid token '${token}'. Valid: ${INDEXER_TOKENS.join(', ')}`))
-          process.exit(1)
+        const tokenInput = options.token || 'usdt'
+        if (!(INDEXER_TOKENS as readonly string[]).includes(tokenInput)) {
+          throw new WdkCliError(`Invalid token '${tokenInput}'. Valid: ${INDEXER_TOKENS.join(', ')}`, ErrorCode.INVALID_TOKEN)
         }
+        const token = tokenInput as IndexerToken
 
         const limit = options.limit ? parseInt(options.limit, 10) : 30
         const fromTs = options.fromDate ? Math.floor(new Date(options.fromDate).getTime() / 1000) : undefined

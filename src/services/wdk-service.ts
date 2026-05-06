@@ -16,7 +16,7 @@ import WDK from '@tetherto/wdk'
 import { isValidNetwork, getNetworkConfig, parseModuleName } from '../config/networks.js'
 import { configService } from './config-service.js'
 import { CONFIG_DEFAULTS } from '../config/constants.js'
-import { WdkCliError, ErrorCode } from '../errors/index.js'
+import { WdkCliError, ErrorCode, isNetworkError } from '../errors/index.js'
 import type { NetworkName } from '../types/index.js'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const walletManagerCache = new Map<string, any>()
@@ -74,14 +74,6 @@ export class WdkService {
     }
   }
 
-  isNetworkRegistered(network: NetworkName): boolean {
-    return this.registeredNetworks.has(network)
-  }
-
-  async registerNetworkPublic(network: NetworkName): Promise<void> {
-    await this.registerNetwork(network)
-  }
-
   async initialize(seedPhrase: string, network: NetworkName): Promise<void> {
     if (!isValidNetwork(network)) {
       throw new WdkCliError(`Network '${network}' is not supported.`, ErrorCode.NETWORK_NOT_SUPPORTED)
@@ -102,7 +94,7 @@ export class WdkService {
     if (!WalletManager) throw new WdkCliError(`Network '${network}' is not supported.`, ErrorCode.NETWORK_NOT_SUPPORTED)
 
     const networkDefaults = (CONFIG_DEFAULTS as Record<string, unknown>).networks as Record<string, Record<string, unknown>> || {}
-    const fromService = configService.get(`networks.${network}`) as Record<string, unknown> | undefined
+    const fromService = configService.get<Record<string, unknown>>(`networks.${network}`)
     const sdkConfig = fromService || networkDefaults[network] || {}
 
     ;(this.wdk as typeof WDKAny).registerWallet(network, WalletManager, sdkConfig)
@@ -128,8 +120,7 @@ export class WdkService {
       this.accountCache.set(cacheKey, account)
       return account
     } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error)
-      if (msg.includes('ECONNREFUSED') || msg.includes('ETIMEDOUT') || msg.includes('fetch failed')) {
+      if (isNetworkError(error)) {
         throw new WdkCliError(`Cannot reach ${network}.`, ErrorCode.NETWORK_ERROR)
       }
       throw error

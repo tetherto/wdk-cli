@@ -33,3 +33,20 @@ export interface EncryptedPayload {
   ciphertext: string
 }
 
+export interface WdkNetworkEntry {
+  module: string
+  displayName: string
+  nativeSymbol: string
+  decimals: number
+  testnet?: boolean
+  indexerBlockchain?: string
+  moonpay?: Record<string, string>
+  config?: Record<string, unknown>
+}
+
+export interface WdkConfigFile {
+  version: number
+  defaults: Record<string, unknown>
+  networks: Record<string, WdkNetworkEntry>
+}
+

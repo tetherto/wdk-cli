@@ -43,6 +43,13 @@ export const ErrorCode = {
 
 export type ErrorCodeType = typeof ErrorCode[keyof typeof ErrorCode]
 
+const NETWORK_ERROR_PATTERNS = ['ECONNREFUSED', 'ETIMEDOUT', 'ENOTFOUND', 'fetch failed']
+
+export function isNetworkError(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error)
+  return NETWORK_ERROR_PATTERNS.some((p) => msg.includes(p))
+}
+
 export class WdkCliError extends Error {
   constructor(
     message: string,
@@ -75,19 +82,19 @@ export function handleError(error: unknown, verbose: boolean = false, json: bool
   if (error instanceof Error) {
     const coded = error as Error & { code?: string }
     if (coded.code) {
-      const messages: Record<string, [string, string?]> = {
-        INSUFFICIENT_FUNDS: ['Insufficient funds for this transaction.'],
-        INVALID_ARGUMENT: ['Invalid argument.'],
-        NETWORK_ERROR: ['Cannot reach the RPC provider.'],
-        SERVER_ERROR: ['RPC server error.'],
-        TIMEOUT: ['Request timed out.'],
+      const messages: Record<string, string> = {
+        INSUFFICIENT_FUNDS: 'Insufficient funds for this transaction.',
+        INVALID_ARGUMENT: 'Invalid argument.',
+        NETWORK_ERROR: 'Cannot reach the RPC provider.',
+        SERVER_ERROR: 'RPC server error.',
+        TIMEOUT: 'Request timed out.',
       }
       const match = messages[coded.code]
       if (match) {
         if (json) {
-          console.log(JSON.stringify({ error: match[0], code: coded.code }))
+          console.log(JSON.stringify({ error: match, code: coded.code }))
         } else {
-          console.error(chalk.red(`Error: ${match[0]}`))
+          console.error(chalk.red(`Error: ${match}`))
         }
         if (verbose && !json) console.error(error.stack)
         process.exit(1)

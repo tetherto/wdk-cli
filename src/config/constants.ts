@@ -14,12 +14,15 @@
 
 import { join } from 'node:path'
 import { homedir } from 'node:os'
-import walletsFile from '../../wdk.config.json' with { type: 'json' }
+import walletsFileRaw from '../../wdk.config.json' with { type: 'json' }
 import pkg from '../../package.json' with { type: 'json' }
+import type { WdkConfigFile } from '../types/index.js'
+
+const walletsFile = walletsFileRaw as WdkConfigFile
 
 const networkDefaults: Record<string, Record<string, unknown>> = {}
 for (const [name, entry] of Object.entries(walletsFile.networks)) {
-  networkDefaults[name] = (entry as Record<string, unknown>).config as Record<string, unknown> ?? {}
+  networkDefaults[name] = entry.config ?? {}
 }
 
 export const CONFIG_DEFAULTS: Record<string, unknown> = {
@@ -30,9 +33,9 @@ export const CONFIG_DEFAULTS: Record<string, unknown> = {
 export const APP_NAME = pkg.name
 export const APP_VERSION = pkg.version
 export const CONFIG_DIR = APP_NAME
-export const WALLETS_DIR = 'wallets'
+const WALLETS_DIR = 'wallets'
 
-function getConfigDir(): string {
+export function getConfigDir(): string {
   const xdgConfig = process.env.XDG_CONFIG_HOME
   const base = xdgConfig || join(homedir(), '.config')
   return join(base, CONFIG_DIR)
@@ -41,6 +44,10 @@ function getConfigDir(): string {
 export const SESSION_TTL_MINUTES = 5
 export const DAEMON_SOCKET = 'daemon.sock'
 export const DAEMON_PID = 'daemon.pid'
+export const DAEMON_MAX_REQUEST_BYTES = 64 * 1024
+export const DAEMON_START_RETRIES = 5
+export const DAEMON_START_RETRY_INTERVAL_MS = 500
+export const DAEMON_SPAWN_TIMEOUT_MS = 2000
 
 export function getDaemonSocketPath(): string {
   if (process.platform === 'win32') {

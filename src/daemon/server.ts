@@ -16,14 +16,21 @@ import { createServer, type Server, type Socket } from 'node:net'
 import { readFileSync } from 'node:fs'
 import { writeFile, unlink, chmod, mkdir } from 'node:fs/promises'
 import { dirname } from 'node:path'
-import { getDaemonSocketPath, getDaemonPidPath, getWalletPath } from '../config/constants.js'
+import {
+  getDaemonSocketPath,
+  getDaemonPidPath,
+  getWalletPath,
+  SESSION_TTL_MINUTES,
+  DAEMON_MAX_REQUEST_BYTES,
+} from '../config/constants.js'
 import { configService } from '../services/config-service.js'
 import { deriveKey, decryptWithKey } from '../security/encryption.js'
 import { WdkService } from '../services/wdk-service.js'
 import { isValidNetwork, getNetworkConfig } from '../config/networks.js'
 import { getTokenConfig } from '../config/tokens.js'
-import { getTokenTransfers } from '../services/indexer-service.js'
+import { getTokenTransfers, INDEXER_TOKENS, type IndexerToken } from '../services/indexer-service.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
+import { formatAmount } from '../ui/formatters.js'
 import type { DaemonRequest, DaemonResponse } from './protocol.js'
 import type { EncryptedPayload } from '../types/index.js'
 import type { NetworkName } from '../types/index.js'
@@ -137,21 +144,26 @@ export class WalletDaemon {
     }
   }
 
-  private async ensureInitialized(network: NetworkName, wallet: string): Promise<WdkService> {
+  private requireWallet(wallet: string): WdkService {
     const state = this.wallets.get(wallet)
     if (!state) throw new WdkCliError(`Wallet '${wallet}' is not unlocked.`, ErrorCode.WALLET_NOT_UNLOCKED, `Run: wdk wallet unlock --name ${wallet}`)
-
-    if (!state.wdk.isNetworkRegistered(network)) {
-      await state.wdk.registerNetworkPublic(network)
-    }
     return state.wdk
+  }
+
+  private getWalletStatusList(): { name: string; ttlMs: number; ttlRemaining: number }[] {
+    return [...this.wallets.entries()].map(([name, state]) => {
+      const ttlRemaining = state.ttlMs > 0 && state.expiresAt > 0
+        ? Math.max(0, state.expiresAt - Date.now())
+        : 0
+      return { name, ttlMs: state.ttlMs, ttlRemaining }
+    })
   }
 
   private handleConnection(socket: Socket): void {
     let buffer = ''
     socket.on('data', (chunk) => {
       buffer += chunk.toString()
-      if (buffer.length > 65536) {
+      if (buffer.length > DAEMON_MAX_REQUEST_BYTES) {
         socket.write(JSON.stringify({ ok: false, error: 'Message too large' }) + '\n')
         socket.destroy()
         return
@@ -187,7 +199,7 @@ export class WalletDaemon {
           return { ok: false, error: 'Missing passphrase' }
         }
         try {
-          const ttl = req.ttl ?? 5
+          const ttl = req.ttl ?? SESSION_TTL_MINUTES
           this.unlockWalletSync(wallet, req.passphrase, ttl)
           return { ok: true, data: { message: `Wallet '${wallet}' unlocked`, wallet } }
         } catch (e) {
@@ -211,7 +223,7 @@ export class WalletDaemon {
           return { ok: false, error: `Invalid network: ${req.network}` }
         }
         try {
-          const wdk = await this.ensureInitialized(req.network as NetworkName, wallet)
+          const wdk = this.requireWallet(wallet)
           const account = await wdk.getAccount(req.network as NetworkName, req.index ?? 0)
           const address = await account.getAddress()
           return { ok: true, data: { address } }
@@ -225,7 +237,7 @@ export class WalletDaemon {
           return { ok: false, error: `Invalid network: ${req.network}` }
         }
         try {
-          const wdk = await this.ensureInitialized(req.network as NetworkName, wallet)
+          const wdk = this.requireWallet(wallet)
           const networkConfig = getNetworkConfig(req.network as NetworkName)
           const account = await wdk.getAccount(req.network as NetworkName, req.index ?? 0)
 
@@ -261,11 +273,15 @@ export class WalletDaemon {
           return { ok: false, error: `Invalid network: ${req.network}` }
         }
         try {
-          const wdk = await this.ensureInitialized(req.network as NetworkName, wallet)
+          const wdk = this.requireWallet(wallet)
           const account = await wdk.getAccount(req.network as NetworkName, req.index ?? 0)
           const address = await account.getAddress()
           const networkConfig = getNetworkConfig(req.network as NetworkName)
-          const token = (req.token || networkConfig.nativeSymbol.toLowerCase()) as 'usdt' | 'usat' | 'xaut' | 'btc'
+          const tokenInput = req.token || networkConfig.nativeSymbol.toLowerCase()
+          if (!(INDEXER_TOKENS as readonly string[]).includes(tokenInput)) {
+            return { ok: false, error: `Invalid token '${tokenInput}'. Valid: ${INDEXER_TOKENS.join(', ')}` }
+          }
+          const token = tokenInput as IndexerToken
           const transfers = await getTokenTransfers(req.network as NetworkName, token, address, { limit: req.limit ?? 30, fromTs: req.fromTs, toTs: req.toTs })
           return { ok: true, data: { address, transfers, count: transfers.length } }
         } catch (e) {
@@ -278,7 +294,7 @@ export class WalletDaemon {
           return { ok: false, error: 'Missing required fields: network, to, amount' }
         }
         try {
-          const wdk = await this.ensureInitialized(req.network as NetworkName, wallet)
+          const wdk = this.requireWallet(wallet)
           const networkConfig = getNetworkConfig(req.network as NetworkName)
           const account = await wdk.getAccount(req.network as NetworkName, req.index ?? 0)
 
@@ -298,12 +314,7 @@ export class WalletDaemon {
             fee = quote.fee
           }
 
-          const decimals = networkConfig.decimals
-          const divisor = 10n ** BigInt(decimals)
-          const whole = fee / divisor
-          const remainder = fee % divisor
-          const decimal = remainder.toString().padStart(decimals, '0').replace(/0+$/, '') || '0'
-          const feeFormatted = `${whole}.${decimal.slice(0, 8)} ${networkConfig.nativeSymbol}`
+          const feeFormatted = formatAmount(fee, networkConfig.decimals, networkConfig.nativeSymbol)
 
           return { ok: true, data: { fee: fee.toString(), feeFormatted } }
         } catch (e) {
@@ -316,7 +327,7 @@ export class WalletDaemon {
           return { ok: false, error: 'Missing required fields: network, to, amount' }
         }
         try {
-          const wdk = await this.ensureInitialized(req.network as NetworkName, wallet)
+          const wdk = this.requireWallet(wallet)
           const networkConfig = getNetworkConfig(req.network as NetworkName)
           const account = await wdk.getAccount(req.network as NetworkName, req.index ?? 0)
           const sendAmount = BigInt(req.amount)
@@ -370,42 +381,21 @@ export class WalletDaemon {
       }
 
       case 'list_wallets': {
-        const walletList = [...this.wallets.entries()].map(([name, state]) => {
-          let ttlRemaining = 0
-          if (state.ttlMs > 0 && state.expiresAt > 0) {
-            ttlRemaining = Math.max(0, state.expiresAt - Date.now())
-          }
-          return { name, ttlMs: state.ttlMs, ttlRemaining }
-        })
-        return { ok: true, data: { wallets: walletList } }
+        return { ok: true, data: { wallets: this.getWalletStatusList() } }
       }
 
       case 'status': {
-        const walletList = [...this.wallets.entries()].map(([name, state]) => {
-          let ttlRemaining = 0
-          if (state.ttlMs > 0 && state.expiresAt > 0) {
-            ttlRemaining = Math.max(0, state.expiresAt - Date.now())
-          }
-          return { name, ttlMs: state.ttlMs, ttlRemaining }
-        })
         return {
           ok: true,
           data: {
             unlocked: this.wallets.size > 0,
-            wallets: walletList,
+            wallets: this.getWalletStatusList(),
             pid: process.pid,
           },
         }
       }
 
       case 'lock': {
-        // Lock all wallets and shutdown
-        for (const [name] of this.wallets) {
-          const state = this.wallets.get(name)
-          if (state?.timer) clearTimeout(state.timer)
-          state?.wdk.dispose()
-        }
-        this.wallets.clear()
         setTimeout(() => this.shutdown(), 100)
         return { ok: true, data: { message: 'All wallets locked' } }
       }
@@ -415,7 +405,7 @@ export class WalletDaemon {
     }
   }
 
-  private async shutdown(): Promise<void> {
+  async shutdown(): Promise<void> {
     for (const [, state] of this.wallets) {
       if (state.timer) clearTimeout(state.timer)
       state.wdk.dispose()
@@ -441,10 +431,11 @@ export async function startDaemon(): Promise<void> {
   const daemon = new WalletDaemon()
   await daemon.start()
 
-  process.on('SIGTERM', () => process.exit(0))
-  process.on('SIGINT', () => process.exit(0))
-  // On Windows, SIGTERM is not supported; listen for the 'beforeExit' event as a fallback
+  const handleSignal = () => { void daemon.shutdown() }
+  process.on('SIGTERM', handleSignal)
+  process.on('SIGINT', handleSignal)
+  // On Windows, SIGTERM is not supported; listen for SIGHUP as a fallback
   if (process.platform === 'win32') {
-    process.on('SIGHUP', () => process.exit(0))
+    process.on('SIGHUP', handleSignal)
   }
 }

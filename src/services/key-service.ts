@@ -49,10 +49,6 @@ export class KeyService {
     return this.walletKeyring.exists(name)
   }
 
-  async hasAnyKey(): Promise<boolean> {
-    return this.walletKeyring.hasAny()
-  }
-
   async destroy(name: string): Promise<void> {
     await this.walletKeyring.destroy(name)
   }

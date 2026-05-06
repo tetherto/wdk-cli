@@ -13,14 +13,16 @@
 // limitations under the License.
 
 import { configService } from './config-service.js'
-import type { NetworkName } from '../types/index.js'
-import walletsFile from '../../wdk.config.json' with { type: 'json' }
+import type { NetworkName, WdkConfigFile } from '../types/index.js'
+import { WdkCliError, ErrorCode } from '../errors/index.js'
+import walletsFileRaw from '../../wdk.config.json' with { type: 'json' }
+
+const walletsFile = walletsFileRaw as WdkConfigFile
 
 const BLOCKCHAIN_MAP: Record<string, string> = {}
 for (const [name, entry] of Object.entries(walletsFile.networks)) {
-  const net = entry as Record<string, unknown>
-  if (net.indexerBlockchain) {
-    BLOCKCHAIN_MAP[name] = net.indexerBlockchain as string
+  if (entry.indexerBlockchain) {
+    BLOCKCHAIN_MAP[name] = entry.indexerBlockchain
   }
 }
 
@@ -45,7 +47,7 @@ export interface TokenTransfer {
 
 export function getIndexerBlockchain(network: NetworkName): string | undefined {
   if (BLOCKCHAIN_MAP[network]) return BLOCKCHAIN_MAP[network]
-  return configService.get(`customNetworks.${network}.indexerBlockchain`) as string | undefined
+  return configService.get<string>(`customNetworks.${network}.indexerBlockchain`)
 }
 
 export function isIndexerSupported(network: NetworkName): boolean {
@@ -60,13 +62,13 @@ export async function getTokenTransfers(
 ): Promise<TokenTransfer[]> {
   const blockchain = getIndexerBlockchain(network)
   if (!blockchain) {
-    throw new Error(`Network '${network}' is not supported by the indexer API.`)
+    throw new WdkCliError(`Network '${network}' is not supported by the indexer API.`, ErrorCode.NETWORK_NOT_SUPPORTED)
   }
 
-  const baseUrl = configService.get('indexer.baseUrl') as string
-  const apiKey = configService.get('indexer.apiKey') as string
+  const baseUrl = configService.get<string>('indexer.baseUrl')
+  const apiKey = configService.get<string>('indexer.apiKey')
 
-  if (!baseUrl) throw new Error('Indexer base URL not configured. Set indexer.baseUrl or WDK_INDEXER_BASE_URL.')
+  if (!baseUrl) throw new WdkCliError('Indexer base URL not configured. Set indexer.baseUrl or WDK_INDEXER_BASE_URL.', ErrorCode.MISSING_CONFIG)
 
   const params = new URLSearchParams()
   if (options.limit) params.set('limit', String(options.limit))
@@ -83,13 +85,14 @@ export async function getTokenTransfers(
 
   if (!response.ok) {
     if (response.status === 403) {
-      throw new Error(
+      throw new WdkCliError(
         `Indexer API error: 403 Forbidden. Please set your API key or use a proxy API for the indexer provider:\n` +
         `  wdk config set indexer.apiKey <your-api-key>\n` +
         `  wdk config set indexer.baseUrl <your-proxy-url>`,
+        ErrorCode.NETWORK_ERROR,
       )
     }
-    throw new Error(`Indexer API error: ${response.status} ${response.statusText}`)
+    throw new WdkCliError(`Indexer API error: ${response.status} ${response.statusText}`, ErrorCode.NETWORK_ERROR)
   }
 
   const data = await response.json() as { transfers: TokenTransfer[] }

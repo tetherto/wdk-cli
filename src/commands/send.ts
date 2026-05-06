@@ -106,31 +106,9 @@ export function registerSendCommand(program: Command): void {
           estimatedFeeUsd,
         }
 
-        if (options.dryRun) {
-          if (program.opts().json) {
-            console.log(JSON.stringify(preview))
-          } else {
-            console.log()
-            console.log(chalk.bold('Transaction Preview (dry run):'))
-            console.log(`  Network:   ${formatNetworkLabel(preview.network)}`)
-            console.log(`  To:        ${formatAddress(preview.to)}`)
-            let amountLine = `  Amount:    ${preview.amountFormatted}`
-            if (preview.amountUsd && preview.amountUsd > 0) amountLine += ` (~$${preview.amountUsd.toFixed(2)})`
-            console.log(amountLine)
-            if (preview.token) {
-              console.log(`  Token:     ${preview.token}`)
-            }
-            let feeLine = `  Est. Fee:  ${preview.estimatedFeeFormatted}`
-            if (preview.estimatedFeeUsd && preview.estimatedFeeUsd > 0) feeLine += ` (~$${preview.estimatedFeeUsd.toFixed(2)})`
-            console.log(feeLine)
-            console.log()
-          }
-          return
-        }
-
-        if (!program.opts().json) {
+        const printPreview = (title: string) => {
           console.log()
-          console.log(chalk.bold('Transaction Summary:'))
+          console.log(chalk.bold(title))
           console.log(`  Network:   ${formatNetworkLabel(preview.network)}`)
           console.log(`  To:        ${formatAddress(preview.to)}`)
           let amountLine = `  Amount:    ${preview.amountFormatted}`
@@ -143,6 +121,19 @@ export function registerSendCommand(program: Command): void {
           if (preview.estimatedFeeUsd && preview.estimatedFeeUsd > 0) feeLine += ` (~$${preview.estimatedFeeUsd.toFixed(2)})`
           console.log(feeLine)
           console.log()
+        }
+
+        if (options.dryRun) {
+          if (program.opts().json) {
+            console.log(JSON.stringify(preview))
+          } else {
+            printPreview('Transaction Preview (dry run):')
+          }
+          return
+        }
+
+        if (!program.opts().json) {
+          printPreview('Transaction Summary:')
         }
 
         const sendSpinner = ora('Broadcasting transaction...').start()

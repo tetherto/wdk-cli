@@ -19,7 +19,7 @@ import { homedir, platform } from 'node:os'
 import { execSync, spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import chalk from 'chalk'
-import { handleError } from '../errors/index.js'
+import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
 import { configureHelp } from '../ui/help.js'
 
 function getWindowsLocalAppData(): string {
@@ -141,11 +141,12 @@ function readOrCreateConfig(configPath: string): { mcpServers?: Record<string, u
     try {
       return JSON.parse(raw)
     } catch (e) {
-      console.log(chalk.red(`  ✗ Invalid JSON in config file`))
-      console.log(chalk.dim(`    File: ${configPath}`))
-      console.log(chalk.dim(`    Error: ${e instanceof Error ? e.message : String(e)}`))
-      console.log(chalk.dim('    Please fix the JSON manually or delete the file and re-run this command'))
-      process.exit(1)
+      throw new WdkCliError(
+        `Invalid JSON in config file: ${configPath}`,
+        ErrorCode.INVALID_CONFIG,
+        `Original error: ${e instanceof Error ? e.message : String(e)}\n` +
+          'Please fix the JSON manually or delete the file and re-run this command',
+      )
     }
   }
   return {}
@@ -174,11 +175,11 @@ function runSetup(target: SetupTarget): void {
   console.log()
 
   if (!target.checkInstalled()) {
-    console.log(chalk.red(`  ✗ ${target.name} not found`))
-    for (const line of target.notInstalledMessage) {
-      console.log(chalk.dim(`    ${line}`))
-    }
-    process.exit(1)
+    throw new WdkCliError(
+      `${target.name} not found`,
+      ErrorCode.MISSING_CONFIG,
+      target.notInstalledMessage.join('\n'),
+    )
   }
 
   if (target.cliSetup) {
@@ -341,9 +342,11 @@ function getSetupTarget(aiTool: string): SetupTarget {
     case 'claude-desktop': {
       const configPath = getClaudeDesktopConfigPath()
       if (!configPath) {
-        console.log(chalk.red(`\n  ✗ Unsupported platform: ${platform()}`))
-        console.log(chalk.dim('    Claude Desktop is available on macOS, Windows, and Linux'))
-        process.exit(1)
+        throw new WdkCliError(
+          `Unsupported platform: ${platform()}`,
+          ErrorCode.MISSING_CONFIG,
+          'Claude Desktop is available on macOS, Windows, and Linux',
+        )
       }
       return {
         name: 'Claude Desktop',
@@ -466,8 +469,10 @@ function getSetupTarget(aiTool: string): SetupTarget {
       }
     }
     default:
-      console.error(chalk.red(`Error: Unknown AI tool '${aiTool}'. Supported: ${SUPPORTED_AI_TOOLS.join(', ')}`))
-      process.exit(1)
+      throw new WdkCliError(
+        `Unknown AI tool '${aiTool}'. Supported: ${SUPPORTED_AI_TOOLS.join(', ')}`,
+        ErrorCode.INVALID_ARGUMENT,
+      )
   }
 }
 

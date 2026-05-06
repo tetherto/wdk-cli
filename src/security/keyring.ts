@@ -18,6 +18,10 @@ import { encrypt, decrypt } from './encryption.js'
 import { getWalletsDir, getWalletPath, getWalletDir } from '../config/constants.js'
 import type { EncryptedPayload } from '../types/index.js'
 
+function isEnoent(err: unknown): boolean {
+  return (err as NodeJS.ErrnoException)?.code === 'ENOENT'
+}
+
 export class Keyring {
   constructor(private readonly path: string) {}
 
@@ -38,15 +42,18 @@ export class Keyring {
     try {
       await access(this.path)
       return true
-    } catch {
-      return false
+    } catch (err) {
+      if (isEnoent(err)) return false
+      throw err
     }
   }
 
   async destroy(): Promise<void> {
     try {
       await unlink(this.path)
-    } catch { /* */ }
+    } catch (err) {
+      if (!isEnoent(err)) throw err
+    }
   }
 }
 
@@ -73,33 +80,32 @@ export class WalletKeyring {
     const walletDir = getWalletDir(name)
     try {
       await rm(walletDir, { recursive: true })
-    } catch { /* */ }
-  }
-
-  async list(): Promise<string[]> {
-    try {
-      const dir = getWalletsDir()
-      const entries = await readdir(dir)
-      const wallets: string[] = []
-      for (const entry of entries) {
-        const entryPath = join(dir, entry)
-        const s = await stat(entryPath)
-        if (s.isDirectory()) {
-          try {
-            await access(join(entryPath, 'seed.enc'))
-            wallets.push(entry)
-          } catch { /* */ }
-        }
-      }
-      return wallets.sort()
-    } catch {
-      return []
+    } catch (err) {
+      if (!isEnoent(err)) throw err
     }
   }
 
-  async hasAny(): Promise<boolean> {
-    const wallets = await this.list()
-    return wallets.length > 0
+  async list(): Promise<string[]> {
+    const dir = getWalletsDir()
+    let entries: string[]
+    try {
+      entries = await readdir(dir)
+    } catch (err) {
+      if (isEnoent(err)) return []
+      throw err
+    }
+    const wallets: string[] = []
+    for (const entry of entries) {
+      const entryPath = join(dir, entry)
+      const s = await stat(entryPath)
+      if (!s.isDirectory()) continue
+      try {
+        await access(join(entryPath, 'seed.enc'))
+        wallets.push(entry)
+      } catch (err) {
+        if (!isEnoent(err)) throw err
+      }
+    }
+    return wallets.sort()
   }
-
 }

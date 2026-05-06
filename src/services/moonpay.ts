@@ -28,13 +28,13 @@ export interface MoonPayConfig {
 export function getMoonPayConfig(): MoonPayConfig {
   const missing: string[] = []
 
-  const apiKey = configService.get('moonpay.apiKey') as string
+  const apiKey = configService.get<string>('moonpay.apiKey') ?? ''
   if (!apiKey) missing.push('moonpay.apiKey')
 
-  const signUrl = configService.get('moonpay.signUrl') as string
+  const signUrl = configService.get<string>('moonpay.signUrl') ?? ''
   if (!signUrl) missing.push('moonpay.signUrl')
 
-  const env = configService.get('moonpay.environment') as string
+  const env = configService.get<string>('moonpay.environment') ?? ''
   if (!env) missing.push('moonpay.environment')
 
   if (missing.length > 0) {
@@ -50,7 +50,7 @@ export function getMoonPayConfig(): MoonPayConfig {
     throw new WdkCliError(`Invalid moonpay.environment '${env}'. Must be 'production' or 'sandbox'.`, ErrorCode.INVALID_CONFIG)
   }
 
-  return { apiKey, signUrl, environment: env as 'production' | 'sandbox' }
+  return { apiKey, signUrl, environment: env }
 }
 
 export function validateEnvironment(network: string, environment: 'production' | 'sandbox'): void {

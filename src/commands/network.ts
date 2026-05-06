@@ -29,12 +29,12 @@ import { configService } from '../services/config-service.js'
 import { createTable } from '../ui/tables.js'
 import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
 import { configureHelp } from '../ui/help.js'
-import { promptPassphrase } from '../ui/prompts.js'
-import { KeyService } from '../services/key-service.js'
-import { WalletKeyring } from '../security/keyring.js'
-import type { NetworkConfig } from '../types/index.js'
+import { requirePassphraseConfirmation } from '../ui/auth.js'
+import type { NetworkConfig, WdkConfigFile } from '../types/index.js'
 import { parseModuleName } from '../config/networks.js'
-import walletsFile from '../../wdk.config.json' with { type: 'json' }
+import walletsFileRaw from '../../wdk.config.json' with { type: 'json' }
+
+const walletsFile = walletsFileRaw as WdkConfigFile
 
 const VALID_WALLET_TYPES = [...new Set(Object.values(walletsFile.networks).map(w => parseModuleName(w.module).name))]
 const DEFAULT_DECIMALS: Record<string, number> = {}
@@ -117,20 +117,14 @@ export function registerNetworkCommand(program: Command): void {
 
   createCmd.action(async (options) => {
       try {
-        const keyService = new KeyService(new WalletKeyring())
-        const defaultWallet = configService.getDefaultWallet()
-        if (defaultWallet && await keyService.hasKey(defaultWallet)) {
-          const passphrase = await promptPassphrase(`Enter passphrase of '${defaultWallet}' wallet to confirm:`)
-          await keyService.unlock(passphrase, defaultWallet)
-        }
+        await requirePassphraseConfirmation()
         const name: string = options.name
 
       let jsonData: Record<string, unknown>
       try {
         jsonData = JSON.parse(options.networkData)
       } catch {
-        console.error(chalk.red('Error: Invalid JSON in --network-data'))
-        process.exit(1)
+        throw new WdkCliError('Invalid JSON in --network-data', ErrorCode.INVALID_ARGUMENT)
       }
 
       const displayName = jsonData.displayName as string
@@ -150,25 +144,20 @@ export function registerNetworkCommand(program: Command): void {
       if (!walletType) missing.push('module')
       if (!symbol) missing.push('nativeSymbol')
       if (missing.length > 0) {
-        console.error(chalk.red(`Error: JSON missing required fields: ${missing.join(', ')}`))
-        process.exit(1)
+        throw new WdkCliError(`JSON missing required fields: ${missing.join(', ')}`, ErrorCode.INVALID_ARGUMENT)
       }
 
       if (!/^[a-z0-9][a-z0-9-]*$/.test(name)) {
-        console.error(chalk.red('Error: Name must be lowercase alphanumeric with hyphens.'))
-        process.exit(1)
+        throw new WdkCliError('Name must be lowercase alphanumeric with hyphens.', ErrorCode.INVALID_ARGUMENT)
       }
       if (isValidNetwork(name)) {
-        console.error(chalk.red(`Error: Network '${name}' already exists.`))
-        process.exit(1)
+        throw new WdkCliError(`Network '${name}' already exists.`, ErrorCode.WALLET_EXISTS)
       }
       if (!VALID_WALLET_TYPES.includes(walletType)) {
-        console.error(chalk.red(`Error: Wallet type must be one of: ${VALID_WALLET_TYPES.join(', ')}`))
-        process.exit(1)
+        throw new WdkCliError(`Wallet type must be one of: ${VALID_WALLET_TYPES.join(', ')}`, ErrorCode.UNSUPPORTED_MODULE)
       }
       if (isNaN(decimals) || decimals < 0 || decimals > 24) {
-        console.error(chalk.red('Error: Decimals must be a number between 0 and 24.'))
-        process.exit(1)
+        throw new WdkCliError('Decimals must be a number between 0 and 24.', ErrorCode.INVALID_ARGUMENT)
       }
 
       const config: NetworkConfig & { tokens?: unknown[]; indexerBlockchain?: string } = {
@@ -226,12 +215,7 @@ export function registerNetworkCommand(program: Command): void {
 
   deleteCmd.action(async (options: { name: string }) => {
       try {
-        const keyService = new KeyService(new WalletKeyring())
-        const defaultWallet = configService.getDefaultWallet()
-        if (defaultWallet && await keyService.hasKey(defaultWallet)) {
-          const passphrase = await promptPassphrase(`Enter passphrase of '${defaultWallet}' wallet to confirm:`)
-          await keyService.unlock(passphrase, defaultWallet)
-        }
+        await requirePassphraseConfirmation()
         const name = options.name
 
         if (isBuiltinNetwork(name)) {
@@ -272,7 +256,7 @@ export function registerNetworkCommand(program: Command): void {
         if (!isValidNetwork(networkName)) throw new WdkCliError(`Network '${networkName}' is not supported.`, ErrorCode.NETWORK_NOT_SUPPORTED)
 
         const config = getNetworkConfig(networkName)
-        const netConf = configService.get(`networks.${networkName}`) as Record<string, unknown> || {}
+        const netConf = configService.get<Record<string, unknown>>(`networks.${networkName}`) ?? {}
 
         if (program.opts().json) {
           console.log(JSON.stringify({ ...config, config: netConf }, null, 2))

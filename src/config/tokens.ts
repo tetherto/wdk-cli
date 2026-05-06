@@ -25,7 +25,7 @@ const BUILTIN_TOKENS: Record<string, TokenConfig[]> = tokensFile as Record<strin
 
 function getAllTokens(network: string): TokenConfig[] {
   if (BUILTIN_TOKENS[network]) return BUILTIN_TOKENS[network]
-  const custom = configService.get(`customNetworks.${network}.tokens`) as TokenConfig[] | undefined
+  const custom = configService.get<TokenConfig[]>(`customNetworks.${network}.tokens`)
   return custom ?? []
 }
 

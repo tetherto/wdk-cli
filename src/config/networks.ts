@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import type { NetworkConfig, NetworkName } from '../types/index.js'
+import type { NetworkConfig, NetworkName, WdkConfigFile } from '../types/index.js'
 import { configService } from '../services/config-service.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
-import walletsFile from '../../wdk.config.json' with { type: 'json' }
+import walletsFileRaw from '../../wdk.config.json' with { type: 'json' }
+
+const walletsFile = walletsFileRaw as WdkConfigFile
 
 export function parseModuleName(moduleSpec: string): { name: string; version?: string } {
   const idx = moduleSpec.startsWith('@') ? moduleSpec.indexOf('@', 1) : moduleSpec.indexOf('@')
@@ -27,16 +29,14 @@ export function parseModuleName(moduleSpec: string): { name: string; version?: s
 
 const NETWORKS: Record<string, NetworkConfig> = {}
 for (const [name, entry] of Object.entries(walletsFile.networks)) {
-  const net = entry as Record<string, unknown>
-  const moduleSpec = net.module as string
   NETWORKS[name] = {
     name,
-    displayName: net.displayName as string,
-    type: parseModuleName(moduleSpec).name,
-    module: moduleSpec,
-    nativeSymbol: net.nativeSymbol as string,
-    decimals: net.decimals as number,
-    testnet: (net.testnet as boolean) ?? false,
+    displayName: entry.displayName,
+    type: parseModuleName(entry.module).name,
+    module: entry.module,
+    nativeSymbol: entry.nativeSymbol,
+    decimals: entry.decimals,
+    testnet: entry.testnet ?? false,
   }
 }
 
@@ -45,7 +45,7 @@ export { NETWORKS }
 export const NETWORK_NAMES = Object.keys(NETWORKS)
 
 export function getCustomNetworks(): Record<string, NetworkConfig> {
-  const custom = configService.get('customNetworks') as Record<string, NetworkConfig> | undefined
+  const custom = configService.get<Record<string, NetworkConfig>>('customNetworks')
   if (!custom || typeof custom !== 'object') return {}
   const result: Record<string, NetworkConfig> = {}
   for (const [name, config] of Object.entries(custom)) {
@@ -69,7 +69,7 @@ export function isBuiltinNetwork(name: string): boolean {
 export function getNetworkConfig(name: string): NetworkConfig {
   const all = getAllNetworks()
   const config = all[name]
-  if (!config) throw new Error(`Network '${name}' is not supported.`)
+  if (!config) throw new WdkCliError(`Network '${name}' is not supported.`, ErrorCode.NETWORK_NOT_SUPPORTED)
   return config
 }
 

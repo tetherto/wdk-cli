@@ -18,7 +18,13 @@ import { existsSync } from 'node:fs'
 import { readFile, access, unlink } from 'node:fs/promises'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { getDaemonSocketPath, getDaemonPidPath } from '../config/constants.js'
+import {
+  getDaemonSocketPath,
+  getDaemonPidPath,
+  DAEMON_START_RETRIES,
+  DAEMON_START_RETRY_INTERVAL_MS,
+  DAEMON_SPAWN_TIMEOUT_MS,
+} from '../config/constants.js'
 import type { DaemonRequest, DaemonResponse } from './protocol.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 
@@ -48,7 +54,7 @@ function spawnDaemon(): Promise<void> {
       child.stderr!.destroy()
       child.unref()
       resolve()
-    }, 2000)
+    }, DAEMON_SPAWN_TIMEOUT_MS)
 
     child.on('error', (err) => {
       clearTimeout(timeout)
@@ -100,7 +106,7 @@ export class DaemonClient {
 
     await spawnDaemon()
 
-    let retries = 5
+    let retries = DAEMON_START_RETRIES
     while (retries > 0) {
       if (await this.isRunning()) {
         try {
@@ -108,7 +114,7 @@ export class DaemonClient {
           return
         } catch { /* not ready yet */ }
       }
-      await new Promise((r) => setTimeout(r, 500))
+      await new Promise((r) => setTimeout(r, DAEMON_START_RETRY_INTERVAL_MS))
       retries--
     }
     throw new Error('Failed to start wallet daemon')

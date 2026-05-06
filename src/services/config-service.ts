@@ -12,19 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { join } from 'node:path'
-import { homedir } from 'node:os'
 import Conf from 'conf'
-import { CONFIG_DEFAULTS } from '../config/constants.js'
+import { APP_NAME, CONFIG_DEFAULTS, getConfigDir } from '../config/constants.js'
 
 const ENV_MAP: Record<string, string> = {
   'indexer.apiKey': 'WDK_INDEXER_API_KEY',
-}
-
-function getConfigDir(): string {
-  const xdgConfig = process.env.XDG_CONFIG_HOME
-  const base = xdgConfig || join(homedir(), '.config')
-  return join(base, 'wdk-cli')
 }
 
 class ConfigService {
@@ -32,18 +24,18 @@ class ConfigService {
 
   constructor() {
     this.conf = new Conf({
-      projectName: 'wdk-cli',
+      projectName: APP_NAME,
       cwd: getConfigDir(),
       defaults: CONFIG_DEFAULTS as Record<string, unknown>,
     })
   }
 
-  get(key: string): unknown {
+  get<T = unknown>(key: string): T | undefined {
     const envKey = ENV_MAP[key]
     if (envKey && process.env[envKey]) {
-      return process.env[envKey]
+      return process.env[envKey] as T
     }
-    return this.conf.get(key)
+    return this.conf.get(key) as T | undefined
   }
 
   set(key: string, value: unknown): void {
@@ -65,7 +57,7 @@ class ConfigService {
   }
 
   getDefaultWallet(): string {
-    return (this.conf.get('defaultWallet') as string) || ''
+    return this.get<string>('defaultWallet') || ''
   }
 
   setDefaultWallet(name: string): void {
@@ -73,7 +65,7 @@ class ConfigService {
   }
 
   getDefaultIndex(): number {
-    return (this.conf.get('defaultIndex') as number) || 0
+    return this.get<number>('defaultIndex') || 0
   }
 
   setDefaultIndex(index: number): void {

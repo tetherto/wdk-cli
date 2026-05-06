@@ -17,11 +17,9 @@ import chalk from 'chalk'
 import { configService } from '../services/config-service.js'
 import { CONFIG_DEFAULTS } from '../config/constants.js'
 import { validateNetwork } from '../config/networks.js'
-import { handleError } from '../errors/index.js'
+import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
 import { configureHelp } from '../ui/help.js'
-import { promptPassphrase } from '../ui/prompts.js'
-import { KeyService } from '../services/key-service.js'
-import { WalletKeyring } from '../security/keyring.js'
+import { requirePassphraseConfirmation } from '../ui/auth.js'
 
 function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
   let cur: unknown = obj
@@ -94,7 +92,7 @@ export function registerConfigCommand(program: Command): void {
               console.log(typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value))
             }
           } else {
-            const networkConfig = configService.get(`networks.${network}`) as Record<string, unknown> | undefined
+            const networkConfig = configService.get<Record<string, unknown>>(`networks.${network}`)
             if (isJson()) {
               console.log(JSON.stringify({ network, config: networkConfig ?? {} }))
             } else if (networkConfig && typeof networkConfig === 'object') {
@@ -149,18 +147,12 @@ export function registerConfigCommand(program: Command): void {
 
   setCmd.action(async (options: { key?: string; value: string }) => {
       try {
-        const keyService = new KeyService(new WalletKeyring())
-        const defaultWallet = configService.getDefaultWallet()
-        if (defaultWallet && await keyService.hasKey(defaultWallet)) {
-          const passphrase = await promptPassphrase(`Enter passphrase of '${defaultWallet}' wallet to confirm:`)
-          await keyService.unlock(passphrase, defaultWallet)
-        }
+        await requirePassphraseConfirmation()
         const network = config.opts().network
         const { key, value } = options
 
         if (!key && !network) {
-          console.log(chalk.red('Error: --key is required (or use --network to set network config)'))
-          return
+          throw new WdkCliError('--key is required (or use --network to set network config)', ErrorCode.INVALID_ARGUMENT)
         }
 
         if (network) validateNetwork(network)
@@ -203,12 +195,7 @@ export function registerConfigCommand(program: Command): void {
 
   resetCmd.action(async (options: { key: string }) => {
       try {
-        const keyService = new KeyService(new WalletKeyring())
-        const defaultWallet = configService.getDefaultWallet()
-        if (defaultWallet && await keyService.hasKey(defaultWallet)) {
-          const passphrase = await promptPassphrase(`Enter passphrase of '${defaultWallet}' wallet to confirm:`)
-          await keyService.unlock(passphrase, defaultWallet)
-        }
+        await requirePassphraseConfirmation()
         const network = config.opts().network
         const { key } = options
 
