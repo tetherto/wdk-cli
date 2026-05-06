@@ -43,7 +43,9 @@ describe('KeyService', () => {
 
   beforeEach(async () => {
     tempDir = await mkdtemp(join(tmpdir(), 'wdk-test-'))
-    const constants = await import('../../../src/config/constants.js') as { setTestDir: (dir: string) => void }
+    const constants = (await import('../../../src/config/constants.js')) as unknown as {
+      setTestDir: (dir: string) => void
+    }
     constants.setTestDir(tempDir)
     keyService = new KeyService(new WalletKeyring())
   })
