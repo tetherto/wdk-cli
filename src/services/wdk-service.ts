@@ -12,20 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import WDK from '@tetherto/wdk'
+import WDK, { type IWalletAccount } from '@tetherto/wdk'
+import type WalletManager from '@tetherto/wdk-wallet'
 import { isValidNetwork, getNetworkConfig, parseModuleName } from '../config/networks.js'
 import { configService } from './config-service.js'
 import { CONFIG_DEFAULTS } from '../config/constants.js'
 import { WdkCliError, ErrorCode, isNetworkError } from '../errors/index.js'
 import type { NetworkName } from '../types/index.js'
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const walletManagerCache = new Map<string, any>()
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function loadWalletManager(moduleSpec: string): Promise<any> {
-  if (walletManagerCache.has(moduleSpec)) {
-    return walletManagerCache.get(moduleSpec)
-  }
+const walletManagerCache = new Map<string, typeof WalletManager>()
+
+async function loadWalletManager(moduleSpec: string): Promise<typeof WalletManager> {
+  const cached = walletManagerCache.get(moduleSpec)
+  if (cached) return cached
 
   const { name, version } = parseModuleName(moduleSpec)
 
@@ -58,19 +57,14 @@ async function loadWalletManager(moduleSpec: string): Promise<any> {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type WdkAccount = any
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const WDKAny = WDK as any
-
 export class WdkService {
   private wdk: WDK | null = null
   private registeredNetworks = new Set<string>()
-  private accountCache = new Map<string, WdkAccount>()
+  private accountCache = new Map<string, IWalletAccount>()
 
   createInstance(seedPhrase: string): void {
     if (!this.wdk) {
-      this.wdk = new WDKAny(seedPhrase)
+      this.wdk = new WDK(seedPhrase)
     }
   }
 
@@ -97,11 +91,11 @@ export class WdkService {
     const fromService = configService.get<Record<string, unknown>>(`networks.${network}`)
     const sdkConfig = fromService || networkDefaults[network] || {}
 
-    ;(this.wdk as typeof WDKAny).registerWallet(network, WalletManager, sdkConfig)
+    this.wdk.registerWallet(network, WalletManager, sdkConfig)
     this.registeredNetworks.add(network)
   }
 
-  async getAccount(network: NetworkName, index: number = 0): Promise<WdkAccount> {
+  async getAccount(network: NetworkName, index: number = 0): Promise<IWalletAccount> {
     if (!this.wdk) {
       throw new Error('WDK not initialized. Call initialize() first.')
     }
