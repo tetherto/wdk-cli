@@ -27,7 +27,7 @@ const PHRASE =
 describe('encryption', () => {
   it('encrypts deterministically with pinned salt+iv', () => {
     const salt = Buffer.from('00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff', 'hex')
-    const iv = Buffer.from('aabbccddeeff00112233445566778899', 'hex')
+    const iv = Buffer.from('aabbccddeeff001122334455', 'hex')
     vi.mocked(crypto.randomBytes).mockReturnValueOnce(salt as any).mockReturnValueOnce(iv as any)
 
     const payload = encrypt(PHRASE, 'testpassword123')
@@ -35,10 +35,10 @@ describe('encryption', () => {
     expect(payload).toEqual({
       version: 1,
       salt: '00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff',
-      iv: 'aabbccddeeff00112233445566778899',
-      tag: 'a63d3d292acebb7994dd137734109e56',
+      iv: 'aabbccddeeff001122334455',
+      tag: '04247a2e56402b743718b1dd3c242623',
       ciphertext:
-        'b41415c5d98ca2d54e8bb9f9826ade4a6cc0b5480a411ef68cfb8c4f2fa3640439d847426489e2d5ee3611d542d70464322b5e280f018eb1fa5ed10eba901b1e8ac8cb6e6bf0134870e80cb2bf123c2609b307498f71d7fa0ea84940e2',
+        '2ba561282f7a73e748caa33cd74711c0b468c5af1d3144ed78beea60bb18acada504eade33cc207265b3750d22648e449f96774ba5946a2f594369fc7ba42f64b432b958e98f3cda4853c04ed0e6ef7fd205b7958822c7a3d0ea7a7383',
     })
     expect(decrypt(payload, 'testpassword123')).toBe(PHRASE)
   })

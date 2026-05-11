@@ -16,22 +16,25 @@ import { scryptSync, randomBytes, createCipheriv, createDecipheriv } from 'node:
 import type { EncryptedPayload } from '../types/index.js'
 
 const ALGORITHM = 'aes-256-gcm'
-// N=2^14 (16384) with r=8 uses ~16MB — OWASP recommended minimum, within Node.js limits
-const SCRYPT_N = 2 ** 14
+const SCRYPT_N = 2 ** 16
 const SCRYPT_R = 8
 const SCRYPT_P = 1
 const KEY_LEN = 32
 const SALT_LEN = 32
-const IV_LEN = 16
+const IV_LEN = 12
+const SCRYPT_MAX_MEM = 128 * 1024 * 1024
+
+export function deriveKey(password: string, salt: Buffer): Buffer {
+  return scryptSync(password, salt, KEY_LEN, { N: SCRYPT_N, r: SCRYPT_R, p: SCRYPT_P, maxmem: SCRYPT_MAX_MEM })
+}
 
 export function encrypt(plaintext: string, password: string): EncryptedPayload {
   const salt = randomBytes(SALT_LEN)
-  const key = scryptSync(password, salt, KEY_LEN, { N: SCRYPT_N, r: SCRYPT_R, p: SCRYPT_P })
+  const key = deriveKey(password, salt)
   const iv = randomBytes(IV_LEN)
 
   try {
     const cipher = createCipheriv(ALGORITHM, key, iv)
-
     let ciphertext = cipher.update(plaintext, 'utf8', 'hex')
     ciphertext += cipher.final('hex')
     const tag = cipher.getAuthTag()
@@ -48,21 +51,14 @@ export function encrypt(plaintext: string, password: string): EncryptedPayload {
   }
 }
 
-export function deriveKey(password: string, salt: Buffer): Buffer {
-  return scryptSync(password, salt, KEY_LEN, { N: SCRYPT_N, r: SCRYPT_R, p: SCRYPT_P })
-}
-
 export function decryptWithKey(payload: EncryptedPayload, key: Buffer): string {
   if (payload.version !== 1) {
     throw new Error(`Unsupported keyring version: ${payload.version}`)
   }
-
   const iv = Buffer.from(payload.iv, 'hex')
   const tag = Buffer.from(payload.tag, 'hex')
-
   const decipher = createDecipheriv(ALGORITHM, key, iv)
   decipher.setAuthTag(tag)
-
   let plaintext = decipher.update(payload.ciphertext, 'hex', 'utf8')
   plaintext += decipher.final('utf8')
   return plaintext
@@ -72,7 +68,6 @@ export function decrypt(payload: EncryptedPayload, password: string): string {
   if (payload.version !== 1) {
     throw new Error(`Unsupported keyring version: ${payload.version}`)
   }
-
   const salt = Buffer.from(payload.salt, 'hex')
   const key = deriveKey(password, salt)
   try {
