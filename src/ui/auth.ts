@@ -15,13 +15,30 @@
 import { configService } from '../services/config-service.js'
 import { KeyService } from '../services/key-service.js'
 import { WalletKeyring } from '../security/keyring.js'
+import { WdkCliError, ErrorCode } from '../errors/index.js'
 import { promptPassphrase } from './prompts.js'
 
 export async function requirePassphraseConfirmation(): Promise<void> {
   const keyService = new KeyService(new WalletKeyring())
+  const wallets = await keyService.list()
+  if (wallets.length === 0) return
+
   const defaultWallet = configService.getDefaultWallet()
-  if (defaultWallet && await keyService.hasKey(defaultWallet)) {
-    const passphrase = await promptPassphrase(`Enter passphrase of '${defaultWallet}' wallet to confirm:`)
-    await keyService.unlock(passphrase, defaultWallet)
+  if (!defaultWallet) {
+    throw new WdkCliError(
+      'No default wallet is set.',
+      ErrorCode.KEY_NOT_FOUND,
+      "Run 'wdk wallet default <name>' to set a default wallet.",
+    )
   }
+  if (!wallets.includes(defaultWallet)) {
+    throw new WdkCliError(
+      `Default wallet '${defaultWallet}' no longer exists.`,
+      ErrorCode.KEY_NOT_FOUND,
+      "Run 'wdk wallet default <name>' to point at an existing wallet.",
+    )
+  }
+
+  const passphrase = await promptPassphrase(`Enter passphrase of '${defaultWallet}' wallet to confirm:`)
+  await keyService.unlock(passphrase, defaultWallet)
 }

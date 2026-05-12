@@ -147,13 +147,14 @@ export function registerConfigCommand(program: Command): void {
 
   setCmd.action(async (options: { key?: string; value: string }) => {
       try {
-        await requirePassphraseConfirmation()
         const network = config.opts().network
         const { key, value } = options
 
         if (!key && !network) {
           throw new WdkCliError('--key is required (or use --network to set network config)', ErrorCode.INVALID_ARGUMENT)
         }
+
+        await requirePassphraseConfirmation()
 
         if (network) validateNetwork(network)
 
