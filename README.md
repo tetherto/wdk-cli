@@ -412,12 +412,14 @@ Both MCP and CLI route through the daemon — the agent never has access to keys
 ## Development
 
 ```bash
-npm run build          # Build
-npm run dev            # Build in watch mode
-npm test               # Run tests
-npm run test:coverage  # Run tests with coverage
-npm run lint           # Lint (check only)
-npm run lint:fix       # Lint and auto-fix
+npm run build             # Build
+npm run dev               # Build in watch mode
+npm test                  # Run unit tests
+npm run test:watch        # Run unit tests in watch mode
+npm run test:coverage     # Run unit tests with coverage
+npm run test:integration  # Run integration tests (spawns CLI in isolated temp dir)
+npm run lint              # Lint (check only)
+npm run lint:fix          # Lint and auto-fix
 ```
 
 ## License
