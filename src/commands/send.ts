@@ -16,15 +16,10 @@ import { Command } from 'commander'
 import chalk from 'chalk'
 import ora from 'ora'
 import { resolveNetwork, resolveIndex } from '../utils/resolvers.js'
-import { withTimeout } from '../utils/async.js'
-import { isValidNetwork, getNetworkConfig } from '../config/networks.js'
-import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
-import { formatAddress, formatNetworkLabel, formatAmount, formatTokenAmount } from '../ui/formatters.js'
+import { handleError } from '../errors/index.js'
+import { formatAddress, formatNetworkLabel } from '../ui/formatters.js'
 import { configureHelp } from '../ui/help.js'
-import { configService } from '../services/config-service.js'
-import { convertToUsd } from '../services/price-service.js'
-import { daemonClient } from '../daemon/client.js'
-import type { NetworkName } from '../types/index.js'
+import { previewSend, executeSend } from '../actions/send.js'
 
 export function registerSendCommand(program: Command): void {
   const send = program
@@ -55,55 +50,23 @@ export function registerSendCommand(program: Command): void {
   send.action(async (options) => {
       try {
         const network = resolveNetwork(options.network)
-        if (!isValidNetwork(network)) throw new WdkCliError(`Network '${network}' is not supported.`, ErrorCode.NETWORK_NOT_SUPPORTED)
-        const index = options.index ? resolveIndex(options.index) : configService.getDefaultIndex()
-        const wallet = options.wallet ?? configService.getDefaultWallet()
+        const index = resolveIndex(options.index)
 
-        if (!(await daemonClient.isWalletUnlocked(wallet))) {
-          throw new WdkCliError(`Wallet '${wallet}' is not unlocked.`, ErrorCode.WALLET_NOT_UNLOCKED, `Run: wdk wallet unlock --name ${wallet}`)
-        }
-
-        if (!/^\d+$/.test(options.amount) || options.amount === '0') {
-          throw new WdkCliError(
-            'Invalid amount. Must be a positive integer in base units (wei/satoshis/lamports).',
-            ErrorCode.INVALID_AMOUNT,
-            'Do not use decimal points. Example: 1000000 for 1 USDT (6 decimals).',
-          )
+        const sendInput = {
+          network,
+          index,
+          to: options.to,
+          amount: options.amount,
+          token: options.token,
+          wallet: options.wallet,
         }
 
         const spinner = ora('Estimating fee...').start()
-        let feeQuote
+        let preview
         try {
-          feeQuote = await withTimeout(
-            daemonClient.estimateFee(network, index, options.to, options.amount, options.token, wallet),
-            30_000,
-            'Fee estimation',
-          )
+          preview = await previewSend(sendInput)
         } finally {
           spinner.stop()
-        }
-
-        const networkConfig = getNetworkConfig(network)
-        const amountBigInt = BigInt(options.amount)
-        const { formatted: amountFormatted, symbol: tokenSymbol } = formatTokenAmount(amountBigInt, options.amount, network, options.token)
-
-        let amountUsd: number | undefined
-        let estimatedFeeUsd: number | undefined
-        try { amountUsd = await convertToUsd(network as NetworkName, amountBigInt, options.token) } catch { /* price unavailable */ }
-        try { estimatedFeeUsd = await convertToUsd(network as NetworkName, BigInt(feeQuote.fee)) } catch { /* price unavailable */ }
-
-        const preview = {
-          network,
-          networkName: networkConfig.displayName,
-          to: options.to,
-          amount: options.amount,
-          amountFormatted,
-          amountUsd,
-          token: options.token,
-          tokenSymbol,
-          estimatedFee: feeQuote.fee,
-          estimatedFeeFormatted: feeQuote.feeFormatted,
-          estimatedFeeUsd,
         }
 
         const printPreview = (title: string) => {
@@ -138,19 +101,8 @@ export function registerSendCommand(program: Command): void {
 
         const sendSpinner = ora('Broadcasting transaction...').start()
         try {
-          const sendData = await daemonClient.send(network, index, options.to, options.amount, options.token, wallet)
+          const result = await executeSend(sendInput)
           sendSpinner.succeed('Transaction sent!')
-
-          const result = {
-            network,
-            txHash: sendData.txHash,
-            from: sendData.from,
-            to: sendData.to,
-            amount: options.amount,
-            amountFormatted,
-            fee: sendData.fee,
-            feeFormatted: sendData.fee ? formatAmount(BigInt(sendData.fee), networkConfig.decimals, networkConfig.nativeSymbol) : undefined,
-          }
 
           if (program.opts().json) {
             console.log(JSON.stringify(result))

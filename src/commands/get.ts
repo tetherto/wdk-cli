@@ -15,17 +15,14 @@
 import { Command } from 'commander'
 import chalk from 'chalk'
 import { resolveNetwork, resolveIndex } from '../utils/resolvers.js'
-import { isValidNetwork, getAllNetworkNames, isTestnet } from '../config/networks.js'
-import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
-import { formatNetworkLabel, formatAmount, formatAddress, formatTxHash } from '../ui/formatters.js'
-import { configService } from '../services/config-service.js'
-import { isIndexerSupported, INDEXER_TOKENS } from '../services/indexer-service.js'
-import type { IndexerToken } from '../services/indexer-service.js'
+import { handleError } from '../errors/index.js'
+import { formatNetworkLabel, formatAddress, formatTxHash } from '../ui/formatters.js'
+import { INDEXER_TOKENS } from '../services/indexer-service.js'
 import { createTable } from '../ui/tables.js'
 import { configureHelp } from '../ui/help.js'
-import { convertToUsd } from '../services/price-service.js'
-import { daemonClient } from '../daemon/client.js'
-import type { NetworkName } from '../types/index.js'
+import { getBalance, getAllBalances } from '../actions/balance.js'
+import { getAddress, getAllAddresses } from '../actions/address.js'
+import { getHistory } from '../actions/history.js'
 
 export function registerGetCommand(program: Command): void {
   const get = program
@@ -55,20 +52,11 @@ export function registerGetCommand(program: Command): void {
 
   address.action(async (options) => {
       try {
-        const index = options.index ? resolveIndex(options.index) : configService.getDefaultIndex()
-        const networkOpt = options.network
-        const wallet = options.wallet ?? configService.getDefaultWallet()
+        const index = resolveIndex(options.index)
 
-        if (!(await daemonClient.isWalletUnlocked(wallet))) {
-          throw new WdkCliError(`Wallet '${wallet}' is not unlocked.`, ErrorCode.WALLET_NOT_UNLOCKED, `Run: wdk wallet unlock --name ${wallet}`)
-        }
-
-        if (networkOpt) {
-          const network = resolveNetwork(networkOpt)
-          if (!isValidNetwork(network)) throw new WdkCliError(`Network '${network}' is not supported.`, ErrorCode.NETWORK_NOT_SUPPORTED)
-
-          const address = await daemonClient.getAddress(network, index, wallet)
-          const result = { network, index, address }
+        if (options.network) {
+          const network = resolveNetwork(options.network)
+          const result = await getAddress({ network, index, wallet: options.wallet })
 
           if (program.opts().json) {
             console.log(JSON.stringify(result))
@@ -82,29 +70,7 @@ export function registerGetCommand(program: Command): void {
           return
         }
 
-        const showTestnet = options.testnet === true
-        const allNames = getAllNetworkNames().filter((n) => isTestnet(n) === showTestnet)
-
-        const results: { network: string; address: string }[] = []
-
-        const tasks = allNames.map(async (network) => {
-          try {
-            const address = await daemonClient.getAddress(network, index, wallet)
-            return { network, address }
-          } catch (e) {
-            if (program.opts().verbose) {
-              console.error(chalk.dim(`  [${network}] ${e instanceof Error ? e.message : String(e)}`))
-            }
-            return null
-          }
-        })
-
-        const settled = await Promise.all(tasks)
-        for (const r of settled) {
-          if (r) results.push(r)
-        }
-
-        const result = { index, type: showTestnet ? 'testnet' : 'mainnet', addresses: results }
+        const result = await getAllAddresses({ index, testnet: options.testnet === true, wallet: options.wallet })
 
         if (program.opts().json) {
           console.log(JSON.stringify(result))
@@ -114,12 +80,12 @@ export function registerGetCommand(program: Command): void {
         console.log()
         console.log(chalk.bold(`Wallet Addresses (index: ${result.index}, ${result.type}):`))
         console.log()
-        if (results.length === 0) {
+        if (result.addresses.length === 0) {
           console.log(chalk.dim('  No addresses available.'))
         } else {
           console.log(`  ${'Network'.padEnd(28)} ${'Address'}`)
           console.log(`  ${'─'.repeat(28)} ${'─'.repeat(44)}`)
-          for (const r of results) {
+          for (const r of result.addresses) {
             console.log(`  ${formatNetworkLabel(r.network).padEnd(28)} ${r.address}`)
           }
         }
@@ -152,29 +118,11 @@ export function registerGetCommand(program: Command): void {
 
   balance.action(async (options) => {
       try {
-        const index = options.index ? resolveIndex(options.index) : configService.getDefaultIndex()
-        const networkOpt = options.network
-        const wallet = options.wallet ?? configService.getDefaultWallet()
+        const index = resolveIndex(options.index)
 
-        if (!(await daemonClient.isWalletUnlocked(wallet))) {
-          throw new WdkCliError(`Wallet '${wallet}' is not unlocked.`, ErrorCode.WALLET_NOT_UNLOCKED, `Run: wdk wallet unlock --name ${wallet}`)
-        }
-
-        if (networkOpt) {
-          const network = resolveNetwork(networkOpt)
-          if (!isValidNetwork(network)) throw new WdkCliError(`Network '${network}' is not supported.`, ErrorCode.NETWORK_NOT_SUPPORTED)
-
-          const balanceData = await daemonClient.getBalance(network, index, options.token, wallet)
-          const formatted = formatAmount(BigInt(balanceData.balance), balanceData.decimals, balanceData.symbol)
-          const result = {
-            network,
-            index,
-            balance: balanceData.balance,
-            symbol: balanceData.symbol,
-            decimals: balanceData.decimals,
-            formatted,
-            ...(options.token ? { token: options.token } : {}),
-          }
+        if (options.network) {
+          const network = resolveNetwork(options.network)
+          const result = await getBalance({ network, index, token: options.token, wallet: options.wallet })
 
           if (program.opts().json) {
             console.log(JSON.stringify(result))
@@ -191,37 +139,7 @@ export function registerGetCommand(program: Command): void {
           return
         }
 
-        const showTestnet = options.testnet === true
-        const allNames = getAllNetworkNames().filter((n) => isTestnet(n) === showTestnet)
-
-        const results: { network: string; address: string; balance: string; formatted: string; usd: number }[] = []
-        let totalUsd = 0
-
-        const tasks = allNames.map(async (network) => {
-          try {
-            const address = await daemonClient.getAddress(network, index, wallet)
-            const result = await daemonClient.getBalance(network, index, undefined, wallet)
-            const balanceBigInt = BigInt(result.balance)
-            const formatted = formatAmount(balanceBigInt, result.decimals, result.symbol)
-            let usd = 0
-            if (balanceBigInt > 0n) {
-              try { usd = await convertToUsd(network as NetworkName, balanceBigInt) } catch { /* */ }
-            }
-            return { network, address, balance: result.balance, formatted, usd }
-          } catch {
-            return null
-          }
-        })
-
-        const settled = await Promise.all(tasks)
-        for (const r of settled) {
-          if (r) {
-            results.push(r)
-            totalUsd += r.usd
-          }
-        }
-
-        const result = { index, type: showTestnet ? 'testnet' : 'mainnet', balances: results, totalUsd }
+        const result = await getAllBalances({ index, testnet: options.testnet === true, wallet: options.wallet })
 
         if (program.opts().json) {
           console.log(JSON.stringify(result))
@@ -231,17 +149,17 @@ export function registerGetCommand(program: Command): void {
         console.log()
         console.log(chalk.bold(`Wallet Balance (index: ${result.index}, ${result.type}):`))
         console.log()
-        if (results.length === 0) {
+        if (result.balances.length === 0) {
           console.log(chalk.dim('  No balances available.'))
         } else {
           console.log(`  ${'Network'.padEnd(28)} ${'Address'.padEnd(17)} ${'Balance'}`)
           console.log(`  ${'─'.repeat(28)} ${'─'.repeat(17)} ${'─'.repeat(24)}`)
-          for (const r of results) {
+          for (const r of result.balances) {
             const usdStr = chalk.dim(` (~$${r.usd.toFixed(2)})`)
             console.log(`  ${formatNetworkLabel(r.network).padEnd(28)} ${formatAddress(r.address, true).padEnd(17)} ${chalk.bold(r.formatted)}${usdStr}`)
           }
           console.log()
-          console.log(`  ${chalk.bold(`Total: ~$${totalUsd.toFixed(2)}`)}`)
+          console.log(`  ${chalk.bold(`Total: ~$${result.totalUsd.toFixed(2)}`)}`)
         }
         console.log()
       } catch (error) {
@@ -277,53 +195,40 @@ export function registerGetCommand(program: Command): void {
   history.action(async (options) => {
       try {
         const network = resolveNetwork(options.network)
-        if (!isValidNetwork(network)) throw new WdkCliError(`Network '${network}' is not supported.`, ErrorCode.NETWORK_NOT_SUPPORTED)
+        const index = resolveIndex(options.index)
+        const limit = options.limit ? parseInt(options.limit, 10) : undefined
 
-        if (!isIndexerSupported(network)) {
-          throw new WdkCliError(`Network '${network}' is not supported by the indexer API.`, ErrorCode.NETWORK_NOT_SUPPORTED)
-        }
-
-        const index = options.index ? resolveIndex(options.index) : configService.getDefaultIndex()
-        const wallet = options.wallet ?? configService.getDefaultWallet()
-
-        if (!(await daemonClient.isWalletUnlocked(wallet))) {
-          throw new WdkCliError(`Wallet '${wallet}' is not unlocked.`, ErrorCode.WALLET_NOT_UNLOCKED, `Run: wdk wallet unlock --name ${wallet}`)
-        }
-
-        const tokenInput = options.token || 'usdt'
-        if (!(INDEXER_TOKENS as readonly string[]).includes(tokenInput)) {
-          throw new WdkCliError(`Invalid token '${tokenInput}'. Valid: ${INDEXER_TOKENS.join(', ')}`, ErrorCode.INVALID_TOKEN)
-        }
-        const token = tokenInput as IndexerToken
-
-        const limit = options.limit ? parseInt(options.limit, 10) : 30
-        const fromTs = options.fromDate ? Math.floor(new Date(options.fromDate).getTime() / 1000) : undefined
-        const toTs = options.toDate ? Math.floor(new Date(options.toDate).getTime() / 1000) : undefined
-        const result = await daemonClient.getHistory(network, token, limit, wallet, fromTs, toTs)
-        const address = result.address
-        const transfers = result.transfers as { timestamp: number; from: string; to: string; amount: string; transactionHash: string }[]
+        const result = await getHistory({
+          network,
+          index,
+          token: options.token,
+          limit,
+          fromDate: options.fromDate,
+          toDate: options.toDate,
+          wallet: options.wallet,
+        })
 
         if (program.opts().json) {
-          console.log(JSON.stringify({ network, index, address, token, transfers, count: transfers.length }))
+          console.log(JSON.stringify(result))
           return
         }
 
         console.log()
-        console.log(`  ${formatNetworkLabel(network)} ${chalk.dim(`(index: ${index})`)}`)
-        console.log(`  Address: ${formatAddress(address)}`)
-        console.log(`  Token:   ${token.toUpperCase()}`)
+        console.log(`  ${formatNetworkLabel(result.network)} ${chalk.dim(`(index: ${result.index})`)}`)
+        console.log(`  Address: ${formatAddress(result.address)}`)
+        console.log(`  Token:   ${result.token.toUpperCase()}`)
         console.log()
 
-        if (transfers.length === 0) {
+        if (result.transfers.length === 0) {
           console.log(chalk.dim('  No transfers found.'))
           console.log()
           return
         }
 
         const table = createTable(['Date', 'Direction', 'Amount', 'Counterparty', 'Tx Hash'])
-        const addrLower = address.toLowerCase()
+        const addrLower = result.address.toLowerCase()
 
-        for (const tx of transfers) {
+        for (const tx of result.transfers) {
           const date = new Date(tx.timestamp).toLocaleString()
           const isOutgoing = tx.from.toLowerCase() === addrLower
           const direction = isOutgoing ? chalk.red('OUT') : chalk.green('IN')
@@ -338,7 +243,7 @@ export function registerGetCommand(program: Command): void {
         }
 
         console.log(table.toString())
-        console.log(chalk.dim(`\n  ${transfers.length} transfer(s)`))
+        console.log(chalk.dim(`\n  ${result.count} transfer(s)`))
         console.log()
       } catch (error) {
         handleError(error, program.opts().verbose, program.opts().json)

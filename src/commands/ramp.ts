@@ -15,14 +15,10 @@
 import { Command } from 'commander'
 import chalk from 'chalk'
 import { resolveNetwork, resolveIndex } from '../utils/resolvers.js'
-import { isValidNetwork } from '../config/networks.js'
-import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
+import { handleError } from '../errors/index.js'
 import { formatNetworkLabel } from '../ui/formatters.js'
 import { configureHelp } from '../ui/help.js'
-import { daemonClient } from '../daemon/client.js'
-import { configService } from '../services/config-service.js'
-import { validateModule, resolveAsset } from '../config/ramp.js'
-import { getMoonPayConfig, validateEnvironment, signMoonPayUrl, buildMoonPayUrl } from '../services/moonpay.js'
+import { createRampUrl } from '../actions/ramp.js'
 
 
 async function handleRampAction(
@@ -30,60 +26,37 @@ async function handleRampAction(
   options: Record<string, string | undefined>,
   program: Command,
 ): Promise<void> {
-  if (options.fiatAmount && options.cryptoAmount) {
-    throw new WdkCliError('Cannot specify both --fiat-amount and --crypto-amount.', ErrorCode.INVALID_ARGUMENT)
-  }
-
-  const module = validateModule(options.module!)
   const network = resolveNetwork(options.network)
-  if (!isValidNetwork(network)) throw new WdkCliError(`Network '${network}' is not supported.`, ErrorCode.NETWORK_NOT_SUPPORTED)
-  const index = options.index ? resolveIndex(options.index) : configService.getDefaultIndex()
-  const wallet = options.wallet ?? configService.getDefaultWallet()
+  const index = resolveIndex(options.index)
 
-  if (!(await daemonClient.isWalletUnlocked(wallet))) {
-    throw new WdkCliError(`Wallet '${wallet}' is not unlocked.`, ErrorCode.WALLET_NOT_UNLOCKED, `Run: wdk wallet unlock --name ${wallet}`)
-  }
+  const result = await createRampUrl({
+    direction,
+    network,
+    index,
+    token: options.token!,
+    module: options.module,
+    fiatCurrency: options.fiatCurrency,
+    fiatAmount: options.fiatAmount,
+    cryptoAmount: options.cryptoAmount,
+    wallet: options.wallet,
+  })
 
-  const isJson = program.opts().json
-  const { code: cryptoAsset, token } = resolveAsset(network, options.token!, module)
-
-  if (module === 'moonpay') {
-    const config = getMoonPayConfig()
-    validateEnvironment(network, config.environment)
-    const address = await daemonClient.getAddress(network, index, wallet)
-
-    let url = buildMoonPayUrl(direction, config, cryptoAsset, address, options.fiatCurrency, options.fiatAmount, options.cryptoAmount)
-    url = await signMoonPayUrl(url, config.signUrl)
-
-    const result = {
-      direction,
-      network,
-      address,
-      token,
-      module,
-      fiat: options.fiatCurrency!,
-      fiatAmount: options.fiatAmount,
-      cryptoAmount: options.cryptoAmount,
-      url,
-    }
-
-    if (isJson) {
-      console.log(JSON.stringify(result))
-    } else {
-      const label = direction === 'buy' ? 'Buy' : 'Sell'
-      console.log()
-      console.log(chalk.bold(`${label} Crypto:`))
-      console.log(`  Network:  ${formatNetworkLabel(result.network)}`)
-      console.log(`  Address:  ${result.address}`)
-      console.log(`  Token:    ${result.token.toUpperCase()}`)
-      console.log(`  Module:   ${result.module}`)
-      console.log(`  Fiat:     ${result.fiat.toUpperCase()}`)
-      if (result.fiatAmount) console.log(`  Amount:   ${result.fiatAmount} ${result.fiat.toUpperCase()}`)
-      if (result.cryptoAmount) console.log(`  Amount:   ${result.cryptoAmount} ${result.token.toUpperCase()}`)
-      console.log()
-      console.log(`  ${chalk.cyan(result.url)}`)
-      console.log()
-    }
+  if (program.opts().json) {
+    console.log(JSON.stringify(result))
+  } else {
+    const label = direction === 'buy' ? 'Buy' : 'Sell'
+    console.log()
+    console.log(chalk.bold(`${label} Crypto:`))
+    console.log(`  Network:  ${formatNetworkLabel(result.network)}`)
+    console.log(`  Address:  ${result.address}`)
+    console.log(`  Token:    ${result.token.toUpperCase()}`)
+    console.log(`  Module:   ${result.module}`)
+    console.log(`  Fiat:     ${result.fiatCurrency.toUpperCase()}`)
+    if (result.fiatAmount) console.log(`  Amount:   ${result.fiatAmount} ${result.fiatCurrency.toUpperCase()}`)
+    if (result.cryptoAmount) console.log(`  Amount:   ${result.cryptoAmount} ${result.token.toUpperCase()}`)
+    console.log()
+    console.log(`  ${chalk.cyan(result.url)}`)
+    console.log()
   }
 }
 

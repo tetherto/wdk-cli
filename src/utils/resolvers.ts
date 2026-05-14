@@ -14,13 +14,15 @@
 
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 import type { NetworkName } from '../types/index.js'
+import { configService } from '../services/config-service.js'
 
 export function resolveNetwork(optionNetwork?: string): NetworkName {
   if (optionNetwork) return optionNetwork as NetworkName
   throw new WdkCliError('Missing --network flag.', ErrorCode.MISSING_NETWORK, 'Run: wdk network list to see options.')
 }
 
-export function resolveIndex(optionIndex: string): number {
+export function resolveIndex(optionIndex?: string): number {
+  if (!optionIndex) return configService.getDefaultIndex()
   const index = parseInt(optionIndex, 10)
   if (isNaN(index) || index < 0) {
     throw new WdkCliError('Invalid account index. Must be a non-negative integer.', ErrorCode.INVALID_INDEX)

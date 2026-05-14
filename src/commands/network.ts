@@ -15,8 +15,6 @@
 import type { Command } from 'commander'
 import chalk from 'chalk'
 import {
-  getAllNetworks,
-  getAllNetworkNames,
   getNetworkConfig,
   isTestnet,
   isBuiltinNetwork,
@@ -25,6 +23,7 @@ import {
   saveCustomNetwork,
   deleteCustomNetwork,
 } from '../config/networks.js'
+import { listNetworks } from '../actions/networks.js'
 import { configService } from '../services/config-service.js'
 import { createTable } from '../ui/tables.js'
 import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
@@ -66,40 +65,28 @@ export function registerNetworkCommand(program: Command): void {
   })
 
   listCmd.action((options: { testnet?: boolean; mainnet?: boolean }) => {
-      let names = getAllNetworkNames()
-      const allNetworks = getAllNetworks()
-
-      if (options.testnet) {
-        names = names.filter((n) => isTestnet(n))
-      } else if (options.mainnet) {
-        names = names.filter((n) => !isTestnet(n))
-      }
+      const result = listNetworks({ testnet: options.testnet, mainnet: options.mainnet })
 
       if (program.opts().json) {
-        const networks = names.map(name => {
-          const config = allNetworks[name]
-          return { name, displayName: config.displayName, module: config.module, symbol: config.nativeSymbol, decimals: config.decimals, testnet: isTestnet(name), custom: !!config.custom }
-        })
-        console.log(JSON.stringify({ networks, count: networks.length }, null, 2))
+        console.log(JSON.stringify(result, null, 2))
         return
       }
 
       const table = createTable(['Name', 'Network', 'Type', 'Symbol', 'Testnet'])
 
-      for (const name of names) {
-        const config = allNetworks[name]
-        const nameLabel = config.custom ? `${name} ${chalk.dim('(custom)')}` : name
+      for (const n of result.networks) {
+        const nameLabel = n.custom ? `${n.name} ${chalk.dim('(custom)')}` : n.name
         table.push([
           chalk.bold(nameLabel),
-          config.displayName,
-          config.module,
-          config.nativeSymbol,
-          isTestnet(name) ? chalk.dim('yes') : '',
+          n.displayName,
+          n.module,
+          n.symbol,
+          n.testnet ? chalk.dim('yes') : '',
         ])
       }
 
       console.log(table.toString())
-      console.log(chalk.dim(`\n  ${names.length} networks available`))
+      console.log(chalk.dim(`\n  ${result.count} networks available`))
     })
 
   const createCmd = network
