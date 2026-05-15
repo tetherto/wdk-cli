@@ -581,7 +581,7 @@ describe('send error cases', () => {
 
 describe('buy/sell error cases', () => {
   it('buy returns wallet not unlocked error', () => {
-    const result = wdkJsonSafe(`buy --network ethereum --token usdt --wallet ${WALLET_NAME}`) as {
+    const result = wdkJsonSafe(`buy --network ethereum --token usdt --fiat-amount 100 --wallet ${WALLET_NAME}`) as {
       error: string; code: string
     }
 
@@ -590,7 +590,7 @@ describe('buy/sell error cases', () => {
   })
 
   it('sell returns wallet not unlocked error', () => {
-    const result = wdkJsonSafe(`sell --network ethereum --token usdt --wallet ${WALLET_NAME}`) as {
+    const result = wdkJsonSafe(`sell --network ethereum --token usdt --crypto-amount 50 --wallet ${WALLET_NAME}`) as {
       error: string; code: string
     }
 

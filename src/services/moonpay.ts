@@ -12,12 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import MoonPayProtocol from '@tetherto/wdk-protocol-fiat-moonpay'
 import { isTestnet } from '../config/networks.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 import { configService } from './config-service.js'
-
-const BUY_ORIGINS = { production: 'https://buy.moonpay.com', sandbox: 'https://buy-sandbox.moonpay.com' }
-const SELL_ORIGINS = { production: 'https://sell.moonpay.com', sandbox: 'https://sell-sandbox.moonpay.com' }
 
 export interface MoonPayConfig {
   apiKey: string
@@ -68,10 +66,10 @@ export function validateEnvironment(network: string, environment: 'production' |
   }
 }
 
-export async function signMoonPayUrl(url: string, signEndpoint: string): Promise<string> {
+async function postToSignServer(url: string, endpoint: string): Promise<string> {
   let response: Response
   try {
-    response = await fetch(signEndpoint, {
+    response = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ urlForSignature: url }),
@@ -79,7 +77,7 @@ export async function signMoonPayUrl(url: string, signEndpoint: string): Promise
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error)
     throw new WdkCliError(
-      `Cannot reach MoonPay sign server at '${signEndpoint}': ${detail}`,
+      `Cannot reach MoonPay sign server at '${endpoint}': ${detail}`,
       ErrorCode.SIGN_FAILED,
       'Check that moonpay.signUrl is correct and the server is reachable.',
     )
@@ -94,32 +92,10 @@ export async function signMoonPayUrl(url: string, signEndpoint: string): Promise
   return data.signedUrl
 }
 
-export function buildMoonPayUrl(
-  direction: 'buy' | 'sell',
-  config: Pick<MoonPayConfig, 'apiKey' | 'environment'>,
-  cryptoAsset: string,
-  address: string,
-  fiat?: string,
-  fiatAmount?: string,
-  cryptoAmount?: string,
-): string {
-  const origins = direction === 'buy' ? BUY_ORIGINS : SELL_ORIGINS
-  const url = new URL('/', origins[config.environment])
-  url.searchParams.set('apiKey', config.apiKey)
-
-  if (direction === 'buy') {
-    url.searchParams.set('currencyCode', cryptoAsset)
-    if (fiat) url.searchParams.set('baseCurrencyCode', fiat)
-    url.searchParams.set('walletAddress', address)
-    if (fiatAmount) url.searchParams.set('baseCurrencyAmount', fiatAmount)
-    if (cryptoAmount) url.searchParams.set('quoteCurrencyAmount', cryptoAmount)
-  } else {
-    url.searchParams.set('baseCurrencyCode', cryptoAsset)
-    if (fiat) url.searchParams.set('quoteCurrencyCode', fiat)
-    url.searchParams.set('refundWalletAddress', address)
-    if (fiatAmount) url.searchParams.set('quoteCurrencyAmount', fiatAmount)
-    if (cryptoAmount) url.searchParams.set('baseCurrencyAmount', cryptoAmount)
-  }
-
-  return url.toString()
+export function createMoonPayProtocol(config: MoonPayConfig): MoonPayProtocol {
+  return new MoonPayProtocol(undefined, {
+    apiKey: config.apiKey,
+    environment: config.environment,
+    signUrl: (url: string) => postToSignServer(url, config.signUrl),
+  })
 }
