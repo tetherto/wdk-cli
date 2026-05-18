@@ -15,8 +15,8 @@
   "scripts": {
     "postinstall": "node scripts/install-wallets.mjs",
     "install-wallets": "node scripts/install-wallets.mjs",
-    "build": "tsup",
-    "dev": "tsup --watch",
+    "build": "tsdown",
+    "dev": "tsdown --watch",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
     "test": "vitest run tests/unit",
@@ -25,7 +25,7 @@
     "test:integration": "vitest run tests/integration --testTimeout=60000"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=20.19.0"
   },
   "dependencies": {
     "@inquirer/prompts": "8.2.0",
@@ -46,7 +46,7 @@
     "@typescript-eslint/eslint-plugin": "8.55.0",
     "@typescript-eslint/parser": "8.55.0",
     "eslint": "9.39.2",
-    "tsup": "8.5.1",
+    "tsdown": "0.21.10",
     "typescript": "5.9.3",
     "typescript-eslint": "8.55.0",
     "vitest": "3.2.4"
