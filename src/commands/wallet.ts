@@ -378,8 +378,6 @@ export function registerWalletCommand(program: Command): void {
 
         const passphrase = await promptPassphrase(`Enter passphrase to unlock '${name}':`)
 
-        await keyService.unlock(passphrase, name)
-
         const spinner = isJson() ? null : ora(`Unlocking '${name}'...`).start()
         await daemonClient.ensureRunning()
         await daemonClient.unlockWallet(name, passphrase, ttl)

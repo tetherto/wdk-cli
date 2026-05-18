@@ -95,10 +95,6 @@ export function registerSendCommand(program: Command): void {
           return
         }
 
-        if (!program.opts().json) {
-          printPreview('Transaction Summary:')
-        }
-
         const sendSpinner = ora('Broadcasting transaction...').start()
         try {
           const result = await executeSend(sendInput)

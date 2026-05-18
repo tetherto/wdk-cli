@@ -87,7 +87,12 @@ export class WalletDaemon {
     const salt = Buffer.from(payload.salt, 'hex')
     const key = deriveKey(passphrase, salt)
     try {
-      const seed = decryptWithKey(payload, key)
+      let seed: string
+      try {
+        seed = decryptWithKey(payload, key)
+      } catch {
+        throw new WdkCliError('Incorrect passphrase.', ErrorCode.WRONG_PASSPHRASE)
+      }
       const wdk = new WdkService()
       wdk.createInstance(seed)
 

@@ -18,7 +18,7 @@
  * Run: node scripts/install-wallets.mjs
  */
 import { readFileSync } from 'node:fs'
-import { execSync } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -37,7 +37,7 @@ console.log(`Installing ${modules.length} wallet modules from wdk.config.json...
 console.log(modules.map(m => `  - ${m}`).join('\n'))
 
 try {
-  execSync(`npm install --no-save ${modules.join(' ')}`, {
+  execFileSync('npm', ['install', '--no-save', ...modules], {
     cwd: join(__dirname, '..'),
     stdio: 'inherit',
   })

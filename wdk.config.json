@@ -71,6 +71,7 @@
         "eth": "eth"
       },
       "config": {
+        "chainId": 1,
         "provider": "https://ethereum-rpc.publicnode.com",
         "transferMaxFee": 5000000000000000
       }
@@ -86,6 +87,7 @@
       },
       "indexerBlockchain": "sepolia",
       "config": {
+        "chainId": 11155111,
         "provider": "https://ethereum-sepolia-rpc.publicnode.com",
         "transferMaxFee": 5000000000000000
       }
@@ -101,6 +103,7 @@
         "pol": "pol_polygon"
       },
       "config": {
+        "chainId": 137,
         "provider": "https://polygon.drpc.org",
         "transferMaxFee": 5000000000000000
       }
@@ -116,6 +119,7 @@
         "eth": "eth_arbitrum"
       },
       "config": {
+        "chainId": 42161,
         "provider": "https://arb1.arbitrum.io/rpc",
         "transferMaxFee": 1000000000000000
       }
@@ -129,6 +133,7 @@
         "eth": "eth_base"
       },
       "config": {
+        "chainId": 8453,
         "provider": "https://mainnet.base.org",
         "transferMaxFee": 1000000000000000
       }
@@ -143,6 +148,7 @@
         "bnb": "bnb_bsc"
       },
       "config": {
+        "chainId": 56,
         "provider": "https://bsc-dataseed.binance.org",
         "transferMaxFee": 5000000000000000
       }
@@ -156,6 +162,7 @@
         "avax": "avax_cchain"
       },
       "config": {
+        "chainId": 43114,
         "provider": "https://api.avax.network/ext/bc/C/rpc",
         "transferMaxFee": 5000000000000000
       }
