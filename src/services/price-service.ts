@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import BigNumber from 'bignumber.js'
 import { getNetworkConfig } from '../config/networks.js'
 import { getTokenConfig } from '../config/tokens.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
@@ -122,13 +123,12 @@ export async function convertToUsd(
       throw new WdkCliError(`Unknown token ${tokenAddress} on ${network}.`, ErrorCode.INVALID_TOKEN)
     }
     const price = await getTokenUsdPrice(network, tokenAddress)
-    const decimals = tokenConfig.decimals
-    const value = Number(amount) / 10 ** decimals
-    return value * price
+    const value = new BigNumber(amount.toString()).shiftedBy(-tokenConfig.decimals)
+    return value.multipliedBy(price).toNumber()
   } else {
     const config = getNetworkConfig(network)
     const price = await getNativeUsdPrice(network)
-    const value = Number(amount) / 10 ** config.decimals
-    return value * price
+    const value = new BigNumber(amount.toString()).shiftedBy(-config.decimals)
+    return value.multipliedBy(price).toNumber()
   }
 }
