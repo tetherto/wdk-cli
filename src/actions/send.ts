@@ -19,7 +19,6 @@ import { formatAmount, formatTokenAmount } from '../ui/formatters.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 import { withTimeout } from '../utils/async.js'
 import { requireUnlockedWallet } from '../utils/wallet.js'
-import type { NetworkName } from '../types/index.js'
 
 export interface SendInput {
   network: string
@@ -76,14 +75,14 @@ export async function previewSend(input: SendInput): Promise<SendPreview> {
     'Fee estimation',
   )
 
-  const networkConfig = getNetworkConfig(input.network as NetworkName)
+  const networkConfig = getNetworkConfig(input.network)
   const amountBigInt = BigInt(input.amount)
   const { formatted: amountFormatted, symbol: tokenSymbol } = formatTokenAmount(amountBigInt, input.amount, input.network, input.token)
 
   let amountUsd: number | undefined
   let estimatedFeeUsd: number | undefined
-  try { amountUsd = await convertToUsd(input.network as NetworkName, amountBigInt, input.token) } catch { /* no price */ }
-  try { estimatedFeeUsd = await convertToUsd(input.network as NetworkName, BigInt(feeQuote.fee)) } catch { /* no price */ }
+  try { amountUsd = await convertToUsd(input.network, amountBigInt, input.token) } catch { /* no price */ }
+  try { estimatedFeeUsd = await convertToUsd(input.network, BigInt(feeQuote.fee)) } catch { /* no price */ }
 
   return {
     network: input.network,
@@ -105,7 +104,7 @@ export async function executeSend(input: SendInput): Promise<SendResult> {
   validateNetwork(input.network)
   validateAmount(input.amount)
 
-  const networkConfig = getNetworkConfig(input.network as NetworkName)
+  const networkConfig = getNetworkConfig(input.network)
   const sendData = await daemonClient.send(input.network, input.index, input.to, input.amount, input.token, wallet)
   const amountBigInt = BigInt(input.amount)
   const { formatted: amountFormatted } = formatTokenAmount(amountBigInt, input.amount, input.network, input.token)

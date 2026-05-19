@@ -13,11 +13,10 @@
 // limitations under the License.
 
 import { WdkCliError, ErrorCode } from '../errors/index.js'
-import type { NetworkName } from '../types/index.js'
 import { configService } from '../services/config-service.js'
 
-export function resolveNetwork(optionNetwork?: string): NetworkName {
-  if (optionNetwork) return optionNetwork as NetworkName
+export function resolveNetwork(optionNetwork?: string): string {
+  if (optionNetwork) return optionNetwork
   throw new WdkCliError('Missing --network flag.', ErrorCode.MISSING_NETWORK, 'Run: wdk network list to see options.')
 }
 

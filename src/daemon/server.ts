@@ -28,12 +28,10 @@ import { deriveKey, decryptWithKey } from '../security/encryption.js'
 import { WdkService } from '../services/wdk-service.js'
 import { isValidNetwork, getNetworkConfig } from '../config/networks.js'
 import { getTokenConfig } from '../config/tokens.js'
-import { getTokenTransfers, INDEXER_TOKENS, type IndexerToken } from '../services/indexer-service.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 import { formatAmount } from '../ui/formatters.js'
 import type { DaemonRequest, DaemonResponse } from './protocol.js'
 import type { EncryptedPayload } from '../types/index.js'
-import type { NetworkName } from '../types/index.js'
 
 interface WalletState {
   wdk: WdkService
@@ -229,7 +227,7 @@ export class WalletDaemon {
         }
         try {
           const wdk = this.requireWallet(wallet)
-          const account = await wdk.getAccount(req.network as NetworkName, req.index ?? 0)
+          const account = await wdk.getAccount(req.network, req.index ?? 0)
           const address = await account.getAddress()
           return { ok: true, data: { address } }
         } catch (e) {
@@ -243,12 +241,12 @@ export class WalletDaemon {
         }
         try {
           const wdk = this.requireWallet(wallet)
-          const networkConfig = getNetworkConfig(req.network as NetworkName)
-          const account = await wdk.getAccount(req.network as NetworkName, req.index ?? 0)
+          const networkConfig = getNetworkConfig(req.network)
+          const account = await wdk.getAccount(req.network, req.index ?? 0)
 
           if (req.token) {
             const balance: bigint = await account.getTokenBalance(req.token)
-            const config = getTokenConfig(req.network as NetworkName, req.token)
+            const config = getTokenConfig(req.network, req.token)
             return {
               ok: true,
               data: {
@@ -273,35 +271,14 @@ export class WalletDaemon {
         }
       }
 
-      case 'get_history': {
-        if (!req.network || !isValidNetwork(req.network)) {
-          return { ok: false, error: `Invalid network: ${req.network}` }
-        }
-        try {
-          const wdk = this.requireWallet(wallet)
-          const account = await wdk.getAccount(req.network as NetworkName, req.index ?? 0)
-          const address = await account.getAddress()
-          const networkConfig = getNetworkConfig(req.network as NetworkName)
-          const tokenInput = req.token || networkConfig.nativeSymbol.toLowerCase()
-          if (!(INDEXER_TOKENS as readonly string[]).includes(tokenInput)) {
-            return { ok: false, error: `Invalid token '${tokenInput}'. Valid: ${INDEXER_TOKENS.join(', ')}` }
-          }
-          const token = tokenInput as IndexerToken
-          const transfers = await getTokenTransfers(req.network as NetworkName, token, address, { limit: req.limit ?? 30, fromTs: req.fromTs, toTs: req.toTs })
-          return { ok: true, data: { address, transfers, count: transfers.length } }
-        } catch (e) {
-          return { ok: false, error: e instanceof Error ? e.message : String(e) }
-        }
-      }
-
       case 'estimate_fee': {
         if (!req.network || !isValidNetwork(req.network) || !req.to || !req.amount) {
           return { ok: false, error: 'Missing required fields: network, to, amount' }
         }
         try {
           const wdk = this.requireWallet(wallet)
-          const networkConfig = getNetworkConfig(req.network as NetworkName)
-          const account = await wdk.getAccount(req.network as NetworkName, req.index ?? 0)
+          const networkConfig = getNetworkConfig(req.network)
+          const account = await wdk.getAccount(req.network, req.index ?? 0)
 
           let fee: bigint
           if (req.token) {
@@ -333,8 +310,8 @@ export class WalletDaemon {
         }
         try {
           const wdk = this.requireWallet(wallet)
-          const networkConfig = getNetworkConfig(req.network as NetworkName)
-          const account = await wdk.getAccount(req.network as NetworkName, req.index ?? 0)
+          const networkConfig = getNetworkConfig(req.network)
+          const account = await wdk.getAccount(req.network, req.index ?? 0)
           const sendAmount = BigInt(req.amount)
 
           let txHash: string

@@ -15,7 +15,6 @@
 export type DaemonAction =
   | 'get_address'
   | 'get_balance'
-  | 'get_history'
   | 'estimate_fee'
   | 'send'
   | 'list_wallets'
@@ -34,9 +33,6 @@ export interface DaemonRequest {
   token?: string
   to?: string
   amount?: string
-  limit?: number
-  fromTs?: number
-  toTs?: number
 }
 
 export interface DaemonResponse {

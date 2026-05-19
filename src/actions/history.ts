@@ -14,10 +14,9 @@
 
 import { daemonClient } from '../daemon/client.js'
 import { validateNetwork } from '../config/networks.js'
-import { isIndexerSupported, INDEXER_TOKENS, type IndexerToken } from '../services/indexer-service.js'
+import { isIndexerSupported, INDEXER_TOKENS, getTokenTransfers, type IndexerToken } from '../services/indexer-service.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 import { requireUnlockedWallet } from '../utils/wallet.js'
-import type { NetworkName } from '../types/index.js'
 
 export interface GetHistoryInput {
   network: string
@@ -49,7 +48,7 @@ export interface HistoryResult {
 export async function getHistory(input: GetHistoryInput): Promise<HistoryResult> {
   const wallet = await requireUnlockedWallet(input.wallet)
   validateNetwork(input.network)
-  if (!isIndexerSupported(input.network as NetworkName)) {
+  if (!isIndexerSupported(input.network)) {
     throw new WdkCliError(
       `Network '${input.network}' is not supported by the indexer API.`,
       ErrorCode.NETWORK_NOT_SUPPORTED,
@@ -69,12 +68,12 @@ export async function getHistory(input: GetHistoryInput): Promise<HistoryResult>
   const fromTs = input.fromDate ? Math.floor(new Date(input.fromDate).getTime() / 1000) : undefined
   const toTs = input.toDate ? Math.floor(new Date(input.toDate).getTime() / 1000) : undefined
 
-  const result = await daemonClient.getHistory(input.network, token, limit, wallet, fromTs, toTs)
-  const transfers = result.transfers as HistoryTransfer[]
+  const address = await daemonClient.getAddress(input.network, input.index, wallet)
+  const transfers = await getTokenTransfers(input.network, token, address, { limit, fromTs, toTs }) as HistoryTransfer[]
   return {
     network: input.network,
     index: input.index,
-    address: result.address,
+    address,
     token,
     transfers,
     count: transfers.length,

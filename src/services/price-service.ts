@@ -16,7 +16,6 @@ import BigNumber from 'bignumber.js'
 import { getNetworkConfig } from '../config/networks.js'
 import { getTokenConfig } from '../config/tokens.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
-import type { NetworkName } from '../types/index.js'
 
 // Map native token symbols to Bitfinex trading pair
 // Testnet tokens (e.g. tBTC) map to their mainnet price pair
@@ -78,7 +77,7 @@ async function fetchPrices(): Promise<Map<string, number>> {
   return prices
 }
 
-export async function getNativeUsdPrice(network: NetworkName): Promise<number> {
+export async function getNativeUsdPrice(network: string): Promise<number> {
   const config = getNetworkConfig(network)
   const bitfinexSymbol = NATIVE_SYMBOLS[config.nativeSymbol]
   if (!bitfinexSymbol) {
@@ -93,7 +92,7 @@ export async function getNativeUsdPrice(network: NetworkName): Promise<number> {
   return price
 }
 
-export async function getTokenUsdPrice(network: NetworkName, tokenAddress: string): Promise<number> {
+export async function getTokenUsdPrice(network: string, tokenAddress: string): Promise<number> {
   const tokenConfig = getTokenConfig(network, tokenAddress)
   if (!tokenConfig) {
     throw new WdkCliError(`Unknown token ${tokenAddress} on ${network}.`, ErrorCode.INVALID_TOKEN)
@@ -113,7 +112,7 @@ export async function getTokenUsdPrice(network: NetworkName, tokenAddress: strin
 }
 
 export async function convertToUsd(
-  network: NetworkName,
+  network: string,
   amount: bigint,
   tokenAddress?: string,
 ): Promise<number> {

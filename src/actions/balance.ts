@@ -17,7 +17,6 @@ import { validateNetwork, getAllNetworkNames, isTestnet } from '../config/networ
 import { convertToUsd } from '../services/price-service.js'
 import { formatAmount } from '../ui/formatters.js'
 import { requireUnlockedWallet } from '../utils/wallet.js'
-import type { NetworkName } from '../types/index.js'
 
 export interface GetBalanceInput {
   network: string
@@ -45,7 +44,7 @@ export async function getBalance(input: GetBalanceInput): Promise<BalanceResult>
   const balanceBigInt = BigInt(r.balance)
   let usd = 0
   if (balanceBigInt > 0n) {
-    try { usd = await convertToUsd(input.network as NetworkName, balanceBigInt, input.token) } catch { /* no price */ }
+    try { usd = await convertToUsd(input.network, balanceBigInt, input.token) } catch { /* no price */ }
   }
   return {
     network: input.network,
@@ -94,7 +93,7 @@ export async function getAllBalances(input: GetAllBalancesInput): Promise<AllBal
       const balanceBigInt = BigInt(r.balance)
       let usd = 0
       if (balanceBigInt > 0n) {
-        try { usd = await convertToUsd(network as NetworkName, balanceBigInt) } catch { /* no price */ }
+        try { usd = await convertToUsd(network, balanceBigInt) } catch { /* no price */ }
       }
       return {
         network,

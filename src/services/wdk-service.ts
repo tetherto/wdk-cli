@@ -18,7 +18,6 @@ import { isValidNetwork, getNetworkConfig, parseModuleName } from '../config/net
 import { configService } from './config-service.js'
 import { CONFIG_DEFAULTS } from '../config/constants.js'
 import { WdkCliError, ErrorCode, isNetworkError } from '../errors/index.js'
-import type { NetworkName } from '../types/index.js'
 
 const walletManagerCache = new Map<string, typeof WalletManager>()
 
@@ -68,7 +67,7 @@ export class WdkService {
     }
   }
 
-  async initialize(seedPhrase: string, network: NetworkName): Promise<void> {
+  async initialize(seedPhrase: string, network: string): Promise<void> {
     if (!isValidNetwork(network)) {
       throw new WdkCliError(`Network '${network}' is not supported.`, ErrorCode.NETWORK_NOT_SUPPORTED)
     }
@@ -80,7 +79,7 @@ export class WdkService {
     }
   }
 
-  private async registerNetwork(network: NetworkName): Promise<void> {
+  private async registerNetwork(network: string): Promise<void> {
     if (!this.wdk) throw new Error('WDK not initialized')
 
     const networkConfig = getNetworkConfig(network)
@@ -95,7 +94,7 @@ export class WdkService {
     this.registeredNetworks.add(network)
   }
 
-  async getAccount(network: NetworkName, index: number = 0): Promise<IWalletAccount> {
+  async getAccount(network: string, index: number = 0): Promise<IWalletAccount> {
     if (!this.wdk) {
       throw new Error('WDK not initialized. Call initialize() first.')
     }
@@ -121,7 +120,7 @@ export class WdkService {
     }
   }
 
-  async getFeeRates(network: NetworkName): Promise<{ normal: bigint; fast: bigint }> {
+  async getFeeRates(network: string): Promise<{ normal: bigint; fast: bigint }> {
     if (!this.wdk) {
       throw new Error('WDK not initialized. Call initialize() first.')
     }

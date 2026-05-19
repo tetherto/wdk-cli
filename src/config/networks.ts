@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import type { NetworkConfig, NetworkName, WdkConfigFile } from '../types/index.js'
+import type { NetworkConfig, WdkConfigFile } from '../types/index.js'
 import { configService } from '../services/config-service.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 import walletsFileRaw from '../../wdk.config.json' with { type: 'json' }
@@ -98,7 +98,7 @@ export function deleteCustomNetwork(name: string): void {
   configService.delete(`customNetworks.${name}`)
 }
 
-export function validateNetwork(network: string): asserts network is NetworkName {
+export function validateNetwork(network: string): void {
   if (!isValidNetwork(network)) {
     throw new WdkCliError(`Network '${network}' is not supported.`, ErrorCode.NETWORK_NOT_SUPPORTED)
   }

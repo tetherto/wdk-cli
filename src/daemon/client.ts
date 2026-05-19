@@ -179,19 +179,6 @@ export class DaemonClient {
     return resp.data as { balance: string; symbol: string; decimals: number }
   }
 
-  async getHistory(
-    network: string,
-    token?: string,
-    limit?: number,
-    wallet?: string,
-    fromTs?: number,
-    toTs?: number,
-  ): Promise<{ address: string; transfers: unknown[]; count: number }> {
-    const resp = await this.request({ action: 'get_history', network, token, limit, wallet, fromTs, toTs }, 30000)
-    this.assertOk(resp, 'Failed to get history')
-    return resp.data as { address: string; transfers: unknown[]; count: number }
-  }
-
   async estimateFee(
     network: string,
     index: number,

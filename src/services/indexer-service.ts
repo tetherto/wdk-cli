@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { configService } from './config-service.js'
-import type { NetworkName, WdkConfigFile } from '../types/index.js'
+import type { WdkConfigFile } from '../types/index.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 import walletsFileRaw from '../../wdk.config.json' with { type: 'json' }
 
@@ -45,17 +45,17 @@ export interface TokenTransfer {
   label?: string
 }
 
-export function getIndexerBlockchain(network: NetworkName): string | undefined {
+export function getIndexerBlockchain(network: string): string | undefined {
   if (BLOCKCHAIN_MAP[network]) return BLOCKCHAIN_MAP[network]
   return configService.get<string>(`customNetworks.${network}.indexerBlockchain`)
 }
 
-export function isIndexerSupported(network: NetworkName): boolean {
+export function isIndexerSupported(network: string): boolean {
   return !!getIndexerBlockchain(network)
 }
 
 export async function getTokenTransfers(
-  network: NetworkName,
+  network: string,
   token: IndexerToken,
   address: string,
   options: { limit?: number; fromTs?: number; toTs?: number } = {},
