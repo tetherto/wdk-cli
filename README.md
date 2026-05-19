@@ -54,7 +54,7 @@ A multi-chain crypto wallet for AI agents, built on [Wallet Development Kit (WDK
 
 ## Requirements
 
-- Node.js >= 20
+- Node.js >= 22.18.0
 
 ## Install
 
