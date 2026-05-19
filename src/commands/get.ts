@@ -173,7 +173,7 @@ export function registerGetCommand(program: Command): void {
     .option('--wallet <name>', 'Wallet name')
     .requiredOption('--network <network>', 'Blockchain network')
     .option('--index <n>', 'Account index')
-    .option('--token <token>', `Token: ${INDEXER_TOKENS.join(', ')} (default: usdt)`)
+    .option('--token <token>', `Token: ${INDEXER_TOKENS.join(', ')} (omit for all supported)`)
     .option('--limit <n>', 'Number of transfers (default: 30)')
     .option('--from-date <date>', 'Start date (ISO 8601, e.g. 2026-01-01)')
     .option('--to-date <date>', 'End date (ISO 8601, e.g. 2026-12-31)')
@@ -185,7 +185,7 @@ export function registerGetCommand(program: Command): void {
     ],
     params: [
       { flags: '--network <network>', description: 'Blockchain network', required: true },
-      { flags: '--token <token>', description: `Token: ${INDEXER_TOKENS.join(', ')} (default: usdt)` },
+      { flags: '--token <token>', description: `Token: ${INDEXER_TOKENS.join(', ')} (omit for all supported)` },
       { flags: '--limit <n>', description: 'Number of transfers (default: 30)' },
       { flags: '--from-date <date>', description: 'Start date (ISO 8601, e.g. 2026-01-01)' },
       { flags: '--to-date <date>', description: 'End date (ISO 8601, e.g. 2026-12-31)' },
@@ -213,10 +213,14 @@ export function registerGetCommand(program: Command): void {
           return
         }
 
+        const allTokens = Array.isArray(result.token)
+        const tokenLabel = allTokens
+          ? (result.token as string[]).map((t) => t.toUpperCase()).join(', ')
+          : (result.token as string).toUpperCase()
         console.log()
         console.log(`  ${formatNetworkLabel(result.network)} ${chalk.dim(`(index: ${result.index})`)}`)
         console.log(`  Address: ${formatAddress(result.address)}`)
-        console.log(`  Token:   ${result.token.toUpperCase()}`)
+        console.log(`  ${allTokens ? 'Tokens' : 'Token '}:  ${tokenLabel}`)
         console.log()
 
         if (result.transfers.length === 0) {
@@ -225,7 +229,9 @@ export function registerGetCommand(program: Command): void {
           return
         }
 
-        const table = createTable(['Date', 'Direction', 'Amount', 'Counterparty', 'Tx Hash'])
+        const table = allTokens
+          ? createTable(['Date', 'Token', 'Direction', 'Amount', 'Counterparty', 'Tx Hash'])
+          : createTable(['Date', 'Direction', 'Amount', 'Counterparty', 'Tx Hash'])
         const addrLower = result.address.toLowerCase()
 
         for (const tx of result.transfers) {
@@ -233,13 +239,15 @@ export function registerGetCommand(program: Command): void {
           const isOutgoing = tx.from.toLowerCase() === addrLower
           const direction = isOutgoing ? chalk.red('OUT') : chalk.green('IN')
           const counterparty = isOutgoing ? tx.to : tx.from
-          table.push([
+          const row = [
             date,
             direction,
             tx.amount,
             formatAddress(counterparty, true),
             formatTxHash(tx.transactionHash),
-          ])
+          ]
+          if (allTokens) row.splice(1, 0, tx.token.toUpperCase())
+          table.push(row)
         }
 
         console.log(table.toString())

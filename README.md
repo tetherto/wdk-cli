@@ -163,7 +163,6 @@ wdk network create --name optimism --network-data '{
   "nativeSymbol": "ETH",
   "decimals": 18,
   "testnet": false,
-  "indexerBlockchain": "optimism",
   "tokens": [
     { "address": "0x94b008aA00579c1307B0EF2c499aD98a8ce58e68", "symbol": "USDT", "decimals": 6 }
   ],
@@ -183,7 +182,7 @@ wdk network create --name optimism --network-data '{
 | `nativeSymbol` | Yes | Native token symbol (e.g. `ETH`) |
 | `decimals` | No | Token decimals (default: based on module) |
 | `testnet` | No | Mark as testnet (default: false) |
-| `indexerBlockchain` | No | Blockchain name for indexer API (`get history`) |
+| `indexer` | No | Indexer API config for `get history`: `{ "blockchain": "<name>", "tokens": ["usdt", "xaut", ...] }`. Supported chains: `ethereum`, `sepolia`, `arbitrum`, `polygon`, `tron`, `ton`, `bitcoin`, `spark`. Supported tokens: `usdt`, `usat`, `xaut`, `btc`. |
 | `tokens` | No | Known tokens: `[{ address, symbol, decimals }]` |
 | `config` | No | Network config passed to SDK (provider, chainId, etc.) |
 

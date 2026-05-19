@@ -31,13 +31,18 @@ export interface EncryptedPayload {
   ciphertext: string
 }
 
+export interface IndexerEntry {
+  blockchain: string
+  tokens: string[]
+}
+
 export interface WdkNetworkEntry {
   module: string
   displayName: string
   nativeSymbol: string
   decimals: number
   testnet?: boolean
-  indexerBlockchain?: string
+  indexer?: IndexerEntry
   moonpay?: Record<string, string>
   config?: Record<string, unknown>
 }

@@ -14,7 +14,15 @@
 
 import { daemonClient } from '../daemon/client.js'
 import { validateNetwork } from '../config/networks.js'
-import { isIndexerSupported, INDEXER_TOKENS, getTokenTransfers, type IndexerToken } from '../services/indexer-service.js'
+import {
+  isIndexerSupported,
+  getIndexerBlockchain,
+  getIndexerTokens,
+  INDEXER_TOKENS,
+  getTokenTransfers,
+  getTokenTransfersBatch,
+  type IndexerToken,
+} from '../services/indexer-service.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 import { requireUnlockedWallet } from '../utils/wallet.js'
 
@@ -34,13 +42,14 @@ export interface HistoryTransfer {
   to: string
   amount: string
   transactionHash: string
+  token: string
 }
 
 export interface HistoryResult {
   network: string
   index: number
   address: string
-  token: IndexerToken
+  token: IndexerToken | IndexerToken[]
   transfers: HistoryTransfer[]
   count: number
 }
@@ -55,26 +64,78 @@ export async function getHistory(input: GetHistoryInput): Promise<HistoryResult>
     )
   }
 
-  const tokenInput = input.token || 'usdt'
-  if (!(INDEXER_TOKENS as readonly string[]).includes(tokenInput)) {
+  if (input.token && !(INDEXER_TOKENS as readonly string[]).includes(input.token)) {
     throw new WdkCliError(
-      `Invalid token '${tokenInput}'. Valid: ${INDEXER_TOKENS.join(', ')}`,
+      `Invalid token '${input.token}'. Valid: ${INDEXER_TOKENS.join(', ')}`,
       ErrorCode.INVALID_TOKEN,
     )
   }
-  const token = tokenInput as IndexerToken
 
   const limit = input.limit ?? 30
   const fromTs = input.fromDate ? Math.floor(new Date(input.fromDate).getTime() / 1000) : undefined
   const toTs = input.toDate ? Math.floor(new Date(input.toDate).getTime() / 1000) : undefined
 
   const address = await daemonClient.getAddress(input.network, input.index, wallet)
-  const transfers = await getTokenTransfers(input.network, token, address, { limit, fromTs, toTs }) as HistoryTransfer[]
+
+  if (input.token) {
+    const token = input.token as IndexerToken
+    const transfers = await getTokenTransfers(input.network, token, address, { limit, fromTs, toTs })
+    return {
+      network: input.network,
+      index: input.index,
+      address,
+      token,
+      transfers: transfers.map((t) => ({
+        timestamp: t.timestamp,
+        from: t.from ?? '',
+        to: t.to ?? '',
+        amount: t.amount,
+        transactionHash: t.transactionHash,
+        token: t.token,
+      })),
+      count: transfers.length,
+    }
+  }
+
+  const blockchain = getIndexerBlockchain(input.network)!
+  const supportedTokens = getIndexerTokens(input.network)
+  if (supportedTokens.length === 0) {
+    throw new WdkCliError(
+      `Network '${input.network}' has no indexer-supported tokens configured.`,
+      ErrorCode.NETWORK_NOT_SUPPORTED,
+    )
+  }
+  const items = supportedTokens.map((token) => ({
+    blockchain,
+    token,
+    address,
+    limit,
+    ...(fromTs !== undefined ? { fromTs } : {}),
+    ...(toTs !== undefined ? { toTs } : {}),
+  }))
+  const results = await getTokenTransfersBatch(items)
+  const merged: HistoryTransfer[] = []
+  for (const r of results) {
+    if ('transfers' in r) {
+      for (const t of r.transfers) {
+        merged.push({
+          timestamp: t.timestamp,
+          from: t.from ?? '',
+          to: t.to ?? '',
+          amount: t.amount,
+          transactionHash: t.transactionHash,
+          token: t.token,
+        })
+      }
+    }
+  }
+  merged.sort((a, b) => b.timestamp - a.timestamp)
+  const transfers = merged.slice(0, limit)
   return {
     network: input.network,
     index: input.index,
     address,
-    token,
+    token: supportedTokens,
     transfers,
     count: transfers.length,
   }

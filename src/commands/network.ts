@@ -93,7 +93,7 @@ export function registerNetworkCommand(program: Command): void {
     .command('create')
     .description('Create a custom network')
     .requiredOption('--name <name>', 'Network identifier (e.g. base, optimism)')
-    .requiredOption('--network-data <json>', 'JSON with network definition (displayName, module, nativeSymbol, decimals, testnet, indexerBlockchain, tokens, config)')
+    .requiredOption('--network-data <json>', 'JSON with network definition (displayName, module, nativeSymbol, decimals, testnet, indexer, tokens, config)')
 
   configureHelp(createCmd, {
     params: [
@@ -119,7 +119,17 @@ export function registerNetworkCommand(program: Command): void {
       const symbol = jsonData.nativeSymbol as string
       const decimals = (jsonData.decimals as number) ?? (DEFAULT_DECIMALS[walletType] ?? 18)
       const testnet = (jsonData.testnet as boolean) ?? false
-      const indexerBlockchain = jsonData.indexerBlockchain as string | undefined
+      const indexerRaw = jsonData.indexer
+      let indexer: { blockchain: string; tokens: string[] } | undefined
+      if (indexerRaw && typeof indexerRaw === 'object') {
+        const obj = indexerRaw as Record<string, unknown>
+        const blockchain = obj.blockchain as string | undefined
+        const indexerTokens = Array.isArray(obj.tokens) ? obj.tokens.filter((t): t is string => typeof t === 'string') : undefined
+        if (!blockchain || !indexerTokens) {
+          throw new WdkCliError('indexer must be { blockchain: string, tokens: string[] }', ErrorCode.INVALID_ARGUMENT)
+        }
+        indexer = { blockchain, tokens: indexerTokens }
+      }
       const tokens = Array.isArray(jsonData.tokens) ? jsonData.tokens : undefined
       let networkConfig: Record<string, unknown> = {}
       if (jsonData.config && typeof jsonData.config === 'object') {
@@ -147,7 +157,7 @@ export function registerNetworkCommand(program: Command): void {
         throw new WdkCliError('Decimals must be a number between 0 and 24.', ErrorCode.INVALID_ARGUMENT)
       }
 
-      const config: NetworkConfig & { tokens?: unknown[]; indexerBlockchain?: string } = {
+      const config: NetworkConfig & { tokens?: unknown[]; indexer?: { blockchain: string; tokens: string[] } } = {
         name,
         displayName,
         type: walletType,
@@ -158,7 +168,7 @@ export function registerNetworkCommand(program: Command): void {
         testnet,
       }
       if (tokens) config.tokens = tokens
-      if (indexerBlockchain) config.indexerBlockchain = indexerBlockchain
+      if (indexer) config.indexer = indexer
 
       saveCustomNetwork(name, config)
       configService.set(`networks.${name}`, networkConfig)
@@ -177,7 +187,7 @@ export function registerNetworkCommand(program: Command): void {
       console.log(`  Symbol:     ${symbol}`)
       console.log(`  Decimals:   ${decimals}`)
       console.log(`  Testnet:    ${testnet ? 'yes' : 'no'}`)
-      if (indexerBlockchain) console.log(`  Indexer:    ${indexerBlockchain}`)
+      if (indexer) console.log(`  Indexer:    ${indexer.blockchain} [${indexer.tokens.join(', ')}]`)
       if (tokens) console.log(`  Tokens:     ${tokens.length} configured`)
       if (Object.keys(networkConfig).length > 0) console.log(`  Config:     ${Object.keys(networkConfig).length} keys`)
       console.log()

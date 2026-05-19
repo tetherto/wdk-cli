@@ -13,16 +13,16 @@
 // limitations under the License.
 
 import { configService } from './config-service.js'
-import type { WdkConfigFile } from '../types/index.js'
+import type { WdkConfigFile, IndexerEntry } from '../types/index.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 import walletsFileRaw from '../../wdk.config.json' with { type: 'json' }
 
 const walletsFile = walletsFileRaw as WdkConfigFile
 
-const BLOCKCHAIN_MAP: Record<string, string> = {}
+const INDEXER_MAP: Record<string, IndexerEntry> = {}
 for (const [name, entry] of Object.entries(walletsFile.networks)) {
-  if (entry.indexerBlockchain) {
-    BLOCKCHAIN_MAP[name] = entry.indexerBlockchain
+  if (entry.indexer) {
+    INDEXER_MAP[name] = entry.indexer
   }
 }
 
@@ -45,13 +45,25 @@ export interface TokenTransfer {
   label?: string
 }
 
+function getIndexerEntry(network: string): IndexerEntry | undefined {
+  if (INDEXER_MAP[network]) return INDEXER_MAP[network]
+  return configService.get<IndexerEntry>(`customNetworks.${network}.indexer`)
+}
+
 export function getIndexerBlockchain(network: string): string | undefined {
-  if (BLOCKCHAIN_MAP[network]) return BLOCKCHAIN_MAP[network]
-  return configService.get<string>(`customNetworks.${network}.indexerBlockchain`)
+  return getIndexerEntry(network)?.blockchain
+}
+
+export function getIndexerTokens(network: string): IndexerToken[] {
+  const entry = getIndexerEntry(network)
+  if (!entry) return []
+  return entry.tokens.filter((t): t is IndexerToken =>
+    (INDEXER_TOKENS as readonly string[]).includes(t),
+  )
 }
 
 export function isIndexerSupported(network: string): boolean {
-  return !!getIndexerBlockchain(network)
+  return !!getIndexerEntry(network)
 }
 
 export async function getTokenTransfers(
@@ -97,4 +109,52 @@ export async function getTokenTransfers(
 
   const data = await response.json() as { transfers: TokenTransfer[] }
   return data.transfers ?? []
+}
+
+export interface BatchTransferRequestItem {
+  blockchain: string
+  token: IndexerToken
+  address: string
+  limit?: number
+  fromTs?: number
+  toTs?: number
+}
+
+export type BatchTransferResultItem =
+  | { transfers: TokenTransfer[] }
+  | { error: string; message: string; status: number }
+
+export async function getTokenTransfersBatch(
+  items: BatchTransferRequestItem[],
+): Promise<BatchTransferResultItem[]> {
+  if (items.length === 0) return []
+
+  const baseUrl = configService.get<string>('indexer.baseUrl')
+  const apiKey = configService.get<string>('indexer.apiKey')
+
+  if (!baseUrl) throw new WdkCliError('Indexer base URL not configured. Set indexer.baseUrl or WDK_INDEXER_BASE_URL.', ErrorCode.MISSING_CONFIG)
+
+  const headers: Record<string, string> = { 'content-type': 'application/json' }
+  if (apiKey) headers['x-api-key'] = apiKey
+
+  const response = await fetch(`${baseUrl}/api/v1/batch/token-transfers`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(items),
+    signal: AbortSignal.timeout(20000),
+  })
+
+  if (!response.ok) {
+    if (response.status === 403) {
+      throw new WdkCliError(
+        `Indexer API error: 403 Forbidden. Please set your API key or use a proxy API for the indexer provider:\n` +
+        `  wdk config set indexer.apiKey <your-api-key>\n` +
+        `  wdk config set indexer.baseUrl <your-proxy-url>`,
+        ErrorCode.NETWORK_ERROR,
+      )
+    }
+    throw new WdkCliError(`Indexer API error: ${response.status} ${response.statusText}`, ErrorCode.NETWORK_ERROR)
+  }
+
+  return await response.json() as BatchTransferResultItem[]
 }

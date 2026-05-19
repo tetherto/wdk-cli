@@ -21,7 +21,10 @@
       "displayName": "Bitcoin",
       "nativeSymbol": "BTC",
       "decimals": 8,
-      "indexerBlockchain": "bitcoin",
+      "indexer": {
+        "blockchain": "bitcoin",
+        "tokens": ["usdt", "btc"]
+      },
       "moonpay": {
         "btc": "btc"
       },
@@ -65,7 +68,10 @@
       "displayName": "Ethereum",
       "nativeSymbol": "ETH",
       "decimals": 18,
-      "indexerBlockchain": "ethereum",
+      "indexer": {
+        "blockchain": "ethereum",
+        "tokens": ["usdt", "xaut", "usat"]
+      },
       "moonpay": {
         "usdt": "usdt",
         "eth": "eth"
@@ -85,7 +91,10 @@
       "moonpay": {
         "eth": "eth"
       },
-      "indexerBlockchain": "sepolia",
+      "indexer": {
+        "blockchain": "sepolia",
+        "tokens": ["usdt"]
+      },
       "config": {
         "chainId": 11155111,
         "provider": "https://ethereum-sepolia-rpc.publicnode.com",
@@ -97,7 +106,10 @@
       "displayName": "Polygon",
       "nativeSymbol": "POL",
       "decimals": 18,
-      "indexerBlockchain": "polygon",
+      "indexer": {
+        "blockchain": "polygon",
+        "tokens": ["usdt"]
+      },
       "moonpay": {
         "usdt": "usdt_polygon",
         "pol": "pol_polygon"
@@ -113,7 +125,10 @@
       "displayName": "Arbitrum One",
       "nativeSymbol": "ETH",
       "decimals": 18,
-      "indexerBlockchain": "arbitrum",
+      "indexer": {
+        "blockchain": "arbitrum",
+        "tokens": ["usdt"]
+      },
       "moonpay": {
         "usdt": "usdt_arbitrum",
         "eth": "eth_arbitrum"
@@ -208,7 +223,10 @@
       "displayName": "Spark",
       "nativeSymbol": "BTC",
       "decimals": 8,
-      "indexerBlockchain": "spark",
+      "indexer": {
+        "blockchain": "spark",
+        "tokens": ["usdt", "btc"]
+      },
       "config": {
         "network": "MAINNET"
       }
@@ -228,7 +246,10 @@
       "displayName": "Tron",
       "nativeSymbol": "TRX",
       "decimals": 6,
-      "indexerBlockchain": "tron",
+      "indexer": {
+        "blockchain": "tron",
+        "tokens": ["usdt"]
+      },
       "moonpay": {
         "trx": "trx"
       },
@@ -253,7 +274,10 @@
       "displayName": "Smart Account Ethereum",
       "nativeSymbol": "ETH",
       "decimals": 18,
-      "indexerBlockchain": "ethereum",
+      "indexer": {
+        "blockchain": "ethereum",
+        "tokens": ["usdt", "xaut", "usat"]
+      },
       "moonpay": {
         "usdt": "usdt",
         "eth": "eth"
@@ -279,7 +303,10 @@
       "nativeSymbol": "ETH",
       "decimals": 18,
       "testnet": true,
-      "indexerBlockchain": "sepolia",
+      "indexer": {
+        "blockchain": "sepolia",
+        "tokens": ["usdt"]
+      },
       "moonpay": {
         "eth": "eth"
       },
@@ -303,7 +330,10 @@
       "displayName": "Smart Account Polygon",
       "nativeSymbol": "POL",
       "decimals": 18,
-      "indexerBlockchain": "polygon",
+      "indexer": {
+        "blockchain": "polygon",
+        "tokens": ["usdt"]
+      },
       "moonpay": {
         "usdt": "usdt_polygon",
         "pol": "pol_polygon"
@@ -328,7 +358,10 @@
       "displayName": "Smart Account Arbitrum",
       "nativeSymbol": "ETH",
       "decimals": 18,
-      "indexerBlockchain": "arbitrum",
+      "indexer": {
+        "blockchain": "arbitrum",
+        "tokens": ["usdt"]
+      },
       "moonpay": {
         "usdt": "usdt_arbitrum",
         "eth": "eth_arbitrum"
@@ -353,7 +386,6 @@
       "displayName": "Smart Account Base",
       "nativeSymbol": "ETH",
       "decimals": 18,
-      "indexerBlockchain": "base",
       "moonpay": {
         "eth": "eth_base"
       },
@@ -377,7 +409,6 @@
       "displayName": "Smart Account Plasma",
       "nativeSymbol": "ETH",
       "decimals": 18,
-      "indexerBlockchain": "plasma",
       "config": {
         "chainId": 9745,
         "blockchain": "plasma",
