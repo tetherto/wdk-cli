@@ -29,7 +29,7 @@ A multi-chain crypto wallet for AI agents, built on [Wallet Development Kit (WDK
 - Starts empty — wallets unlocked individually via socket requests
 - Holds WDK instances in memory — owns all cryptographic operations
 - Listens on a Unix socket (`daemon.sock`, 0600 permissions)
-- Exposes: `unlock_wallet`, `lock_wallet`, `get_address`, `get_balance`, `get_history`, `estimate_fee`, `send`, `list_wallets`, `status`, `lock`
+- Exposes: `unlock_wallet`, `lock_wallet`, `get_address`, `get_balance`, `estimate_fee`, `send`, `list_wallets`, `status`, `lock`
 - Per-wallet TTL — each wallet has its own timeout (default: 5 min, `--ttl 0` for unlimited)
 - Auto-exits when last wallet is locked
 
@@ -48,7 +48,7 @@ A multi-chain crypto wallet for AI agents, built on [Wallet Development Kit (WDK
 - **Wallet** — Multiple named wallets with per-wallet passphrases and BIP-39 seed phrases, encrypted at rest with AES-256-GCM. Background daemon holds keys in memory after unlock, with per-wallet TTL
 - **Network** — Bitcoin, Ethereum, Polygon, Arbitrum, Base, BSC, Avalanche, Solana, Tron, Spark, Smart Account (ERC-4337) + testnets. Add custom networks with `network create`
 - **Get** — Derive wallet addresses, check balances, and view transaction history across all networks
-- **Send** — Native and token transfers with fee estimation, confirmation, and dry-run preview
+- **Send** — Native and token transfers with fee estimation and dry-run preview
 - **Buy/Sell** — On/off ramp via MoonPay (buy crypto with fiat, sell crypto for fiat)
 - **Config** — Per-network configuration with env var overrides
 
