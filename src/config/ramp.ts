@@ -15,24 +15,20 @@
 import walletsFile from '../../wdk.config.json' with { type: 'json' }
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 
-type ModuleAssets = Record<string, string>
+// MoonPay encodes network in its asset code (e.g. usdt_arbitrum), so per-
+// network config is a flat token-alias → asset-code map.
+type MoonPayAssets = Record<string, string>
 
 const SUPPORTED_MODULES = ['moonpay'] as const
 export type RampModule = typeof SUPPORTED_MODULES[number]
 
-const moduleConfigs: Record<string, Record<string, ModuleAssets>> = {}
+const moonpayConfigs: Record<string, MoonPayAssets> = {}
 
 for (const [name, entry] of Object.entries(walletsFile.networks)) {
-  const net = entry as Record<string, unknown>
-  const modules: Record<string, ModuleAssets> = {}
-  if (net.moonpay) modules.moonpay = net.moonpay as ModuleAssets
-  if (Object.keys(modules).length > 0) {
-    moduleConfigs[name] = modules
-  }
-}
-
-export function getModuleAssets(network: string, module: string): ModuleAssets | undefined {
-  return moduleConfigs[network]?.[module]
+  const ramp = (entry as Record<string, unknown>).ramp as
+    | { moonpay?: MoonPayAssets }
+    | undefined
+  if (ramp?.moonpay) moonpayConfigs[name] = ramp.moonpay
 }
 
 export function validateModule(module: string): RampModule {
@@ -42,15 +38,24 @@ export function validateModule(module: string): RampModule {
   return module as RampModule
 }
 
-export function resolveAsset(network: string, token: string, module: RampModule): { code: string; token: string } {
-  const assets = getModuleAssets(network, module)
-  if (!assets) {
-    throw new WdkCliError(`Network '${network}' does not support ${module}.`, ErrorCode.NETWORK_NOT_SUPPORTED)
+export interface ResolvedAsset {
+  code: string
+  token: string
+}
+
+export function resolveAsset(network: string, token: string, module: RampModule): ResolvedAsset {
+  const lower = token.toLowerCase()
+  if (module === 'moonpay') {
+    const assets = moonpayConfigs[network]
+    if (!assets) {
+      throw new WdkCliError(`Network '${network}' does not support moonpay.`, ErrorCode.NETWORK_NOT_SUPPORTED)
+    }
+    const code = assets[lower]
+    if (!code) {
+      const supported = Object.keys(assets).join(', ')
+      throw new WdkCliError(`Token '${token}' on '${network}' is not supported by moonpay. Supported: ${supported}`, ErrorCode.TOKEN_NOT_SUPPORTED)
+    }
+    return { code, token: lower }
   }
-  const asset = assets[token.toLowerCase()]
-  if (!asset) {
-    const supported = Object.keys(assets).join(', ')
-    throw new WdkCliError(`Token '${token}' on '${network}' is not supported by ${module}. Supported: ${supported}`, ErrorCode.TOKEN_NOT_SUPPORTED)
-  }
-  return { code: asset, token: token.toLowerCase() }
+  throw new WdkCliError(`Unsupported ramp module '${module as string}'.`, ErrorCode.UNSUPPORTED_MODULE)
 }

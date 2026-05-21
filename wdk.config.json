@@ -9,10 +9,12 @@
     "output": {
       "json": false
     },
-    "moonpay": {
-      "apiKey": "",
-      "signUrl": "",
-      "environment": ""
+    "ramp": {
+      "moonpay": {
+        "apiKey": "",
+        "signUrl": "",
+        "environment": ""
+      }
     }
   },
   "networks": {
@@ -23,10 +25,15 @@
       "decimals": 8,
       "indexer": {
         "blockchain": "bitcoin",
-        "tokens": ["usdt", "btc"]
+        "tokens": [
+          "usdt",
+          "btc"
+        ]
       },
-      "moonpay": {
-        "btc": "btc"
+      "ramp": {
+        "moonpay": {
+          "btc": "btc"
+        }
       },
       "config": {
         "client": {
@@ -47,8 +54,10 @@
       "nativeSymbol": "tBTC",
       "decimals": 8,
       "testnet": true,
-      "moonpay": {
-        "btc": "btc"
+      "ramp": {
+        "moonpay": {
+          "btc": "btc"
+        }
       },
       "config": {
         "client": {
@@ -70,11 +79,17 @@
       "decimals": 18,
       "indexer": {
         "blockchain": "ethereum",
-        "tokens": ["usdt", "xaut", "usat"]
+        "tokens": [
+          "usdt",
+          "xaut",
+          "usat"
+        ]
       },
-      "moonpay": {
-        "usdt": "usdt",
-        "eth": "eth"
+      "ramp": {
+        "moonpay": {
+          "usdt": "usdt",
+          "eth": "eth"
+        }
       },
       "config": {
         "chainId": 1,
@@ -88,12 +103,16 @@
       "nativeSymbol": "ETH",
       "decimals": 18,
       "testnet": true,
-      "moonpay": {
-        "eth": "eth"
+      "ramp": {
+        "moonpay": {
+          "eth": "eth"
+        }
       },
       "indexer": {
         "blockchain": "sepolia",
-        "tokens": ["usdt"]
+        "tokens": [
+          "usdt"
+        ]
       },
       "config": {
         "chainId": 11155111,
@@ -108,11 +127,15 @@
       "decimals": 18,
       "indexer": {
         "blockchain": "polygon",
-        "tokens": ["usdt"]
+        "tokens": [
+          "usdt"
+        ]
       },
-      "moonpay": {
-        "usdt": "usdt_polygon",
-        "pol": "pol_polygon"
+      "ramp": {
+        "moonpay": {
+          "usdt": "usdt_polygon",
+          "pol": "pol_polygon"
+        }
       },
       "config": {
         "chainId": 137,
@@ -127,11 +150,15 @@
       "decimals": 18,
       "indexer": {
         "blockchain": "arbitrum",
-        "tokens": ["usdt"]
+        "tokens": [
+          "usdt"
+        ]
       },
-      "moonpay": {
-        "usdt": "usdt_arbitrum",
-        "eth": "eth_arbitrum"
+      "ramp": {
+        "moonpay": {
+          "usdt": "usdt_arbitrum",
+          "eth": "eth_arbitrum"
+        }
       },
       "config": {
         "chainId": 42161,
@@ -144,8 +171,10 @@
       "displayName": "Base",
       "nativeSymbol": "ETH",
       "decimals": 18,
-      "moonpay": {
-        "eth": "eth_base"
+      "ramp": {
+        "moonpay": {
+          "eth": "eth_base"
+        }
       },
       "config": {
         "chainId": 8453,
@@ -158,9 +187,11 @@
       "displayName": "BNB Smart Chain",
       "nativeSymbol": "BNB",
       "decimals": 18,
-      "moonpay": {
-        "usdt": "usdt_bsc",
-        "bnb": "bnb_bsc"
+      "ramp": {
+        "moonpay": {
+          "usdt": "usdt_bsc",
+          "bnb": "bnb_bsc"
+        }
       },
       "config": {
         "chainId": 56,
@@ -173,8 +204,10 @@
       "displayName": "Avalanche C-Chain",
       "nativeSymbol": "AVAX",
       "decimals": 18,
-      "moonpay": {
-        "avax": "avax_cchain"
+      "ramp": {
+        "moonpay": {
+          "avax": "avax_cchain"
+        }
       },
       "config": {
         "chainId": 43114,
@@ -187,9 +220,11 @@
       "displayName": "Solana",
       "nativeSymbol": "SOL",
       "decimals": 9,
-      "moonpay": {
-        "usdt": "usdt_sol",
-        "sol": "sol"
+      "ramp": {
+        "moonpay": {
+          "usdt": "usdt_sol",
+          "sol": "sol"
+        }
       },
       "config": {
         "rpcUrl": "https://api.mainnet-beta.solana.com"
@@ -201,8 +236,10 @@
       "nativeSymbol": "SOL",
       "decimals": 9,
       "testnet": true,
-      "moonpay": {
-        "sol": "sol"
+      "ramp": {
+        "moonpay": {
+          "sol": "sol"
+        }
       },
       "config": {
         "rpcUrl": "https://api.testnet.solana.com"
@@ -225,7 +262,10 @@
       "decimals": 8,
       "indexer": {
         "blockchain": "spark",
-        "tokens": ["usdt", "btc"]
+        "tokens": [
+          "usdt",
+          "btc"
+        ]
       },
       "config": {
         "network": "MAINNET"
@@ -248,10 +288,15 @@
       "decimals": 6,
       "indexer": {
         "blockchain": "tron",
-        "tokens": ["usdt"]
+        "tokens": [
+          "usdt"
+        ]
       },
-      "moonpay": {
-        "trx": "trx"
+      "ramp": {
+        "moonpay": {
+          "trx": "trx",
+          "usdt": "usdt_trx"
+        }
       },
       "config": {
         "provider": "https://api.trongrid.io",
@@ -276,11 +321,17 @@
       "decimals": 18,
       "indexer": {
         "blockchain": "ethereum",
-        "tokens": ["usdt", "xaut", "usat"]
+        "tokens": [
+          "usdt",
+          "xaut",
+          "usat"
+        ]
       },
-      "moonpay": {
-        "usdt": "usdt",
-        "eth": "eth"
+      "ramp": {
+        "moonpay": {
+          "usdt": "usdt",
+          "eth": "eth"
+        }
       },
       "config": {
         "chainId": 1,
@@ -305,10 +356,14 @@
       "testnet": true,
       "indexer": {
         "blockchain": "sepolia",
-        "tokens": ["usdt"]
+        "tokens": [
+          "usdt"
+        ]
       },
-      "moonpay": {
-        "eth": "eth"
+      "ramp": {
+        "moonpay": {
+          "eth": "eth"
+        }
       },
       "config": {
         "chainId": 11155111,
@@ -332,11 +387,15 @@
       "decimals": 18,
       "indexer": {
         "blockchain": "polygon",
-        "tokens": ["usdt"]
+        "tokens": [
+          "usdt"
+        ]
       },
-      "moonpay": {
-        "usdt": "usdt_polygon",
-        "pol": "pol_polygon"
+      "ramp": {
+        "moonpay": {
+          "usdt": "usdt_polygon",
+          "pol": "pol_polygon"
+        }
       },
       "config": {
         "chainId": 137,
@@ -360,11 +419,15 @@
       "decimals": 18,
       "indexer": {
         "blockchain": "arbitrum",
-        "tokens": ["usdt"]
+        "tokens": [
+          "usdt"
+        ]
       },
-      "moonpay": {
-        "usdt": "usdt_arbitrum",
-        "eth": "eth_arbitrum"
+      "ramp": {
+        "moonpay": {
+          "usdt": "usdt_arbitrum",
+          "eth": "eth_arbitrum"
+        }
       },
       "config": {
         "chainId": 42161,
@@ -386,8 +449,10 @@
       "displayName": "Smart Account Base",
       "nativeSymbol": "ETH",
       "decimals": 18,
-      "moonpay": {
-        "eth": "eth_base"
+      "ramp": {
+        "moonpay": {
+          "eth": "eth_base"
+        }
       },
       "config": {
         "chainId": 8453,
