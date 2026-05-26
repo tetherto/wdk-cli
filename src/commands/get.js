@@ -23,6 +23,12 @@ import { getBalance, getAllBalances } from '../actions/balance.js'
 import { getAddress, getAllAddresses } from '../actions/address.js'
 import { getHistory } from '../actions/history.js'
 
+/**
+ * Registers the `get` subcommand tree (address, balance, history) on the root program.
+ *
+ * @param {import('commander').Command} program - The root Commander program instance.
+ * @returns {void}
+ */
 export function registerGetCommand(program) {
   const get = program
     .command('get')
@@ -212,10 +218,11 @@ export function registerGetCommand(program) {
           return
         }
 
-        const allTokens = Array.isArray(result.token)
-        const tokenLabel = allTokens
-          ? result.token.map((t) => t.toUpperCase()).join(', ')
-          : result.token.toUpperCase()
+        const token = result.token
+        const allTokens = Array.isArray(token)
+        const tokenLabel = Array.isArray(token)
+          ? token.map((t) => t.toUpperCase()).join(', ')
+          : token.toUpperCase()
         console.log()
         console.log(`  ${formatNetworkLabel(result.network)} ${chalk.dim(`(index: ${result.index})`)}`)
         console.log(`  Address: ${formatAddress(result.address)}`)

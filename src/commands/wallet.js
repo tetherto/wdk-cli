@@ -24,10 +24,21 @@ import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
 import { promptPassphrase, promptSeedPhrase, promptConfirm } from '../ui/prompts.js'
 import { configureHelp } from '../ui/help.js'
 
+/**
+ * Creates a new KeyService instance backed by a WalletKeyring.
+ *
+ * @returns {import('../services/key-service.js').KeyService} A ready KeyService instance.
+ */
 function createKeyService() {
   return new KeyService(new WalletKeyring())
 }
 
+/**
+ * Registers the `wallet` subcommand tree (create, import, export, list, delete, unlock, lock, default, rename) on the root program.
+ *
+ * @param {import('commander').Command} program - The root Commander program instance.
+ * @returns {void}
+ */
 export function registerWalletCommand(program) {
   const wallet = program
     .command('wallet')

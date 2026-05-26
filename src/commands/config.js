@@ -20,21 +20,37 @@ import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
 import { configureHelp } from '../ui/help.js'
 import { requirePassphraseConfirmation } from '../ui/auth.js'
 
+/**
+ * Traverses a nested object by a dot-separated path and returns the value.
+ *
+ * @param {Record<string, unknown>} obj - The object to traverse.
+ * @param {string} path - Dot-separated key path (e.g. "networks.ethereum.rpc").
+ * @returns {unknown} The value at the path, or undefined if not found.
+ */
 function getNestedValue(obj, path) {
+  /** @type {unknown} */
   let cur = obj
   for (const key of path.split('.')) {
     if (cur === null || typeof cur !== 'object') return undefined
-    cur = cur[key]
+    cur = /** @type {Record<string, unknown>} */ (cur)[key]
   }
   return cur
 }
 
+/**
+ * Flattens a nested object into a list of dot-path / string-value pairs.
+ *
+ * @param {Record<string, unknown>} obj - The object to flatten.
+ * @param {string} [prefix] - Dot-path prefix accumulated during recursion.
+ * @returns {Array<[string, string]>} Flat list of [dotPath, stringValue] tuples.
+ */
 function flatten(obj, prefix = '') {
+  /** @type {Array<[string, string]>} */
   const result = []
   for (const [key, value] of Object.entries(obj)) {
     const path = prefix ? `${prefix}.${key}` : key
     if (value && typeof value === 'object' && !Array.isArray(value)) {
-      result.push(...flatten(value, path))
+      result.push(...flatten(/** @type {Record<string, unknown>} */ (value), path))
     } else {
       result.push([path, value === '' || value === undefined ? '' : String(value)])
     }
@@ -42,6 +58,12 @@ function flatten(obj, prefix = '') {
   return result
 }
 
+/**
+ * Prints dot-path / value pairs to stdout with aligned columns.
+ *
+ * @param {Array<[string, string]>} entries - Flat key-value pairs to display.
+ * @returns {void}
+ */
 function printEntries(entries) {
   if (entries.length === 0) return
   const maxKey = Math.max(...entries.map(([k]) => k.length))
@@ -51,6 +73,12 @@ function printEntries(entries) {
   }
 }
 
+/**
+ * Registers the `config` subcommand tree (get, set, reset, path) on the root program.
+ *
+ * @param {import('commander').Command} program - The root Commander program instance.
+ * @returns {void}
+ */
 export function registerConfigCommand(program) {
   const config = program
     .command('config')
@@ -97,7 +125,7 @@ export function registerConfigCommand(program) {
             } else if (networkConfig && typeof networkConfig === 'object') {
               console.log()
               console.log(chalk.bold(`  ${network}:`))
-              const entries = flatten(networkConfig)
+              const entries = flatten(/** @type {Record<string, unknown>} */ (networkConfig))
               const maxKey = Math.max(...entries.map(([k]) => k.length))
               for (const [k, v] of entries) {
                 const display = v || chalk.dim('(not set)')

@@ -16,6 +16,26 @@ import { daemonClient } from '../daemon/client.js'
 import { validateNetwork, getAllNetworkNames, isTestnet } from '../config/networks.js'
 import { requireUnlockedWallet } from '../utils/wallet.js'
 
+/**
+ * @typedef {Object} GetAddressInput
+ * @property {string} network - The blockchain network name (e.g. "ethereum", "bitcoin").
+ * @property {number} index - The BIP-44 account index.
+ * @property {string} [wallet] - The wallet name (defaults to the active wallet).
+ */
+
+/**
+ * @typedef {Object} AddressResult
+ * @property {string} network - The blockchain network name.
+ * @property {number} index - The BIP-44 account index.
+ * @property {string} address - The derived account address.
+ */
+
+/**
+ * Derives the wallet address for a given network and account index.
+ *
+ * @param {GetAddressInput} input - The address lookup parameters.
+ * @returns {Promise<AddressResult>} The derived address.
+ */
 export async function getAddress(input) {
   const wallet = await requireUnlockedWallet(input.wallet)
   validateNetwork(input.network)
@@ -23,6 +43,33 @@ export async function getAddress(input) {
   return { network: input.network, index: input.index, address }
 }
 
+/**
+ * @typedef {Object} GetAllAddressesInput
+ * @property {number} index - The BIP-44 account index.
+ * @property {boolean} [testnet] - When true, only testnets are returned; otherwise only mainnets.
+ * @property {string} [wallet] - The wallet name (defaults to the active wallet).
+ */
+
+/**
+ * @typedef {Object} AddressRow
+ * @property {string} network - The blockchain network name.
+ * @property {string} address - The derived account address.
+ */
+
+/**
+ * @typedef {Object} AllAddressesResult
+ * @property {number} index - The BIP-44 account index.
+ * @property {'mainnet' | 'testnet'} type - Which network group was queried.
+ * @property {AddressRow[]} addresses - The derived addresses, one per network that succeeded.
+ */
+
+/**
+ * Derives addresses for every supported network (mainnet or testnet) at the given account index.
+ * Networks that fail to derive are skipped silently.
+ *
+ * @param {GetAllAddressesInput} input - The lookup parameters.
+ * @returns {Promise<AllAddressesResult>} The derived addresses.
+ */
 export async function getAllAddresses(input) {
   const wallet = await requireUnlockedWallet(input.wallet)
   const showTestnet = !!input.testnet

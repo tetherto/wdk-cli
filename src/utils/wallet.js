@@ -16,6 +16,12 @@ import { configService } from '../services/config-service.js'
 import { daemonClient } from '../daemon/client.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 
+/**
+ * Resolves and asserts that a wallet is unlocked via the daemon.
+ *
+ * @param {string} [wallet] - The wallet name. Defaults to the configured default wallet.
+ * @returns {Promise<string>} The resolved wallet name.
+ */
 export async function requireUnlockedWallet(wallet) {
   const resolved = wallet || configService.getDefaultWallet()
   if (!resolved) {

@@ -25,6 +25,43 @@ import {
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 import { requireUnlockedWallet } from '../utils/wallet.js'
 
+/**
+ * @typedef {Object} GetHistoryInput
+ * @property {string} network - The blockchain network name.
+ * @property {number} index - The BIP-44 account index.
+ * @property {string} [token] - Specific token to query (e.g. "usdt"); omit for all supported.
+ * @property {number} [limit] - Maximum number of transfers to return (default: 30).
+ * @property {string} [fromDate] - ISO 8601 start date filter (e.g. "2026-01-01").
+ * @property {string} [toDate] - ISO 8601 end date filter (e.g. "2026-12-31").
+ * @property {string} [wallet] - The wallet name (defaults to the active wallet).
+ */
+
+/**
+ * @typedef {Object} HistoryTransfer
+ * @property {number} timestamp - Unix timestamp of the transfer.
+ * @property {string} from - Sender address.
+ * @property {string} to - Recipient address.
+ * @property {string} amount - Transfer amount in base units.
+ * @property {string} transactionHash - On-chain transaction hash.
+ * @property {string} token - Token symbol or identifier.
+ */
+
+/**
+ * @typedef {Object} HistoryResult
+ * @property {string} network - The blockchain network name.
+ * @property {number} index - The BIP-44 account index.
+ * @property {string} address - The wallet address that was queried.
+ * @property {string | string[]} token - The token(s) that were queried.
+ * @property {HistoryTransfer[]} transfers - The matched transfer records.
+ * @property {number} count - Number of transfers returned.
+ */
+
+/**
+ * Returns token transfer history for a wallet address on the given network.
+ *
+ * @param {GetHistoryInput} input - The history lookup parameters.
+ * @returns {Promise<HistoryResult>} The history result.
+ */
 export async function getHistory(input) {
   const wallet = await requireUnlockedWallet(input.wallet)
   validateNetwork(input.network)
@@ -49,7 +86,7 @@ export async function getHistory(input) {
   const address = await daemonClient.getAddress(input.network, input.index, wallet)
 
   if (input.token) {
-    const transfers = await getTokenTransfers(input.network, input.token, address, { limit, fromTs, toTs })
+    const transfers = await getTokenTransfers(input.network, /** @type {import('../services/indexer-service.js').IndexerToken} */ (input.token), address, { limit, fromTs, toTs })
     return {
       network: input.network,
       index: input.index,

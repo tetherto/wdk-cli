@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/** @typedef {import('./protocol.js').DaemonRequest} DaemonRequest */
+/** @typedef {import('./protocol.js').DaemonResponse} DaemonResponse */
+
 import { createServer } from 'node:net'
 import { readFileSync } from 'node:fs'
 import { writeFile, unlink, chmod, mkdir } from 'node:fs/promises'
@@ -31,10 +34,25 @@ import { getTokenConfig } from '../config/tokens.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 import { formatAmount } from '../ui/formatters.js'
 
+/**
+ * @typedef {Object} WalletState
+ * @property {WdkService} wdk - The WDK service instance for this wallet.
+ * @property {ReturnType<typeof setTimeout> | null} timer - The auto-lock timer handle.
+ * @property {number} ttlMs - The session TTL in milliseconds (0 = no expiry).
+ * @property {number} expiresAt - The Unix timestamp (ms) when the session expires (0 = no expiry).
+ */
+
 export class WalletDaemon {
+  /** @type {Map<string, WalletState>} */
   #wallets = new Map()
+  /** @type {import('node:net').Server | null} */
   #server = null
 
+  /**
+   * Starts the daemon: creates the Unix socket, writes the PID file, and begins accepting connections.
+   *
+   * @returns {Promise<void>}
+   */
   async start() {
     const socketPath = getDaemonSocketPath()
     const isWin = process.platform === 'win32'
@@ -62,6 +80,14 @@ export class WalletDaemon {
     }
   }
 
+  /**
+   * Synchronously decrypts and loads a wallet into the in-memory session map.
+   *
+   * @param {string} name - The wallet name.
+   * @param {string} passphrase - The wallet passphrase.
+   * @param {number} ttlMinutes - The session TTL in minutes (0 = no expiry).
+   * @returns {void}
+   */
   #unlockWalletSync(name, passphrase, ttlMinutes) {
     // If already unlocked, just reset the timer
     const existing = this.#wallets.get(name)
@@ -99,6 +125,13 @@ export class WalletDaemon {
     }
   }
 
+  /**
+   * Resets the auto-lock timer for an already-unlocked wallet.
+   *
+   * @param {string} name - The wallet name.
+   * @param {number} ttlMinutes - The new TTL in minutes (0 = no expiry).
+   * @returns {void}
+   */
   #resetTimer(name, ttlMinutes) {
     const state = this.#wallets.get(name)
     if (!state) return
@@ -113,6 +146,13 @@ export class WalletDaemon {
     this.#startWalletTimer(name, state)
   }
 
+  /**
+   * Starts an auto-lock timer for the given wallet state.
+   *
+   * @param {string} name - The wallet name.
+   * @param {WalletState} state - The wallet session state.
+   * @returns {void}
+   */
   #startWalletTimer(name, state) {
     if (state.ttlMs > 0) {
       state.timer = setTimeout(() => {
@@ -122,6 +162,12 @@ export class WalletDaemon {
     }
   }
 
+  /**
+   * Locks and disposes a wallet session, auto-shutting down if no sessions remain.
+   *
+   * @param {string} name - The wallet name.
+   * @returns {void}
+   */
   #lockWallet(name) {
     const state = this.#wallets.get(name)
     if (!state) return
@@ -138,12 +184,23 @@ export class WalletDaemon {
     }
   }
 
+  /**
+   * Returns the WdkService for an unlocked wallet, throwing if not unlocked.
+   *
+   * @param {string} wallet - The wallet name.
+   * @returns {WdkService} The WDK service instance.
+   */
   #requireWallet(wallet) {
     const state = this.#wallets.get(wallet)
     if (!state) throw new WdkCliError(`Wallet '${wallet}' is not unlocked.`, ErrorCode.WALLET_NOT_UNLOCKED, `Run: wdk wallet unlock --name ${wallet}`)
     return state.wdk
   }
 
+  /**
+   * Returns a status list for all currently unlocked wallets.
+   *
+   * @returns {Array<{ name: string, ttlMs: number, ttlRemaining: number }>} Array of wallet status entries.
+   */
   #getWalletStatusList() {
     return [...this.#wallets.entries()].map(([name, state]) => {
       const ttlRemaining = state.ttlMs > 0 && state.expiresAt > 0
@@ -153,6 +210,12 @@ export class WalletDaemon {
     })
   }
 
+  /**
+   * Handles a new incoming socket connection, reading newline-delimited JSON requests.
+   *
+   * @param {import('node:net').Socket} socket - The connected socket.
+   * @returns {void}
+   */
   #handleConnection(socket) {
     let buffer = ''
     socket.on('data', (chunk) => {
@@ -181,6 +244,12 @@ export class WalletDaemon {
     })
   }
 
+  /**
+   * Dispatches a parsed daemon request to the appropriate handler and returns the response.
+   *
+   * @param {DaemonRequest} req - The parsed request object.
+   * @returns {Promise<DaemonResponse>} The response to send back to the client.
+   */
   async #handleRequest(req) {
     const wallet = req.wallet || configService.getDefaultWallet()
 
@@ -378,6 +447,11 @@ export class WalletDaemon {
     }
   }
 
+  /**
+   * Gracefully shuts down the daemon: disposes all wallets, closes the server, removes socket/PID files, and exits.
+   *
+   * @returns {Promise<void>}
+   */
   async shutdown() {
     for (const [, state] of this.#wallets) {
       if (state.timer) clearTimeout(state.timer)
@@ -400,6 +474,11 @@ export class WalletDaemon {
   }
 }
 
+/**
+ * Creates and starts the wallet daemon, registering OS signal handlers for graceful shutdown.
+ *
+ * @returns {Promise<void>}
+ */
 export async function startDaemon() {
   const daemon = new WalletDaemon()
   await daemon.start()

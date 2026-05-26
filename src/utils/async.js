@@ -12,6 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/**
+ * Races a promise against a timeout, rejecting with a descriptive error if the timeout fires first.
+ *
+ * @template T
+ * @param {Promise<T>} promise - The promise to race.
+ * @param {number} ms - Timeout in milliseconds.
+ * @param {string} label - Label used in the timeout error message.
+ * @returns {Promise<T>} Resolves with the promise value or rejects on timeout.
+ */
 export function withTimeout(promise, ms, label) {
   let timer
   return Promise.race([

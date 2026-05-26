@@ -15,11 +15,23 @@
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 import { configService } from '../services/config-service.js'
 
+/**
+ * Resolves the network from a CLI option, throwing if absent.
+ *
+ * @param {string | undefined} optionNetwork - The --network option value.
+ * @returns {string} The resolved network name.
+ */
 export function resolveNetwork(optionNetwork) {
   if (optionNetwork) return optionNetwork
   throw new WdkCliError('Missing --network flag.', ErrorCode.MISSING_NETWORK, 'Run: wdk network list to see options.')
 }
 
+/**
+ * Resolves the account index from a CLI option string, defaulting to the configured value.
+ *
+ * @param {string | undefined} optionIndex - The --index option value.
+ * @returns {number} The resolved account index.
+ */
 export function resolveIndex(optionIndex) {
   if (!optionIndex) return configService.getDefaultIndex()
   const index = parseInt(optionIndex, 10)

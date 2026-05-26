@@ -14,6 +14,12 @@
 
 import Table from 'cli-table3'
 
+/**
+ * Creates a styled CLI table with cyan headers.
+ *
+ * @param {string[]} headers - Column header labels.
+ * @returns {import('cli-table3').Table} A configured cli-table3 instance.
+ */
 export function createTable(headers) {
   return new Table({
     head: headers,

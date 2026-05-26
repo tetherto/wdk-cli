@@ -20,6 +20,26 @@ import { configureHelp } from '../ui/help.js'
 import { createRampUrl } from '../actions/ramp.js'
 
 
+/**
+ * @typedef {Object} RampActionOptions
+ * @property {string} network - Blockchain network (required).
+ * @property {string} token - Crypto asset code, e.g. "usdt" (required).
+ * @property {string} [index] - Account index string.
+ * @property {string} [fiatCurrency] - Fiat currency code.
+ * @property {string} [fiatAmount] - Fiat amount string.
+ * @property {string} [cryptoAmount] - Crypto amount string.
+ * @property {string} [module] - Fiat provider module name.
+ * @property {string} [wallet] - Wallet name.
+ */
+
+/**
+ * Shared handler that builds a ramp URL for the given direction and prints or JSON-outputs the result.
+ *
+ * @param {'buy' | 'sell'} direction - The ramp direction.
+ * @param {RampActionOptions} options - Parsed Commander options for the buy/sell command.
+ * @param {import('commander').Command} program - The root Commander program instance.
+ * @returns {Promise<void>}
+ */
 async function handleRampAction(direction, options, program) {
   const network = resolveNetwork(options.network)
   const index = resolveIndex(options.index)
@@ -56,6 +76,12 @@ async function handleRampAction(direction, options, program) {
   }
 }
 
+/**
+ * Registers the `buy` and `sell` commands on the root program.
+ *
+ * @param {import('commander').Command} program - The root Commander program instance.
+ * @returns {void}
+ */
 export function registerRampCommands(program) {
   const buy = program
     .command('buy')

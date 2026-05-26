@@ -14,8 +14,18 @@
 
 import { configService } from '../services/config-service.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
-import walletsFile from '../../wdk.config.json' with { type: 'json' }
+import walletsFileRaw from '../../wdk.config.json' with { type: 'json' }
 
+/** @typedef {import('../types/index.js').NetworkConfig} NetworkConfig */
+/** @type {import('../types/index.js').WdkConfigFile} */
+const walletsFile = walletsFileRaw
+
+/**
+ * Parses a module specifier into name and optional version.
+ *
+ * @param {string} moduleSpec - Module specifier, e.g. `@scope/pkg@1.0.0`.
+ * @returns {{ name: string, version?: string }} Parsed module name and version.
+ */
 export function parseModuleName(moduleSpec) {
   const idx = moduleSpec.startsWith('@') ? moduleSpec.indexOf('@', 1) : moduleSpec.indexOf('@')
   if (idx > 0) {
@@ -39,30 +49,59 @@ for (const [name, entry] of Object.entries(walletsFile.networks)) {
 
 export { NETWORKS }
 
+/** @type {string[]} */
 export const NETWORK_NAMES = Object.keys(NETWORKS)
 
+/**
+ * Returns all user-defined custom networks from config, each marked with `custom: true`.
+ *
+ * @returns {Record<string, NetworkConfig>} Map of custom network name to config.
+ */
 export function getCustomNetworks() {
   const custom = configService.get('customNetworks')
   if (!custom || typeof custom !== 'object') return {}
+  /** @type {Record<string, NetworkConfig>} */
   const result = {}
   for (const [name, config] of Object.entries(custom)) {
-    result[name] = { ...config, custom: true }
+    result[name] = { ...(/** @type {NetworkConfig} */ (config)), custom: true }
   }
   return result
 }
 
+/**
+ * Returns all networks, merging built-in and custom networks.
+ *
+ * @returns {Record<string, NetworkConfig>} Combined map of all network configs.
+ */
 export function getAllNetworks() {
   return { ...NETWORKS, ...getCustomNetworks() }
 }
 
+/**
+ * Returns the names of all available networks.
+ *
+ * @returns {string[]} Array of all network names.
+ */
 export function getAllNetworkNames() {
   return Object.keys(getAllNetworks())
 }
 
+/**
+ * Returns whether a network name is a built-in (non-custom) network.
+ *
+ * @param {string} name - Network name to check.
+ * @returns {boolean} True if the network is built-in.
+ */
 export function isBuiltinNetwork(name) {
   return name in NETWORKS
 }
 
+/**
+ * Returns the config for a network by name, throwing if not found.
+ *
+ * @param {string} name - Network name.
+ * @returns {NetworkConfig} The network configuration.
+ */
 export function getNetworkConfig(name) {
   const all = getAllNetworks()
   const config = all[name]
@@ -70,10 +109,22 @@ export function getNetworkConfig(name) {
   return config
 }
 
+/**
+ * Returns whether a network name is valid (built-in or custom).
+ *
+ * @param {string} name - Network name to check.
+ * @returns {boolean} True if the network exists.
+ */
 export function isValidNetwork(name) {
   return name in NETWORKS || name in getCustomNetworks()
 }
 
+/**
+ * Returns whether a network is a testnet.
+ *
+ * @param {string} name - Network name to check.
+ * @returns {boolean} True if the network is a testnet.
+ */
 export function isTestnet(name) {
   try {
     const config = getNetworkConfig(name)
@@ -83,18 +134,43 @@ export function isTestnet(name) {
   }
 }
 
+/**
+ * Returns whether a network is a user-defined custom network.
+ *
+ * @param {string} name - Network name to check.
+ * @returns {boolean} True if the network is custom.
+ */
 export function isCustomNetwork(name) {
   return name in getCustomNetworks()
 }
 
+/**
+ * Persists a custom network configuration to user config.
+ *
+ * @param {string} name - Network name.
+ * @param {NetworkConfig} config - Network configuration to save.
+ * @returns {void}
+ */
 export function saveCustomNetwork(name, config) {
   configService.set(`customNetworks.${name}`, config)
 }
 
+/**
+ * Removes a custom network from user config.
+ *
+ * @param {string} name - Network name to delete.
+ * @returns {void}
+ */
 export function deleteCustomNetwork(name) {
   configService.delete(`customNetworks.${name}`)
 }
 
+/**
+ * Throws if the given network name is not valid.
+ *
+ * @param {string} network - Network name to validate.
+ * @returns {void}
+ */
 export function validateNetwork(network) {
   if (!isValidNetwork(network)) {
     throw new WdkCliError(`Network '${network}' is not supported.`, ErrorCode.NETWORK_NOT_SUPPORTED)

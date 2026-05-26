@@ -21,6 +21,29 @@ import chalk from 'chalk'
 import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
 import { configureHelp } from '../ui/help.js'
 
+/**
+ * @typedef {Object} McpCliSetup
+ * @property {function({command: string, args: string[]}): boolean} add - Registers the MCP server via CLI.
+ * @property {function(): boolean} remove - Unregisters the MCP server via CLI.
+ * @property {function(): boolean} isConfigured - Returns true if the MCP server is already registered.
+ */
+
+/**
+ * @typedef {Object} SetupTarget
+ * @property {string} name - Human-readable name of the AI tool (e.g. "Claude Desktop").
+ * @property {string} configPath - Absolute path to the AI tool config file.
+ * @property {function(): boolean} checkInstalled - Returns true if the AI tool is installed.
+ * @property {string[]} notInstalledMessage - Lines to display when the tool is not installed.
+ * @property {string} restartMessage - Message shown after setup instructing the user to restart.
+ * @property {string[]} [serversPath] - Path within the config JSON to the mcpServers object.
+ * @property {McpCliSetup} [cliSetup] - CLI-based setup callbacks (used instead of direct file write).
+ */
+
+/**
+ * Returns the Windows %LOCALAPPDATA% directory path.
+ *
+ * @returns {string} The local app data directory path.
+ */
 function getWindowsLocalAppData() {
   return process.env.LOCALAPPDATA || join(homedir(), 'AppData', 'Local')
 }
@@ -29,6 +52,11 @@ function getWindowsLocalAppData() {
 // MSIX/Microsoft Store package. MSIX apps are sandboxed, so their %APPDATA%
 // writes land at %LOCALAPPDATA%\Packages\Claude_<publisherHash>\LocalCache\Roaming\...
 // We match the folder by prefix since the publisher hash varies per signing identity.
+/**
+ * Finds the Claude MSIX package directory on Windows, or returns null on other platforms.
+ *
+ * @returns {string | null} The package directory path, or null if not found.
+ */
 function findClaudeMsixPackageDir() {
   if (platform() !== 'win32') return null
   const packagesDir = join(getWindowsLocalAppData(), 'Packages')
@@ -41,6 +69,11 @@ function findClaudeMsixPackageDir() {
   }
 }
 
+/**
+ * Returns true if Claude Desktop appears to be installed on the current OS.
+ *
+ * @returns {boolean} Whether Claude Desktop is installed.
+ */
 function isClaudeDesktopInstalled() {
   const os = platform()
   const home = homedir()
@@ -67,6 +100,11 @@ function isClaudeDesktopInstalled() {
   return false
 }
 
+/**
+ * Returns the platform-specific Claude Desktop config file path, or null on unsupported platforms.
+ *
+ * @returns {string | null} The config file path.
+ */
 function getClaudeDesktopConfigPath() {
   const home = homedir()
   const os = platform()
@@ -80,14 +118,29 @@ function getClaudeDesktopConfigPath() {
   return null
 }
 
+/**
+ * Returns the Claude Code MCP config file path (~/.claude.json).
+ *
+ * @returns {string} The config file path.
+ */
 function getClaudeCodeConfigPath() {
   return join(homedir(), '.claude.json')
 }
 
+/**
+ * Returns the OpenClaw config file path (~/.openclaw/openclaw.json).
+ *
+ * @returns {string} The config file path.
+ */
 function getOpenClawConfigPath() {
   return join(homedir(), '.openclaw', 'openclaw.json')
 }
 
+/**
+ * Resolves the absolute path to bin/wdk-mcp.mjs by walking up from the current module.
+ *
+ * @returns {string} The absolute path to wdk-mcp.mjs.
+ */
 function getMcpScriptPath() {
   const thisFile = fileURLToPath(import.meta.url)
   let dir = dirname(thisFile)
@@ -99,10 +152,21 @@ function getMcpScriptPath() {
   throw new Error('Could not find bin/wdk-mcp.mjs relative to the current module')
 }
 
+/**
+ * Returns the command and args needed to launch the WDK MCP server.
+ *
+ * @returns {{command: string, args: string[]}} The command descriptor.
+ */
 function getWdkMcpCommand() {
   return { command: process.execPath, args: [getMcpScriptPath()] }
 }
 
+/**
+ * Sends a JSON-RPC initialize request to the MCP server and returns true if it responds correctly.
+ *
+ * @param {{command: string, args?: string[]}} mcpConfig - The MCP server command descriptor.
+ * @returns {boolean} Whether the server responded with the expected wdk-wallet identity.
+ */
 function testMcpServer(mcpConfig) {
   try {
     const initRequest = '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"setup-test","version":"1.0"}}}\n'
@@ -118,6 +182,12 @@ function testMcpServer(mcpConfig) {
   }
 }
 
+/**
+ * Reads and parses the JSON config file at configPath, or returns an empty object if it does not exist.
+ *
+ * @param {string} configPath - Absolute path to the JSON config file.
+ * @returns {Record<string, unknown>} The parsed config object.
+ */
 function readOrCreateConfig(configPath) {
   if (existsSync(configPath)) {
     const raw = readFileSync(configPath, 'utf8')
@@ -135,15 +205,27 @@ function readOrCreateConfig(configPath) {
   return {}
 }
 
+/**
+ * Traverses (and creates as needed) a nested path within a config object, returning the leaf object.
+ *
+ * @param {Record<string, unknown>} config - The root config object.
+ * @param {string[]} path - Array of keys forming the path to traverse.
+ * @returns {Record<string, unknown>} The object at the end of the path.
+ */
 function getServersObject(config, path) {
   let obj = config
   for (const key of path) {
     if (!obj[key] || typeof obj[key] !== 'object') obj[key] = {}
-    obj = obj[key]
+    obj = /** @type {Record<string, unknown>} */ (obj[key])
   }
   return obj
 }
 
+/**
+ * Returns lines of JSON to paste manually into a config file for the wdk-wallet MCP server entry.
+ *
+ * @returns {string[]} The JSON lines.
+ */
 function buildManualMcpJson() {
   const mcpConfig = getWdkMcpCommand()
   return [
@@ -154,6 +236,12 @@ function buildManualMcpJson() {
   ]
 }
 
+/**
+ * Runs the setup flow for the given AI tool target, writing the MCP server entry to its config.
+ *
+ * @param {SetupTarget} target - The AI tool setup target descriptor.
+ * @returns {void}
+ */
 function runSetup(target) {
   console.log()
 
@@ -234,6 +322,12 @@ function runSetup(target) {
   console.log()
 }
 
+/**
+ * Removes the wdk-wallet MCP server entry from the given AI tool target config.
+ *
+ * @param {SetupTarget} target - The AI tool setup target descriptor.
+ * @returns {void}
+ */
 function runRemove(target) {
   console.log()
 
@@ -275,6 +369,12 @@ function runRemove(target) {
   console.log()
 }
 
+/**
+ * Returns true if wdk-wallet is already registered in the given AI tool target config.
+ *
+ * @param {SetupTarget} target - The AI tool setup target descriptor.
+ * @returns {boolean} Whether wdk-wallet is configured.
+ */
 function isConfigured(target) {
   if (target.cliSetup) return target.cliSetup.isConfigured()
   if (!existsSync(target.configPath)) return false
@@ -292,6 +392,11 @@ function isConfigured(target) {
   }
 }
 
+/**
+ * Prints the wdk-wallet configuration status for all supported AI tools to stdout.
+ *
+ * @returns {void}
+ */
 function runList() {
   console.log()
   const targets = [
@@ -320,6 +425,12 @@ function runList() {
 
 const SUPPORTED_AI_TOOLS = Object.freeze(['claude-desktop', 'claude-code', 'openclaw'])
 
+/**
+ * Returns the SetupTarget descriptor for the given AI tool identifier.
+ *
+ * @param {string} aiTool - The AI tool identifier (e.g. "claude-desktop", "claude-code", "openclaw").
+ * @returns {SetupTarget} The setup target descriptor.
+ */
 function getSetupTarget(aiTool) {
   switch (aiTool) {
     case 'claude-desktop': {
@@ -459,6 +570,12 @@ function getSetupTarget(aiTool) {
   }
 }
 
+/**
+ * Verifies that wdk-wallet is configured for the given AI tool and that the MCP server responds.
+ *
+ * @param {string} aiTool - The AI tool identifier.
+ * @returns {void}
+ */
 function runVerifySetup(aiTool) {
   const target = getSetupTarget(aiTool)
   console.log()
@@ -487,6 +604,12 @@ function runVerifySetup(aiTool) {
   console.log()
 }
 
+/**
+ * Registers the `mcp` subcommand tree (setup, remove, verify-setup, list) on the root program.
+ *
+ * @param {import('commander').Command} program - The root Commander program instance.
+ * @returns {void}
+ */
 export function registerMcpCommand(program) {
   const mcp = program
     .command('mcp')

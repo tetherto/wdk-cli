@@ -20,6 +20,42 @@ import { getRampProvider } from '../services/ramp/index.js'
 import { requireUnlockedWallet } from '../utils/wallet.js'
 import { formatAmount } from '../ui/formatters.js'
 
+/**
+ * @typedef {Object} CreateRampUrlInput
+ * @property {'buy' | 'sell'} direction - Whether to buy or sell crypto.
+ * @property {string} network - The blockchain network name.
+ * @property {number} index - The BIP-44 account index.
+ * @property {string} token - Crypto asset code (e.g. "usdt", "eth", "btc").
+ * @property {string} [module] - Fiat provider module name (default: "moonpay").
+ * @property {string} [fiatCurrency] - Fiat currency code (default: "usd").
+ * @property {string} [fiatAmount] - Human-readable fiat amount (e.g. "100"); mutually exclusive with cryptoAmount.
+ * @property {string} [cryptoAmount] - Human-readable crypto amount (e.g. "0.05"); mutually exclusive with fiatAmount.
+ * @property {string} [wallet] - The wallet name (defaults to the active wallet).
+ */
+
+/**
+ * @typedef {Object} RampResult
+ * @property {'buy' | 'sell'} direction - The ramp direction.
+ * @property {string} network - The blockchain network name.
+ * @property {string} address - The wallet address used for the transaction.
+ * @property {string} token - Lowercased token code.
+ * @property {string} module - The fiat provider module name.
+ * @property {string} fiatCurrency - Lowercased fiat currency code.
+ * @property {string} payAmount - Formatted amount the user will pay.
+ * @property {string} [receiveAmount] - Formatted amount the user will receive (when quote available).
+ * @property {string} [fee] - Formatted provider fee (when quote available).
+ * @property {string} [rate] - Exchange rate string (when quote available).
+ * @property {string} url - The provider URL to open in a browser.
+ */
+
+/**
+ * Converts a human-readable decimal amount string to base units as a bigint.
+ *
+ * @param {string} humanAmount - The decimal amount string (e.g. "100" or "0.05").
+ * @param {number} decimals - Number of decimal places for the asset.
+ * @param {string} label - Field label used in error messages.
+ * @returns {bigint} The amount in base units.
+ */
 function toBaseUnits(humanAmount, decimals, label) {
   const match = humanAmount.match(/^(\d+)(?:\.(\d+))?$/)
   if (!match) {
@@ -39,6 +75,12 @@ function toBaseUnits(humanAmount, decimals, label) {
   return BigInt(combined.replace(/^0+(?=\d)/, '') || '0')
 }
 
+/**
+ * Builds a fiat on-ramp or off-ramp URL for the given network and token.
+ *
+ * @param {CreateRampUrlInput} input - The ramp URL parameters.
+ * @returns {Promise<RampResult>} The ramp result including the provider URL.
+ */
 export async function createRampUrl(input) {
   if (input.fiatAmount && input.cryptoAmount) {
     throw new WdkCliError('Cannot specify both fiatAmount and cryptoAmount.', ErrorCode.INVALID_ARGUMENT)

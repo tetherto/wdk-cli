@@ -12,6 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/**
+ * @typedef {Object} HelpItem
+ * @property {string} flags - The flag or param string, e.g. `--network <name>`.
+ * @property {string} description - Description of the flag or param.
+ * @property {boolean} [required] - Whether the item is required.
+ */
+
+/**
+ * @typedef {Object} HelpConfig
+ * @property {HelpItem[]} [params] - Positional parameter items.
+ * @property {HelpItem[]} [options] - Option items.
+ * @property {string[]} [hideFlags] - Flag strings to hide from the global flags section.
+ */
+
+/**
+ * Formats a help section with a title and padded item rows.
+ *
+ * @param {string} title - Section title.
+ * @param {HelpItem[]} items - Items to display.
+ * @param {number} pad - Column padding width.
+ * @returns {string} Formatted section string.
+ */
 function formatSection(title, items, pad) {
   const lines = [`${title}:`]
   for (const item of items) {
@@ -21,6 +43,13 @@ function formatSection(title, items, pad) {
   return lines.join('\n')
 }
 
+/**
+ * Configures a Commander command with a custom help formatter.
+ *
+ * @param {import('commander').Command} cmd - The Commander command to configure.
+ * @param {HelpConfig} config - Help configuration with params, options, and hidden flags.
+ * @returns {void}
+ */
 export function configureHelp(cmd, config) {
   const hasParams = config.params && config.params.length > 0
   const hasOptions = config.options && config.options.length > 0

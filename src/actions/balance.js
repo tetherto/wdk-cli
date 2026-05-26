@@ -18,6 +18,32 @@ import { convertToUsd } from '../services/price-service.js'
 import { formatAmount } from '../ui/formatters.js'
 import { requireUnlockedWallet } from '../utils/wallet.js'
 
+/**
+ * @typedef {Object} GetBalanceInput
+ * @property {string} network - The blockchain network name.
+ * @property {number} index - The BIP-44 account index.
+ * @property {string} [token] - Token contract address (ERC-20 or SPL mint); omit for native.
+ * @property {string} [wallet] - The wallet name (defaults to the active wallet).
+ */
+
+/**
+ * @typedef {Object} BalanceResult
+ * @property {string} network - The blockchain network name.
+ * @property {number} index - The BIP-44 account index.
+ * @property {string} balance - Raw balance string in base units.
+ * @property {string} symbol - Token symbol.
+ * @property {number} decimals - Token decimal places.
+ * @property {string} formatted - Human-readable formatted balance with symbol.
+ * @property {number} usd - Approximate USD value (0 if price unavailable).
+ * @property {string} [token] - Token contract address, present when a token was queried.
+ */
+
+/**
+ * Returns the balance for a single network and account index.
+ *
+ * @param {GetBalanceInput} input - The balance lookup parameters.
+ * @returns {Promise<BalanceResult>} The balance result.
+ */
 export async function getBalance(input) {
   const wallet = await requireUnlockedWallet(input.wallet)
   validateNetwork(input.network)
@@ -40,6 +66,39 @@ export async function getBalance(input) {
   }
 }
 
+/**
+ * @typedef {Object} GetAllBalancesInput
+ * @property {number} index - The BIP-44 account index.
+ * @property {boolean} [testnet] - When true, query testnet networks; otherwise mainnet.
+ * @property {string} [wallet] - The wallet name (defaults to the active wallet).
+ */
+
+/**
+ * @typedef {Object} BalanceRow
+ * @property {string} network - The blockchain network name.
+ * @property {string} address - The wallet address on this network.
+ * @property {string} balance - Raw balance string in base units.
+ * @property {string} symbol - Native token symbol.
+ * @property {number} decimals - Token decimal places.
+ * @property {string} formatted - Human-readable formatted balance with symbol.
+ * @property {number} usd - Approximate USD value (0 if price unavailable).
+ */
+
+/**
+ * @typedef {Object} AllBalancesResult
+ * @property {number} index - The BIP-44 account index.
+ * @property {'mainnet' | 'testnet'} type - Which network group was queried.
+ * @property {BalanceRow[]} balances - Per-network balance rows (failed networks are omitted).
+ * @property {number} totalUsd - Sum of all USD values, rounded to 2 decimal places.
+ */
+
+/**
+ * Returns native balances across all supported networks for a single account index.
+ * Networks that fail to respond are silently skipped.
+ *
+ * @param {GetAllBalancesInput} input - The lookup parameters.
+ * @returns {Promise<AllBalancesResult>} The aggregated balance result.
+ */
 export async function getAllBalances(input) {
   const wallet = await requireUnlockedWallet(input.wallet)
   const showTestnet = !!input.testnet

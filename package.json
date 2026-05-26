@@ -19,6 +19,7 @@
     "install-wallets": "node scripts/install-wallets.mjs",
     "format": "prettier --write src/ tests/ bin/ scripts/",
     "format:check": "prettier --check src/ tests/ bin/ scripts/",
+    "typecheck": "tsc --noEmit -p jsconfig.json",
     "test": "node --test --experimental-test-module-mocks --disable-warning=ExperimentalWarning tests/unit/",
     "test:integration": "node --test --test-timeout=60000 --disable-warning=ExperimentalWarning tests/integration/"
   },
@@ -40,6 +41,8 @@
     "zod": "3.25.76"
   },
   "devDependencies": {
-    "prettier": "3.3.3"
+    "@types/node": "^22.19.19",
+    "prettier": "3.3.3",
+    "typescript": "^5.8.3"
   }
 }

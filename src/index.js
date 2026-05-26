@@ -22,6 +22,11 @@ import { registerNetworkCommand } from './commands/network.js'
 import { registerMcpCommand } from './commands/mcp-setup.js'
 import { registerRampCommands } from './commands/ramp.js'
 
+/**
+ * Creates and configures the root Commander program with all subcommands registered.
+ *
+ * @returns {import('commander').Command} The configured Commander program.
+ */
 export function createProgram() {
   const program = new Command()
   program
@@ -46,6 +51,12 @@ export function createProgram() {
 export { startMcpServer } from './mcp/server.js'
 export { startDaemon } from './daemon/server.js'
 
+/**
+ * Parses CLI arguments and runs the appropriate command.
+ *
+ * @param {string[]} argv - Process argument vector (typically `process.argv`).
+ * @returns {Promise<void>}
+ */
 export async function run(argv) {
   const program = createProgram()
   await program.parseAsync(argv)

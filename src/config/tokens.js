@@ -15,6 +15,13 @@
 import tokensFile from '../../wdk.tokens.json' with { type: 'json' }
 import { configService } from '../services/config-service.js'
 
+/**
+ * @typedef {Object} TokenConfig
+ * @property {string} address - The token contract address.
+ * @property {string} symbol - The token symbol (e.g. USDT).
+ * @property {number} decimals - The number of decimal places.
+ */
+
 const BUILTIN_TOKENS = tokensFile
 
 function getAllTokens(network) {
@@ -41,10 +48,23 @@ function getLookup(network) {
   return map
 }
 
+/**
+ * Returns the token config for a given network and contract address.
+ *
+ * @param {string} network - Network name.
+ * @param {string} address - Token contract address.
+ * @returns {TokenConfig | undefined} The token config, or undefined if not found.
+ */
 export function getTokenConfig(network, address) {
   return getLookup(network).get(normalizeAddress(address))
 }
 
+/**
+ * Returns all known token configs for a given network.
+ *
+ * @param {string} network - Network name.
+ * @returns {TokenConfig[]} Array of token configs.
+ */
 export function getKnownTokens(network) {
   return getAllTokens(network)
 }

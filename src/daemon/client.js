@@ -12,6 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/** @typedef {import('./protocol.js').DaemonRequest} DaemonRequest */
+/** @typedef {import('./protocol.js').DaemonResponse} DaemonResponse */
+/** @typedef {import('./protocol.js').GetAddressResult} GetAddressResult */
+/** @typedef {import('./protocol.js').GetBalanceResult} GetBalanceResult */
+/** @typedef {import('./protocol.js').EstimateFeeResult} EstimateFeeResult */
+/** @typedef {import('./protocol.js').SendResult} SendResult */
+/** @typedef {import('./protocol.js').WalletStatus} WalletStatus */
+/** @typedef {import('./protocol.js').ListWalletsResult} ListWalletsResult */
+/** @typedef {import('./protocol.js').StatusResult} StatusResult */
+
 import { connect } from 'node:net'
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
@@ -27,6 +37,11 @@ import {
 } from '../config/constants.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 
+/**
+ * Resolves the absolute path to the wdk-daemon.mjs binary by walking up the directory tree.
+ *
+ * @returns {string} The absolute path to wdk-daemon.mjs.
+ */
 function getDaemonScript() {
   const thisFile = fileURLToPath(import.meta.url)
   let dir = dirname(thisFile)
@@ -38,6 +53,11 @@ function getDaemonScript() {
   throw new Error('Cannot find wdk-daemon.mjs')
 }
 
+/**
+ * Spawns the daemon process in detached mode and waits for it to start.
+ *
+ * @returns {Promise<void>}
+ */
 function spawnDaemon() {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, ['--disable-warning=ExperimentalWarning', getDaemonScript()], {
@@ -70,8 +90,14 @@ function spawnDaemon() {
 }
 
 export class DaemonClient {
+  /** @type {string} */
   socketPath = getDaemonSocketPath()
 
+  /**
+   * Checks whether the daemon process is currently running.
+   *
+   * @returns {Promise<boolean>} True if the daemon is running.
+   */
   async isRunning() {
     const isWindows = process.platform === 'win32'
     try {
@@ -100,6 +126,11 @@ export class DaemonClient {
     }
   }
 
+  /**
+   * Ensures the daemon is running, spawning it if necessary.
+   *
+   * @returns {Promise<void>}
+   */
   async ensureRunning() {
     if (await this.isRunning()) return
 
@@ -119,6 +150,13 @@ export class DaemonClient {
     throw new Error('Failed to start wallet daemon')
   }
 
+  /**
+   * Sends a request to the daemon over the Unix socket and returns the response.
+   *
+   * @param {DaemonRequest} req - The request payload.
+   * @param {number} [timeoutMs] - Request timeout in milliseconds.
+   * @returns {Promise<DaemonResponse>} The daemon response.
+   */
   async request(req, timeoutMs = 5000) {
     if (!(await this.isRunning())) {
       throw new WdkCliError('Wallet is locked.', ErrorCode.WALLET_LOCKED)
@@ -157,56 +195,138 @@ export class DaemonClient {
     })
   }
 
+  /**
+   * Throws if the daemon response indicates failure.
+   *
+   * @param {DaemonResponse} resp - The daemon response.
+   * @param {string} fallbackMsg - Error message to use if response has no error field.
+   * @returns {void}
+   */
   #assertOk(resp, fallbackMsg) {
     if (!resp.ok) throw new Error(resp.error || fallbackMsg)
   }
 
+  /**
+   * Derives the wallet address for the given network and account index.
+   *
+   * @param {string} network - The network name.
+   * @param {number} [index] - The BIP-44 account index.
+   * @param {string} [wallet] - The wallet name.
+   * @returns {Promise<string>} The derived address.
+   */
   async getAddress(network, index = 0, wallet) {
     const resp = await this.request({ action: 'get_address', network, index, wallet }, 30000)
     this.#assertOk(resp, 'Failed to get address')
-    return resp.data.address
+    const data = /** @type {GetAddressResult} */ (resp.data)
+    return data.address
   }
 
+  /**
+   * Retrieves the balance for the given network, account index, and optional token.
+   *
+   * @param {string} network - The network name.
+   * @param {number} [index] - The BIP-44 account index.
+   * @param {string} [token] - The token contract address; omit for native balance.
+   * @param {string} [wallet] - The wallet name.
+   * @returns {Promise<GetBalanceResult>} The balance info.
+   */
   async getBalance(network, index = 0, token, wallet) {
     const resp = await this.request({ action: 'get_balance', network, index, token, wallet }, 30000)
     this.#assertOk(resp, 'Failed to get balance')
-    return resp.data
+    const data = /** @type {GetBalanceResult} */ (resp.data)
+    return data
   }
 
+  /**
+   * Estimates the transaction fee for a send operation.
+   *
+   * @param {string} network - The network name.
+   * @param {number} index - The BIP-44 account index.
+   * @param {string} to - The recipient address.
+   * @param {string} amount - The amount in base units as a string.
+   * @param {string} [token] - The token contract address; omit for native.
+   * @param {string} [wallet] - The wallet name.
+   * @returns {Promise<EstimateFeeResult>} The estimated fee.
+   */
   async estimateFee(network, index, to, amount, token, wallet) {
     const resp = await this.request({ action: 'estimate_fee', network, index, to, amount, token, wallet }, 30000)
     this.#assertOk(resp, 'Failed to estimate fee')
-    return resp.data
+    const data = /** @type {EstimateFeeResult} */ (resp.data)
+    return data
   }
 
+  /**
+   * Broadcasts a send transaction via the daemon.
+   *
+   * @param {string} network - The network name.
+   * @param {number} index - The BIP-44 account index.
+   * @param {string} to - The recipient address.
+   * @param {string} amount - The amount in base units as a string.
+   * @param {string} [token] - The token contract address; omit for native.
+   * @param {string} [wallet] - The wallet name.
+   * @returns {Promise<SendResult>} The transaction result.
+   */
   async send(network, index, to, amount, token, wallet) {
     const resp = await this.request({ action: 'send', network, index, to, amount, token, wallet }, 60000)
     this.#assertOk(resp, 'Failed to send transaction')
-    return resp.data
+    const data = /** @type {SendResult} */ (resp.data)
+    return data
   }
 
+  /**
+   * Unlocks a wallet in the daemon session with the given passphrase and TTL.
+   *
+   * @param {string} name - The wallet name.
+   * @param {string} passphrase - The wallet passphrase.
+   * @param {number} [ttlMinutes] - Session TTL in minutes (0 = no expiry).
+   * @returns {Promise<void>}
+   */
   async unlockWallet(name, passphrase, ttlMinutes = 5) {
     const resp = await this.request({ action: 'unlock_wallet', wallet: name, passphrase, ttl: ttlMinutes }, 30000)
     this.#assertOk(resp, `Failed to unlock wallet '${name}'`)
   }
 
+  /**
+   * Locks a specific wallet in the daemon session.
+   *
+   * @param {string} name - The wallet name.
+   * @returns {Promise<void>}
+   */
   async lockWallet(name) {
     const resp = await this.request({ action: 'lock_wallet', wallet: name })
     this.#assertOk(resp, `Failed to lock wallet '${name}'`)
   }
 
+  /**
+   * Lists all wallets currently unlocked in the daemon session.
+   *
+   * @returns {Promise<WalletStatus[]>} Array of wallet status entries.
+   */
   async listWallets() {
     const resp = await this.request({ action: 'list_wallets' })
     this.#assertOk(resp, 'Failed to list wallets')
-    return resp.data.wallets
+    const data = /** @type {ListWalletsResult} */ (resp.data)
+    return data.wallets
   }
 
+  /**
+   * Returns the current daemon status, including unlocked wallets and process PID.
+   *
+   * @returns {Promise<StatusResult>} The daemon status.
+   */
   async status() {
     const resp = await this.request({ action: 'status' })
     this.#assertOk(resp, 'Failed to get daemon status')
-    return resp.data
+    const data = /** @type {StatusResult} */ (resp.data)
+    return data
   }
 
+  /**
+   * Returns whether the named wallet is currently unlocked in the daemon session.
+   *
+   * @param {string} wallet - The wallet name.
+   * @returns {Promise<boolean>} True if the wallet is unlocked.
+   */
   async isWalletUnlocked(wallet) {
     if (!(await this.isRunning())) return false
     try {
@@ -217,6 +337,11 @@ export class DaemonClient {
     }
   }
 
+  /**
+   * Sends the lock command to shut down the daemon, ignoring errors if it has already exited.
+   *
+   * @returns {Promise<void>}
+   */
   async lock() {
     try {
       await this.request({ action: 'lock' })

@@ -22,30 +22,51 @@ for (const [name, entry] of Object.entries(walletsFile.networks)) {
   networkDefaults[name] = entry.config ?? {}
 }
 
+/** @type {Record<string, unknown>} */
 export const CONFIG_DEFAULTS = {
   ...walletsFile.defaults,
   networks: networkDefaults
 }
 
+/** @type {string} */
 export const APP_NAME = pkg.name
+/** @type {string} */
 export const APP_VERSION = pkg.version
+/** @type {string} */
 export const CONFIG_DIR = APP_NAME
 const WALLETS_DIR = 'wallets'
 
+/**
+ * Returns the path to the application configuration directory.
+ *
+ * @returns {string} Absolute path to the config directory.
+ */
 export function getConfigDir() {
   const xdgConfig = process.env.XDG_CONFIG_HOME
   const base = xdgConfig || join(homedir(), '.config')
   return join(base, CONFIG_DIR)
 }
 
+/** @type {number} */
 export const SESSION_TTL_MINUTES = 5
+/** @type {string} */
 export const DAEMON_SOCKET = 'daemon.sock'
+/** @type {string} */
 export const DAEMON_PID = 'daemon.pid'
+/** @type {number} */
 export const DAEMON_MAX_REQUEST_BYTES = 64 * 1024
+/** @type {number} */
 export const DAEMON_START_RETRIES = 5
+/** @type {number} */
 export const DAEMON_START_RETRY_INTERVAL_MS = 500
+/** @type {number} */
 export const DAEMON_SPAWN_TIMEOUT_MS = 2000
 
+/**
+ * Returns the platform-appropriate daemon socket path.
+ *
+ * @returns {string} Absolute socket path or Windows named pipe.
+ */
 export function getDaemonSocketPath() {
   if (process.platform === 'win32') {
     return '\\\\.\\pipe\\wdk-cli-daemon'
@@ -53,14 +74,30 @@ export function getDaemonSocketPath() {
   return join(getConfigDir(), DAEMON_SOCKET)
 }
 
+/**
+ * Returns the path to the daemon PID file.
+ *
+ * @returns {string} Absolute path to the daemon PID file.
+ */
 export function getDaemonPidPath() {
   return join(getConfigDir(), DAEMON_PID)
 }
 
+/**
+ * Returns the path to the wallets storage directory.
+ *
+ * @returns {string} Absolute path to the wallets directory.
+ */
 export function getWalletsDir() {
   return join(getConfigDir(), WALLETS_DIR)
 }
 
+/**
+ * Validates a wallet name and returns the sanitized version.
+ *
+ * @param {string} name - The wallet name to validate.
+ * @returns {string} The validated wallet name.
+ */
 export function validateWalletName(name) {
   const sanitized = name.replace(/[^a-zA-Z0-9_-]/g, '')
   if (!sanitized || sanitized !== name) {
@@ -69,10 +106,22 @@ export function validateWalletName(name) {
   return sanitized
 }
 
+/**
+ * Returns the directory path for a named wallet.
+ *
+ * @param {string} name - The wallet name.
+ * @returns {string} Absolute path to the wallet directory.
+ */
 export function getWalletDir(name) {
   return join(getWalletsDir(), validateWalletName(name))
 }
 
+/**
+ * Returns the path to the encrypted seed file for a named wallet.
+ *
+ * @param {string} name - The wallet name.
+ * @returns {string} Absolute path to the seed.enc file.
+ */
 export function getWalletPath(name) {
   return join(getWalletDir(name), 'seed.enc')
 }

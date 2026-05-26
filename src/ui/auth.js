@@ -18,6 +18,12 @@ import { WalletKeyring } from '../security/keyring.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 import { promptPassphrase } from './prompts.js'
 
+/**
+ * Prompts the user for the default wallet's passphrase and verifies it is correct.
+ * No-ops if no wallets exist.
+ *
+ * @returns {Promise<void>}
+ */
 export async function requirePassphraseConfirmation() {
   const keyService = new KeyService(new WalletKeyring())
   const wallets = await keyService.list()

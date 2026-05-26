@@ -24,6 +24,12 @@ import { getHistory } from '../actions/history.js'
 import { previewSend, executeSend } from '../actions/send.js'
 import { createRampUrl } from '../actions/ramp.js'
 
+/** @typedef {{ content: Array<{ type: 'text', text: string }>, isError?: boolean }} ToolResult */
+
+/**
+ * @param {unknown} error
+ * @returns {ToolResult}
+ */
 function errorResult(error) {
   if (error instanceof WdkCliError) {
     return { content: [{ type: 'text', text: JSON.stringify({ error: error.message, code: error.code, ...(error.suggestion ? { suggestion: error.suggestion } : {}) }) }], isError: true }
@@ -32,10 +38,19 @@ function errorResult(error) {
   return { content: [{ type: 'text', text: JSON.stringify({ error: message }) }], isError: true }
 }
 
+/**
+ * @param {unknown} data
+ * @returns {ToolResult}
+ */
 function jsonResult(data) {
   return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] }
 }
 
+/**
+ * Starts the MCP server over stdio, registering all WDK wallet tools.
+ *
+ * @returns {Promise<void>}
+ */
 export async function startMcpServer() {
   const server = new McpServer({
     name: 'wdk-wallet',

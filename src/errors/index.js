@@ -14,6 +14,37 @@
 
 import chalk from 'chalk'
 
+/**
+ * @typedef {(
+ *   | 'KEY_NOT_FOUND'
+ *   | 'INVALID_SEED_PHRASE'
+ *   | 'WRONG_PASSPHRASE'
+ *   | 'MISSING_NETWORK'
+ *   | 'NETWORK_NOT_SUPPORTED'
+ *   | 'INSUFFICIENT_BALANCE'
+ *   | 'TRANSACTION_FAILED'
+ *   | 'NETWORK_ERROR'
+ *   | 'WALLET_NOT_UNLOCKED'
+ *   | 'WALLET_EXISTS'
+ *   | 'WALLET_LOCKED'
+ *   | 'PASSPHRASE_MISMATCH'
+ *   | 'INVALID_ARGUMENT'
+ *   | 'INVALID_INDEX'
+ *   | 'INVALID_CONFIG'
+ *   | 'MISSING_CONFIG'
+ *   | 'UNSUPPORTED_MODULE'
+ *   | 'TOKEN_NOT_SUPPORTED'
+ *   | 'ENVIRONMENT_MISMATCH'
+ *   | 'SIGN_FAILED'
+ *   | 'INVALID_AMOUNT'
+ *   | 'INVALID_TOKEN'
+ *   | 'PROVIDER_UNAVAILABLE'
+ *   | 'QUOTE_REJECTED'
+ *   | 'UNKNOWN_ERROR'
+ *   | 'UNEXPECTED_ERROR'
+ * )} ErrorCodeType
+ */
+
 export const ErrorCode = Object.freeze({
   KEY_NOT_FOUND: 'KEY_NOT_FOUND',
   INVALID_SEED_PHRASE: 'INVALID_SEED_PHRASE',
@@ -45,19 +76,36 @@ export const ErrorCode = Object.freeze({
 
 const NETWORK_ERROR_PATTERNS = ['ECONNREFUSED', 'ETIMEDOUT', 'ENOTFOUND', 'fetch failed']
 
+/**
+ * Returns true when the error looks like a transient network failure.
+ *
+ * @param {unknown} error - The error to inspect.
+ * @returns {boolean} True when the error message matches a known network failure pattern.
+ */
 export function isNetworkError(error) {
   const msg = error instanceof Error ? error.message : String(error)
   return NETWORK_ERROR_PATTERNS.some((p) => msg.includes(p))
 }
 
+/**
+ * The CLI's structured error type. Carries a stable error code and an optional user-facing hint.
+ */
 export class WdkCliError extends Error {
+  /**
+   * @param {string} message - The error message.
+   * @param {ErrorCodeType} code - The stable error code.
+   * @param {string} [suggestion] - An optional hint shown to the user.
+   */
   constructor(message, code, suggestion) {
     super(message)
     this.name = 'WdkCliError'
+    /** @type {ErrorCodeType} */
     this.code = code
+    /** @type {string | undefined} */
     this.suggestion = suggestion
   }
 
+  /** Prints the error and optional hint to stderr with color. */
   display() {
     console.error(chalk.red(`Error: ${this.message}`))
     if (this.suggestion) {
@@ -66,6 +114,14 @@ export class WdkCliError extends Error {
   }
 }
 
+/**
+ * Top-level error handler for CLI commands. Always calls `process.exit`.
+ *
+ * @param {unknown} error - The thrown value to report.
+ * @param {boolean} [verbose] - When true, includes the stack trace in non-JSON output.
+ * @param {boolean} [json] - When true, prints a single JSON line instead of the human-readable format.
+ * @returns {never}
+ */
 export function handleError(error, verbose = false, json = false) {
   if (error instanceof WdkCliError) {
     if (json) {
@@ -81,7 +137,9 @@ export function handleError(error, verbose = false, json = false) {
   }
 
   if (error instanceof Error) {
-    if (error.code) {
+    const err = /** @type {Error & { code?: string }} */ (error)
+    if (err.code) {
+      /** @type {Record<string, string>} */
       const messages = {
         INSUFFICIENT_FUNDS: 'Insufficient funds for this transaction.',
         INVALID_ARGUMENT: 'Invalid argument.',
@@ -89,10 +147,10 @@ export function handleError(error, verbose = false, json = false) {
         SERVER_ERROR: 'RPC server error.',
         TIMEOUT: 'Request timed out.'
       }
-      const match = messages[error.code]
+      const match = messages[err.code]
       if (match) {
         if (json) {
-          console.log(JSON.stringify({ error: match, code: error.code }))
+          console.log(JSON.stringify({ error: match, code: err.code }))
         } else {
           console.error(chalk.red(`Error: ${match}`))
         }

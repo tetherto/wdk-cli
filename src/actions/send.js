@@ -20,6 +20,49 @@ import { WdkCliError, ErrorCode } from '../errors/index.js'
 import { withTimeout } from '../utils/async.js'
 import { requireUnlockedWallet } from '../utils/wallet.js'
 
+/**
+ * @typedef {Object} SendInput
+ * @property {string} network - The blockchain network name.
+ * @property {number} index - The BIP-44 account index.
+ * @property {string} to - Recipient address.
+ * @property {string} amount - Amount in base units (wei/satoshis/lamports) as a decimal string.
+ * @property {string} [token] - Token contract address (ERC-20, SPL, TRC-20); omit for native.
+ * @property {string} [wallet] - The wallet name (defaults to the active wallet).
+ */
+
+/**
+ * @typedef {Object} SendPreview
+ * @property {string} network - The blockchain network name.
+ * @property {string} networkName - Human-readable network display name.
+ * @property {string} to - Recipient address.
+ * @property {string} amount - Amount in base units.
+ * @property {string} amountFormatted - Human-readable formatted amount with symbol.
+ * @property {number} [amountUsd] - Approximate USD value of the amount.
+ * @property {string} [token] - Token contract address, if a token was specified.
+ * @property {string} [tokenSymbol] - Token symbol.
+ * @property {string} estimatedFee - Estimated fee in base units.
+ * @property {string} estimatedFeeFormatted - Human-readable formatted estimated fee.
+ * @property {number} [estimatedFeeUsd] - Approximate USD value of the estimated fee.
+ */
+
+/**
+ * @typedef {Object} SendResult
+ * @property {string} network - The blockchain network name.
+ * @property {string} txHash - On-chain transaction hash.
+ * @property {string} from - Sender address.
+ * @property {string} to - Recipient address.
+ * @property {string} amount - Amount sent in base units.
+ * @property {string} amountFormatted - Human-readable formatted amount with symbol.
+ * @property {string} [fee] - Actual fee paid in base units.
+ * @property {string} [feeFormatted] - Human-readable formatted fee with native symbol.
+ */
+
+/**
+ * Validates that the amount string is a positive integer (no decimals).
+ *
+ * @param {string} amount - The amount string to validate.
+ * @returns {void}
+ */
 function validateAmount(amount) {
   if (!/^\d+$/.test(amount) || amount === '0') {
     throw new WdkCliError(
@@ -30,6 +73,12 @@ function validateAmount(amount) {
   }
 }
 
+/**
+ * Estimates the fee and returns a preview of a send transaction without broadcasting.
+ *
+ * @param {SendInput} input - The send parameters.
+ * @returns {Promise<SendPreview>} The transaction preview including estimated fee.
+ */
 export async function previewSend(input) {
   const wallet = await requireUnlockedWallet(input.wallet)
   validateNetwork(input.network)
@@ -70,6 +119,12 @@ export async function previewSend(input) {
   }
 }
 
+/**
+ * Broadcasts a send transaction and returns the result.
+ *
+ * @param {SendInput} input - The send parameters.
+ * @returns {Promise<SendResult>} The transaction result including the tx hash.
+ */
 export async function executeSend(input) {
   const wallet = await requireUnlockedWallet(input.wallet)
   validateNetwork(input.network)

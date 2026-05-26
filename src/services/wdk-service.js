@@ -18,8 +18,18 @@ import { configService } from './config-service.js'
 import { CONFIG_DEFAULTS } from '../config/constants.js'
 import { WdkCliError, ErrorCode, isNetworkError } from '../errors/index.js'
 
+/** @typedef {typeof import('@tetherto/wdk-wallet').default} WalletManagerCtor */
+/** @typedef {import('@tetherto/wdk').IWalletAccountWithProtocols} WalletAccount */
+
+/** @type {Map<string, WalletManagerCtor>} */
 const walletManagerCache = new Map()
 
+/**
+ * Dynamically imports a wallet manager module, with optional version check.
+ *
+ * @param {string} moduleSpec - The npm module specifier, e.g. `@tetherto/wdk-wallet` or `@scope/pkg@1.2.3`.
+ * @returns {Promise<WalletManagerCtor>} The default export of the wallet manager module.
+ */
 async function loadWalletManager(moduleSpec) {
   const cached = walletManagerCache.get(moduleSpec)
   if (cached) return cached
@@ -28,6 +38,7 @@ async function loadWalletManager(moduleSpec) {
 
   try {
     const mod = await import(name)
+    /** @type {WalletManagerCtor} */
     const Manager = mod.default || mod
 
     if (version) {
@@ -56,17 +67,33 @@ async function loadWalletManager(moduleSpec) {
 
 export class WdkService {
   constructor() {
+    /** @type {WDK | null} */
     this.wdk = null
+    /** @type {Set<string>} */
     this.registeredNetworks = new Set()
+    /** @type {Map<string, WalletAccount>} */
     this.accountCache = new Map()
   }
 
+  /**
+   * Creates the underlying WDK instance from a seed phrase (no-op if already created).
+   *
+   * @param {string} seedPhrase - The BIP-39 seed phrase.
+   * @returns {void}
+   */
   createInstance(seedPhrase) {
     if (!this.wdk) {
       this.wdk = new WDK(seedPhrase)
     }
   }
 
+  /**
+   * Initialises the WDK instance and registers the given network.
+   *
+   * @param {string} seedPhrase - The BIP-39 seed phrase.
+   * @param {string} network - The network name to register.
+   * @returns {Promise<void>}
+   */
   async initialize(seedPhrase, network) {
     if (!isValidNetwork(network)) {
       throw new WdkCliError(`Network '${network}' is not supported.`, ErrorCode.NETWORK_NOT_SUPPORTED)
@@ -79,6 +106,12 @@ export class WdkService {
     }
   }
 
+  /**
+   * Registers a network's wallet manager with the WDK instance.
+   *
+   * @param {string} network - The network name to register.
+   * @returns {Promise<void>}
+   */
   async #registerNetwork(network) {
     if (!this.wdk) throw new Error('WDK not initialized')
 
@@ -94,6 +127,13 @@ export class WdkService {
     this.registeredNetworks.add(network)
   }
 
+  /**
+   * Returns the wallet account for the given network and index, with caching.
+   *
+   * @param {string} network - The network name.
+   * @param {number} [index] - The BIP-44 account index.
+   * @returns {Promise<WalletAccount>} The wallet account instance.
+   */
   async getAccount(network, index = 0) {
     if (!this.wdk) {
       throw new Error('WDK not initialized. Call initialize() first.')
@@ -120,6 +160,12 @@ export class WdkService {
     }
   }
 
+  /**
+   * Returns the current fee rates for a network.
+   *
+   * @param {string} network - The network name.
+   * @returns {Promise<{ normal: bigint, fast: bigint }>} The fee rates.
+   */
   async getFeeRates(network) {
     if (!this.wdk) {
       throw new Error('WDK not initialized. Call initialize() first.')
@@ -127,6 +173,11 @@ export class WdkService {
     return this.wdk.getFeeRates(network)
   }
 
+  /**
+   * Disposes the WDK instance and clears all caches.
+   *
+   * @returns {void}
+   */
   dispose() {
     if (this.wdk) {
       this.wdk.dispose()

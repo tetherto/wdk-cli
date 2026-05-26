@@ -17,6 +17,12 @@ import { getNetworkConfig } from '../config/networks.js'
 import { getTokenConfig } from '../config/tokens.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 
+/**
+ * @typedef {Object} PriceCache
+ * @property {Map<string, number>} prices - Map of Bitfinex symbol to USD price.
+ * @property {number} timestamp - The Unix timestamp (ms) when the cache was populated.
+ */
+
 // Map native token symbols to Bitfinex trading pair.
 // Testnet tokens (e.g. tBTC) map to their mainnet price pair.
 const NATIVE_SYMBOLS = {
@@ -37,8 +43,14 @@ const TOKEN_SYMBOLS = {
 }
 
 const CACHE_TTL_MS = 5 * 60 * 1000
+/** @type {PriceCache | null} */
 let cache = null
 
+/**
+ * Collects all unique Bitfinex ticker symbols needed for price lookups.
+ *
+ * @returns {string[]} Array of Bitfinex symbol strings.
+ */
 function getAllBitfinexSymbols() {
   const symbols = new Set()
   for (const sym of Object.values(NATIVE_SYMBOLS)) symbols.add(sym)
@@ -46,6 +58,11 @@ function getAllBitfinexSymbols() {
   return [...symbols]
 }
 
+/**
+ * Fetches current USD prices from Bitfinex for all tracked symbols, with 5-minute cache.
+ *
+ * @returns {Promise<Map<string, number>>} Map of Bitfinex symbol to USD price.
+ */
 async function fetchPrices() {
   if (cache && Date.now() - cache.timestamp < CACHE_TTL_MS) {
     return cache.prices
@@ -72,6 +89,12 @@ async function fetchPrices() {
   return prices
 }
 
+/**
+ * Returns the current USD price of the native token for a network.
+ *
+ * @param {string} network - The network name.
+ * @returns {Promise<number>} The USD price.
+ */
 export async function getNativeUsdPrice(network) {
   const config = getNetworkConfig(network)
   const bitfinexSymbol = NATIVE_SYMBOLS[config.nativeSymbol]
@@ -87,6 +110,13 @@ export async function getNativeUsdPrice(network) {
   return price
 }
 
+/**
+ * Returns the current USD price of an ERC-20 / SPL token.
+ *
+ * @param {string} network - The network name.
+ * @param {string} tokenAddress - The token contract address.
+ * @returns {Promise<number>} The USD price.
+ */
 export async function getTokenUsdPrice(network, tokenAddress) {
   const tokenConfig = getTokenConfig(network, tokenAddress)
   if (!tokenConfig) {
@@ -106,6 +136,14 @@ export async function getTokenUsdPrice(network, tokenAddress) {
   return price
 }
 
+/**
+ * Converts a native or token amount (in base units) to a USD value.
+ *
+ * @param {string} network - The network name.
+ * @param {bigint} amount - The amount in base units (e.g. wei, satoshis).
+ * @param {string} [tokenAddress] - The token contract address; omit for native token.
+ * @returns {Promise<number>} The equivalent USD value.
+ */
 export async function convertToUsd(network, amount, tokenAddress) {
   if (tokenAddress) {
     const tokenConfig = getTokenConfig(network, tokenAddress)

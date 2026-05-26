@@ -12,10 +12,57 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/** @typedef {import('../types/index.js').IndexerEntry} IndexerEntry */
+
 import { configService } from './config-service.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
-import walletsFile from '../../wdk.config.json' with { type: 'json' }
+import walletsFileRaw from '../../wdk.config.json' with { type: 'json' }
 
+/** @type {import('../types/index.js').WdkConfigFile} */
+const walletsFile = walletsFileRaw
+
+/**
+ * @typedef {'usdt' | 'usat' | 'xaut' | 'btc'} IndexerToken
+ */
+
+/**
+ * @typedef {Object} TokenTransfer
+ * @property {string} blockchain - The blockchain identifier.
+ * @property {number} blockNumber - The block number of the transfer.
+ * @property {string} transactionHash - The transaction hash.
+ * @property {number} transferIndex - The index of the transfer within the transaction.
+ * @property {string} token - The token symbol.
+ * @property {string} amount - The transfer amount as a string.
+ * @property {number} timestamp - The Unix timestamp of the transfer.
+ * @property {number} transactionIndex - The transaction index within the block.
+ * @property {number} logIndex - The log index within the transaction.
+ * @property {string} from - The sender address.
+ * @property {string} to - The recipient address.
+ * @property {string} [label] - An optional human-readable label.
+ */
+
+/**
+ * @typedef {Object} TokenTransferOptions
+ * @property {number} [limit] - Maximum number of transfers to return.
+ * @property {number} [fromTs] - Start timestamp filter (Unix seconds).
+ * @property {number} [toTs] - End timestamp filter (Unix seconds).
+ */
+
+/**
+ * @typedef {Object} BatchTransferRequestItem
+ * @property {string} blockchain - The blockchain identifier.
+ * @property {IndexerToken} token - The token symbol to query.
+ * @property {string} address - The wallet address to query.
+ * @property {number} [limit] - Maximum number of transfers to return.
+ * @property {number} [fromTs] - Start timestamp filter (Unix seconds).
+ * @property {number} [toTs] - End timestamp filter (Unix seconds).
+ */
+
+/**
+ * @typedef {{ transfers: TokenTransfer[] } | { error: string, message: string, status: number }} BatchTransferResultItem
+ */
+
+/** @type {Record<string, IndexerEntry>} */
 const INDEXER_MAP = {}
 for (const [name, entry] of Object.entries(walletsFile.networks)) {
   if (entry.indexer) {
@@ -25,33 +72,66 @@ for (const [name, entry] of Object.entries(walletsFile.networks)) {
 
 export const INDEXER_TOKENS = Object.freeze(['usdt', 'usat', 'xaut', 'btc'])
 
+/**
+ * Looks up the indexer entry for a network.
+ *
+ * @param {string} network - The network name.
+ * @returns {IndexerEntry | undefined} The indexer entry, or undefined if not found.
+ */
 function getIndexerEntry(network) {
   if (INDEXER_MAP[network]) return INDEXER_MAP[network]
-  return configService.get(`customNetworks.${network}.indexer`)
+  return /** @type {IndexerEntry | undefined} */ (configService.get(`customNetworks.${network}.indexer`))
 }
 
+/**
+ * Returns the indexer blockchain identifier for a network.
+ *
+ * @param {string} network - The network name.
+ * @returns {string | undefined} The blockchain identifier, or undefined if not supported.
+ */
 export function getIndexerBlockchain(network) {
   return getIndexerEntry(network)?.blockchain
 }
 
+/**
+ * Returns the supported indexer tokens for a network.
+ *
+ * @param {string} network - The network name.
+ * @returns {IndexerToken[]} Array of supported token symbols.
+ */
 export function getIndexerTokens(network) {
   const entry = getIndexerEntry(network)
   if (!entry) return []
-  return entry.tokens.filter((t) => INDEXER_TOKENS.includes(t))
+  return /** @type {IndexerToken[]} */ (entry.tokens.filter((t) => INDEXER_TOKENS.includes(t)))
 }
 
+/**
+ * Returns whether the indexer API is supported for a network.
+ *
+ * @param {string} network - The network name.
+ * @returns {boolean} True if the network has an indexer entry.
+ */
 export function isIndexerSupported(network) {
   return !!getIndexerEntry(network)
 }
 
+/**
+ * Fetches token transfer history for a single address from the indexer API.
+ *
+ * @param {string} network - The network name.
+ * @param {IndexerToken} token - The token symbol to query.
+ * @param {string} address - The wallet address.
+ * @param {TokenTransferOptions} [options] - Optional filter parameters.
+ * @returns {Promise<TokenTransfer[]>} Array of token transfers.
+ */
 export async function getTokenTransfers(network, token, address, options = {}) {
   const blockchain = getIndexerBlockchain(network)
   if (!blockchain) {
     throw new WdkCliError(`Network '${network}' is not supported by the indexer API.`, ErrorCode.NETWORK_NOT_SUPPORTED)
   }
 
-  const baseUrl = configService.get('indexer.baseUrl')
-  const apiKey = configService.get('indexer.apiKey')
+  const baseUrl = /** @type {string | undefined} */ (configService.get('indexer.baseUrl'))
+  const apiKey = /** @type {string | undefined} */ (configService.get('indexer.apiKey'))
 
   if (!baseUrl) {
     throw new WdkCliError(
@@ -68,6 +148,7 @@ export async function getTokenTransfers(network, token, address, options = {}) {
   const qs = params.toString() ? `?${params.toString()}` : ''
   const url = `${baseUrl}/api/v1/${blockchain}/${token}/${address}/token-transfers${qs}`
 
+  /** @type {Record<string, string>} */
   const headers = {}
   if (apiKey) headers['x-api-key'] = apiKey
 
@@ -89,11 +170,17 @@ export async function getTokenTransfers(network, token, address, options = {}) {
   return data.transfers ?? []
 }
 
+/**
+ * Fetches token transfer history for multiple addresses in a single batch request.
+ *
+ * @param {BatchTransferRequestItem[]} items - The batch request items.
+ * @returns {Promise<BatchTransferResultItem[]>} Array of per-item results.
+ */
 export async function getTokenTransfersBatch(items) {
   if (items.length === 0) return []
 
-  const baseUrl = configService.get('indexer.baseUrl')
-  const apiKey = configService.get('indexer.apiKey')
+  const baseUrl = /** @type {string | undefined} */ (configService.get('indexer.baseUrl'))
+  const apiKey = /** @type {string | undefined} */ (configService.get('indexer.apiKey'))
 
   if (!baseUrl) {
     throw new WdkCliError(
@@ -102,6 +189,7 @@ export async function getTokenTransfersBatch(items) {
     )
   }
 
+  /** @type {Record<string, string>} */
   const headers = { 'content-type': 'application/json' }
   if (apiKey) headers['x-api-key'] = apiKey
 

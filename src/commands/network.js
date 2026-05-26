@@ -40,6 +40,12 @@ for (const entry of Object.values(walletsFile.networks)) {
   }
 }
 
+/**
+ * Registers the `network` subcommand tree (list, create, delete, info) on the root program.
+ *
+ * @param {import('commander').Command} program - The root Commander program instance.
+ * @returns {void}
+ */
 export function registerNetworkCommand(program) {
   const network = program
     .command('network')

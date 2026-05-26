@@ -14,6 +14,8 @@
 
 import { scryptSync, randomBytes, createCipheriv, createDecipheriv } from 'node:crypto'
 
+/** @typedef {import('../types/index.js').EncryptedPayload} EncryptedPayload */
+
 const ALGORITHM = 'aes-256-gcm'
 const SCRYPT_N = 2 ** 16
 const SCRYPT_R = 8
@@ -23,10 +25,24 @@ const SALT_LEN = 32
 const IV_LEN = 12
 const SCRYPT_MAX_MEM = 128 * 1024 * 1024
 
+/**
+ * Derives a 32-byte encryption key from a password and salt using scrypt.
+ *
+ * @param {string} password - The passphrase.
+ * @param {Buffer} salt - The salt buffer.
+ * @returns {Buffer} The derived key buffer.
+ */
 export function deriveKey(password, salt) {
   return scryptSync(password, salt, KEY_LEN, { N: SCRYPT_N, r: SCRYPT_R, p: SCRYPT_P, maxmem: SCRYPT_MAX_MEM })
 }
 
+/**
+ * Encrypts a plaintext string with AES-256-GCM using a password-derived key.
+ *
+ * @param {string} plaintext - The string to encrypt.
+ * @param {string} password - The passphrase used to derive the key.
+ * @returns {EncryptedPayload} The encrypted payload including salt, IV, tag, and ciphertext.
+ */
 export function encrypt(plaintext, password) {
   const salt = randomBytes(SALT_LEN)
   const key = deriveKey(password, salt)
@@ -50,6 +66,13 @@ export function encrypt(plaintext, password) {
   }
 }
 
+/**
+ * Decrypts an encrypted payload using a pre-derived key buffer.
+ *
+ * @param {EncryptedPayload} payload - The encrypted payload.
+ * @param {Buffer} key - The 32-byte AES key.
+ * @returns {string} The decrypted plaintext.
+ */
 export function decryptWithKey(payload, key) {
   if (payload.version !== 1) {
     throw new Error(`Unsupported keyring version: ${payload.version}`)
@@ -63,6 +86,13 @@ export function decryptWithKey(payload, key) {
   return plaintext
 }
 
+/**
+ * Decrypts an encrypted payload using a password.
+ *
+ * @param {EncryptedPayload} payload - The encrypted payload.
+ * @param {string} password - The passphrase used to derive the key.
+ * @returns {string} The decrypted plaintext.
+ */
 export function decrypt(payload, password) {
   if (payload.version !== 1) {
     throw new Error(`Unsupported keyring version: ${payload.version}`)
