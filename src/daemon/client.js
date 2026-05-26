@@ -1,0 +1,229 @@
+// Copyright 2026 Tether Operations Limited
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+import { connect } from 'node:net'
+import { spawn } from 'node:child_process'
+import { existsSync } from 'node:fs'
+import { readFile, access, unlink } from 'node:fs/promises'
+import { join, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import {
+  getDaemonSocketPath,
+  getDaemonPidPath,
+  DAEMON_START_RETRIES,
+  DAEMON_START_RETRY_INTERVAL_MS,
+  DAEMON_SPAWN_TIMEOUT_MS,
+} from '../config/constants.js'
+import { WdkCliError, ErrorCode } from '../errors/index.js'
+
+function getDaemonScript() {
+  const thisFile = fileURLToPath(import.meta.url)
+  let dir = dirname(thisFile)
+  for (let i = 0; i < 5; i++) {
+    const candidate = join(dir, 'bin', 'wdk-daemon.mjs')
+    if (existsSync(candidate)) return candidate
+    dir = dirname(dir)
+  }
+  throw new Error('Cannot find wdk-daemon.mjs')
+}
+
+function spawnDaemon() {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, ['--disable-warning=ExperimentalWarning', getDaemonScript()], {
+      stdio: ['ignore', 'ignore', 'pipe'],
+      detached: true, // Daemon must outlive the parent process on all platforms
+      windowsHide: true, // Prevents a new console window on Windows when detached
+    })
+
+    let stderr = ''
+    child.stderr.on('data', (chunk) => { stderr += chunk.toString() })
+
+    const timeout = setTimeout(() => {
+      child.stderr.destroy()
+      child.unref()
+      resolve()
+    }, DAEMON_SPAWN_TIMEOUT_MS)
+
+    child.on('error', (err) => {
+      clearTimeout(timeout)
+      reject(new Error(`Failed to start daemon: ${err.message}`))
+    })
+
+    child.on('exit', (code) => {
+      clearTimeout(timeout)
+      if (code !== 0 && code !== null) {
+        reject(new Error(`Daemon exited with code ${code}: ${stderr.trim()}`))
+      }
+    })
+  })
+}
+
+export class DaemonClient {
+  socketPath = getDaemonSocketPath()
+
+  async isRunning() {
+    const isWindows = process.platform === 'win32'
+    try {
+      const pidPath = getDaemonPidPath()
+      // On Unix, check socket file exists; on Windows, named pipes can't be checked via access()
+      if (!isWindows) {
+        await access(this.socketPath)
+      }
+      const pid = parseInt(await readFile(pidPath, 'utf8'), 10)
+      try {
+        process.kill(pid, 0)
+        return true
+      } catch (err) {
+        // On Windows, process.kill(pid, 0) throws EPERM for running processes — treat as alive
+        if (isWindows && err.code === 'EPERM') {
+          return true
+        }
+        if (!isWindows) {
+          try { await unlink(this.socketPath) } catch { /* */ }
+        }
+        try { await unlink(pidPath) } catch { /* */ }
+        return false
+      }
+    } catch {
+      return false
+    }
+  }
+
+  async ensureRunning() {
+    if (await this.isRunning()) return
+
+    await spawnDaemon()
+
+    let retries = DAEMON_START_RETRIES
+    while (retries > 0) {
+      if (await this.isRunning()) {
+        try {
+          await this.status()
+          return
+        } catch { /* not ready yet */ }
+      }
+      await new Promise((r) => setTimeout(r, DAEMON_START_RETRY_INTERVAL_MS))
+      retries--
+    }
+    throw new Error('Failed to start wallet daemon')
+  }
+
+  async request(req, timeoutMs = 5000) {
+    if (!(await this.isRunning())) {
+      throw new WdkCliError('Wallet is locked.', ErrorCode.WALLET_LOCKED)
+    }
+
+    return new Promise((resolve, reject) => {
+      const socket = connect(this.socketPath)
+      let buffer = ''
+
+      socket.on('connect', () => {
+        socket.write(JSON.stringify(req) + '\n')
+      })
+
+      socket.on('data', (chunk) => {
+        buffer += chunk.toString()
+        const newlineIdx = buffer.indexOf('\n')
+        if (newlineIdx !== -1) {
+          const line = buffer.slice(0, newlineIdx)
+          try {
+            resolve(JSON.parse(line))
+          } catch {
+            reject(new Error('Invalid response from daemon'))
+          }
+          socket.end()
+        }
+      })
+
+      socket.on('error', (err) => {
+        reject(new Error(`Cannot connect to wallet daemon: ${err.message}`))
+      })
+
+      socket.setTimeout(timeoutMs, () => {
+        socket.destroy()
+        reject(new Error('Daemon request timed out'))
+      })
+    })
+  }
+
+  #assertOk(resp, fallbackMsg) {
+    if (!resp.ok) throw new Error(resp.error || fallbackMsg)
+  }
+
+  async getAddress(network, index = 0, wallet) {
+    const resp = await this.request({ action: 'get_address', network, index, wallet }, 30000)
+    this.#assertOk(resp, 'Failed to get address')
+    return resp.data.address
+  }
+
+  async getBalance(network, index = 0, token, wallet) {
+    const resp = await this.request({ action: 'get_balance', network, index, token, wallet }, 30000)
+    this.#assertOk(resp, 'Failed to get balance')
+    return resp.data
+  }
+
+  async estimateFee(network, index, to, amount, token, wallet) {
+    const resp = await this.request({ action: 'estimate_fee', network, index, to, amount, token, wallet }, 30000)
+    this.#assertOk(resp, 'Failed to estimate fee')
+    return resp.data
+  }
+
+  async send(network, index, to, amount, token, wallet) {
+    const resp = await this.request({ action: 'send', network, index, to, amount, token, wallet }, 60000)
+    this.#assertOk(resp, 'Failed to send transaction')
+    return resp.data
+  }
+
+  async unlockWallet(name, passphrase, ttlMinutes = 5) {
+    const resp = await this.request({ action: 'unlock_wallet', wallet: name, passphrase, ttl: ttlMinutes }, 30000)
+    this.#assertOk(resp, `Failed to unlock wallet '${name}'`)
+  }
+
+  async lockWallet(name) {
+    const resp = await this.request({ action: 'lock_wallet', wallet: name })
+    this.#assertOk(resp, `Failed to lock wallet '${name}'`)
+  }
+
+  async listWallets() {
+    const resp = await this.request({ action: 'list_wallets' })
+    this.#assertOk(resp, 'Failed to list wallets')
+    return resp.data.wallets
+  }
+
+  async status() {
+    const resp = await this.request({ action: 'status' })
+    this.#assertOk(resp, 'Failed to get daemon status')
+    return resp.data
+  }
+
+  async isWalletUnlocked(wallet) {
+    if (!(await this.isRunning())) return false
+    try {
+      const status = await this.status()
+      return status.wallets.some((w) => w.name === wallet)
+    } catch {
+      return false
+    }
+  }
+
+  async lock() {
+    try {
+      await this.request({ action: 'lock' })
+    } catch {
+      // Daemon may have already exited after receiving lock
+    }
+  }
+}
+
+export const daemonClient = new DaemonClient()

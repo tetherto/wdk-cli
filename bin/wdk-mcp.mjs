@@ -15,7 +15,7 @@ process.stdout.write = (chunk, ...rest) => {
   return process.stderr.write(chunk, ...rest)
 }
 
-const { startMcpServer } = await import('../dist/index.js')
+const { startMcpServer } = await import('../src/index.js')
 
 startMcpServer().catch((error) => {
   process.stderr.write(`MCP server error: ${error}\n`)

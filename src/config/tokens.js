@@ -1,0 +1,50 @@
+// Copyright 2026 Tether Operations Limited
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+import tokensFile from '../../wdk.tokens.json' with { type: 'json' }
+import { configService } from '../services/config-service.js'
+
+const BUILTIN_TOKENS = tokensFile
+
+function getAllTokens(network) {
+  if (BUILTIN_TOKENS[network]) return BUILTIN_TOKENS[network]
+  const custom = configService.get(`customNetworks.${network}.tokens`)
+  return custom ?? []
+}
+
+function normalizeAddress(address) {
+  return address.startsWith('0x') ? address.toLowerCase() : address
+}
+
+const lookupCache = new Map()
+
+function getLookup(network) {
+  let map = lookupCache.get(network)
+  if (!map) {
+    map = new Map()
+    for (const token of getAllTokens(network)) {
+      map.set(normalizeAddress(token.address), token)
+    }
+    lookupCache.set(network, map)
+  }
+  return map
+}
+
+export function getTokenConfig(network, address) {
+  return getLookup(network).get(normalizeAddress(address))
+}
+
+export function getKnownTokens(network) {
+  return getAllTokens(network)
+}
