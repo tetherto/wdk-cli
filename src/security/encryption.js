@@ -14,7 +14,14 @@
 
 import { scryptSync, randomBytes, createCipheriv, createDecipheriv } from 'node:crypto'
 
-/** @typedef {import('../types/index.js').EncryptedPayload} EncryptedPayload */
+/**
+ * @typedef {Object} EncryptedPayload
+ * @property {1} version - The payload format version.
+ * @property {string} salt - The scrypt salt (base64).
+ * @property {string} iv - The AES-GCM initialization vector (base64).
+ * @property {string} tag - The AES-GCM authentication tag (base64).
+ * @property {string} ciphertext - The encrypted payload (base64).
+ */
 
 const ALGORITHM = 'aes-256-gcm'
 const SCRYPT_N = 2 ** 16

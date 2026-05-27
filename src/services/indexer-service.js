@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/** @typedef {import('../types/index.js').IndexerEntry} IndexerEntry */
-/** @typedef {import('../types/index.js').WdkConfigFile} WdkConfigFile */
+/** @typedef {import('../config/networks.js').IndexerEntry} IndexerEntry */
+/** @typedef {import('../config/networks.js').WdkConfigFile} WdkConfigFile */
 
 import { configService } from './config-service.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'

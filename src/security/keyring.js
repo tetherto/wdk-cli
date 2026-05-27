@@ -17,7 +17,7 @@ import { dirname, join } from 'node:path'
 import { encrypt, decrypt } from './encryption.js'
 import { getWalletsDir, getWalletPath, getWalletDir } from '../config/constants.js'
 
-/** @typedef {import('../types/index.js').EncryptedPayload} EncryptedPayload */
+/** @typedef {import('./encryption.js').EncryptedPayload} EncryptedPayload */
 
 function isEnoent(err) {
   return err?.code === 'ENOENT'
