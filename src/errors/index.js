@@ -72,13 +72,21 @@ export const ErrorCode = Object.freeze({
   UNEXPECTED_ERROR: 'UNEXPECTED_ERROR'
 })
 
-const NETWORK_ERROR_PATTERNS = ['ECONNREFUSED', 'ETIMEDOUT', 'ENOTFOUND', 'fetch failed']
+const NETWORK_ERROR_PATTERNS = [
+  // Node syscall codes
+  'ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND',
+  'EHOSTUNREACH', 'ENETUNREACH', 'EAI_AGAIN',
+  // Ethers / RPC library codes
+  'TIMEOUT', 'NETWORK_ERROR',
+  // Message fragments
+  'fetch failed', 'request timeout',
+]
 
 /**
  * Returns true when the error looks like a transient network failure.
  *
  * @param {unknown} error - The error to inspect.
- * @returns {boolean} True when the error message matches a known network failure pattern.
+ * @returns {boolean} True when the error matches a known network failure pattern.
  */
 export function isNetworkError(error) {
   const msg = error instanceof Error ? error.message : String(error)

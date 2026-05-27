@@ -34,14 +34,14 @@ export async function requirePassphraseConfirmation() {
     throw new WdkCliError(
       'No default wallet is set.',
       ErrorCode.KEY_NOT_FOUND,
-      "Run 'wdk wallet default <name>' to set a default wallet."
+      "Run 'wdk wallet default --name <name>' to set a default wallet."
     )
   }
   if (!wallets.includes(defaultWallet)) {
     throw new WdkCliError(
       `Default wallet '${defaultWallet}' no longer exists.`,
       ErrorCode.KEY_NOT_FOUND,
-      "Run 'wdk wallet default <name>' to point at an existing wallet."
+      "Run 'wdk wallet default --name <name>' to point at an existing wallet."
     )
   }
 
