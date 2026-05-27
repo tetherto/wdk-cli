@@ -31,7 +31,7 @@ import { walletsFile } from './wdk-config.js'
 /**
  * Parses a module specifier into name and optional version.
  *
- * @param {string} moduleSpec - Module specifier, e.g. `@scope/pkg@1.0.0`.
+ * @param {string} moduleSpec - Module specifier, e.g. `@tetherto/wdk-wallet-btc@1.0.0-beta.8`.
  * @returns {{ name: string, version?: string }} Parsed module name and version.
  */
 export function parseModuleName(moduleSpec) {
