@@ -17,7 +17,6 @@ import { validateNetwork, getNetworkConfig } from '../config/networks.js'
 import { convertToUsd } from '../services/price-service.js'
 import { formatAmount, formatTokenAmount } from '../ui/formatters.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
-import { withTimeout } from '../utils/async.js'
 
 /**
  * @typedef {Object} SendInput
@@ -83,11 +82,7 @@ export async function previewSend(input) {
   validateNetwork(input.network)
   validateAmount(input.amount)
 
-  const feeQuote = await withTimeout(
-    daemonClient.estimateFee(input.network, input.index, input.to, input.amount, input.token, wallet),
-    30_000,
-    'Fee estimation'
-  )
+  const feeQuote = await daemonClient.estimateFee(input.network, input.index, input.to, input.amount, input.token, wallet)
 
   const networkConfig = getNetworkConfig(input.network)
   const amountBigInt = BigInt(input.amount)

@@ -19,6 +19,18 @@ import { validateNetwork } from '../config/networks.js'
 import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
 import { configureHelp } from '../ui/help.js'
 import { requirePassphraseConfirmation } from '../ui/auth.js'
+import { daemonClient } from '../daemon/client.js'
+
+/**
+ * Returns true when the given config path affects the SDK's per-network wallet registration.
+ * Changes under `networks.*` require the daemon to be locked so stale wallet managers are dropped.
+ *
+ * @param {string} fullKey - The dot-separated config key being written.
+ * @returns {boolean} True when the path falls under `networks.`.
+ */
+function affectsSdkRegistration(fullKey) {
+  return fullKey === 'networks' || fullKey.startsWith('networks.')
+}
 
 /** @typedef {import('commander').Command} Command */
 
@@ -190,22 +202,27 @@ export function registerConfigCommand(program) {
         let parsed = value
         try { parsed = JSON.parse(value) } catch { /* not JSON, use raw value */ }
 
-        if (network && !key) {
-          configService.set(`networks.${network}`, parsed)
-        } else if (network && key) {
-          configService.set(`networks.${network}.${key}`, parsed)
-        } else {
-          configService.set(key, parsed)
-        }
+        const fullKey = network
+          ? (key ? `networks.${network}.${key}` : `networks.${network}`)
+          : key
+
+        configService.set(fullKey, parsed)
 
         if (isJson()) {
-          console.log(JSON.stringify({ key: network ? (key ? `networks.${network}.${key}` : `networks.${network}`) : key, value: parsed, success: true }))
+          console.log(JSON.stringify({ key: fullKey, value: parsed, success: true }))
         } else if (network && !key) {
           console.log(chalk.green(`Updated config for ${network}`))
         } else if (network && key) {
           console.log(chalk.green(`Set ${key} = ${value} (${network})`))
         } else {
           console.log(chalk.green(`Set ${key} = ${value}`))
+        }
+
+        if (affectsSdkRegistration(fullKey)) {
+          await daemonClient.lock()
+          if (!isJson()) {
+            console.log(chalk.yellow('Note: all wallets have been locked so the new network config takes effect. Run `wdk wallet unlock` to continue.'))
+          }
         }
       } catch (error) {
         handleError(error, program.opts().verbose, isJson())
@@ -249,6 +266,13 @@ export function registerConfigCommand(program) {
           console.log(chalk.green(`Reset ${key} to default (${network}).`))
         } else {
           console.log(chalk.green(`Reset ${key} to default.`))
+        }
+
+        if (affectsSdkRegistration(fullKey)) {
+          await daemonClient.lock()
+          if (!isJson()) {
+            console.log(chalk.yellow('Note: all wallets have been locked so the new network config takes effect. Run `wdk wallet unlock` to continue.'))
+          }
         }
       } catch (error) {
         handleError(error, program.opts().verbose, isJson())
