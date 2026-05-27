@@ -14,7 +14,6 @@
 
 import { daemonClient } from '../daemon/client.js'
 import { validateNetwork, getAllNetworkNames, isTestnet } from '../config/networks.js'
-import { requireUnlockedWallet } from '../utils/wallet.js'
 
 /**
  * @typedef {Object} GetAddressInput
@@ -37,7 +36,7 @@ import { requireUnlockedWallet } from '../utils/wallet.js'
  * @returns {Promise<AddressResult>} The derived address.
  */
 export async function getAddress(input) {
-  const wallet = await requireUnlockedWallet(input.wallet)
+  const wallet = await daemonClient.requireUnlocked(input.wallet)
   validateNetwork(input.network)
   const address = await daemonClient.getAddress(input.network, input.index, wallet)
   return { network: input.network, index: input.index, address }
@@ -71,7 +70,7 @@ export async function getAddress(input) {
  * @returns {Promise<AllAddressesResult>} The derived addresses.
  */
 export async function getAllAddresses(input) {
-  const wallet = await requireUnlockedWallet(input.wallet)
+  const wallet = await daemonClient.requireUnlocked(input.wallet)
   const showTestnet = !!input.testnet
   const names = getAllNetworkNames().filter((n) => isTestnet(n) === showTestnet)
 

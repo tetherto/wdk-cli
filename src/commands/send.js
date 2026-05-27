@@ -14,7 +14,7 @@
 
 import chalk from 'chalk'
 import ora from 'ora'
-import { resolveNetwork, resolveIndex } from '../utils/resolvers.js'
+import { resolveIndex } from '../services/config-service.js'
 import { handleError } from '../errors/index.js'
 import { formatAddress, formatNetworkLabel } from '../ui/formatters.js'
 import { configureHelp } from '../ui/help.js'
@@ -56,7 +56,7 @@ export function registerSendCommand(program) {
 
   send.action(async (options) => {
       try {
-        const network = resolveNetwork(options.network)
+        const network = options.network
         const index = resolveIndex(options.index)
 
         const sendInput = {

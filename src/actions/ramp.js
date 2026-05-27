@@ -17,7 +17,6 @@ import { validateNetwork } from '../config/networks.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 import { validateModule } from '../config/ramp.js'
 import { getRampProvider } from '../services/ramp/index.js'
-import { requireUnlockedWallet } from '../utils/wallet.js'
 import { formatAmount } from '../ui/formatters.js'
 
 /**
@@ -88,7 +87,7 @@ export async function createRampUrl(input) {
   if (!input.fiatAmount && !input.cryptoAmount) {
     throw new WdkCliError('Must specify either fiatAmount or cryptoAmount.', ErrorCode.INVALID_ARGUMENT)
   }
-  const wallet = await requireUnlockedWallet(input.wallet)
+  const wallet = await daemonClient.requireUnlocked(input.wallet)
   validateNetwork(input.network)
   const module = validateModule(input.module ?? 'moonpay')
   const fiatCurrency = input.fiatCurrency ?? 'usd'

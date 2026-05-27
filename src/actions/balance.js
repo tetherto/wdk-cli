@@ -16,7 +16,6 @@ import { daemonClient } from '../daemon/client.js'
 import { validateNetwork, getAllNetworkNames, isTestnet } from '../config/networks.js'
 import { convertToUsd } from '../services/price-service.js'
 import { formatAmount } from '../ui/formatters.js'
-import { requireUnlockedWallet } from '../utils/wallet.js'
 
 /**
  * @typedef {Object} GetBalanceInput
@@ -45,7 +44,7 @@ import { requireUnlockedWallet } from '../utils/wallet.js'
  * @returns {Promise<BalanceResult>} The balance result.
  */
 export async function getBalance(input) {
-  const wallet = await requireUnlockedWallet(input.wallet)
+  const wallet = await daemonClient.requireUnlocked(input.wallet)
   validateNetwork(input.network)
 
   const r = await daemonClient.getBalance(input.network, input.index, input.token, wallet)
@@ -100,7 +99,7 @@ export async function getBalance(input) {
  * @returns {Promise<AllBalancesResult>} The aggregated balance result.
  */
 export async function getAllBalances(input) {
-  const wallet = await requireUnlockedWallet(input.wallet)
+  const wallet = await daemonClient.requireUnlocked(input.wallet)
   const showTestnet = !!input.testnet
   const names = getAllNetworkNames().filter((n) => isTestnet(n) === showTestnet)
 

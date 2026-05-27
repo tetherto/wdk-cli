@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import chalk from 'chalk'
-import { resolveNetwork, resolveIndex } from '../utils/resolvers.js'
+import { resolveIndex } from '../services/config-service.js'
 import { handleError } from '../errors/index.js'
 import { formatNetworkLabel } from '../ui/formatters.js'
 import { configureHelp } from '../ui/help.js'
@@ -42,7 +42,7 @@ import { createRampUrl } from '../actions/ramp.js'
  * @returns {Promise<void>}
  */
 async function handleRampAction(direction, options, program) {
-  const network = resolveNetwork(options.network)
+  const network = options.network
   const index = resolveIndex(options.index)
 
   const result = await createRampUrl({

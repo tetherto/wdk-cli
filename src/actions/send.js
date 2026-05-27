@@ -18,7 +18,6 @@ import { convertToUsd } from '../services/price-service.js'
 import { formatAmount, formatTokenAmount } from '../ui/formatters.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 import { withTimeout } from '../utils/async.js'
-import { requireUnlockedWallet } from '../utils/wallet.js'
 
 /**
  * @typedef {Object} SendInput
@@ -80,7 +79,7 @@ function validateAmount(amount) {
  * @returns {Promise<SendPreview>} The transaction preview including estimated fee.
  */
 export async function previewSend(input) {
-  const wallet = await requireUnlockedWallet(input.wallet)
+  const wallet = await daemonClient.requireUnlocked(input.wallet)
   validateNetwork(input.network)
   validateAmount(input.amount)
 
@@ -126,7 +125,7 @@ export async function previewSend(input) {
  * @returns {Promise<SendResult>} The transaction result including the tx hash.
  */
 export async function executeSend(input) {
-  const wallet = await requireUnlockedWallet(input.wallet)
+  const wallet = await daemonClient.requireUnlocked(input.wallet)
   validateNetwork(input.network)
   validateAmount(input.amount)
 

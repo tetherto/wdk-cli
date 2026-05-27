@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import chalk from 'chalk'
-import { resolveNetwork, resolveIndex } from '../utils/resolvers.js'
+import { resolveIndex } from '../services/config-service.js'
 import { handleError } from '../errors/index.js'
 import { formatNetworkLabel, formatAddress, formatTxHash } from '../ui/formatters.js'
 import { INDEXER_TOKENS } from '../services/indexer-service.js'
@@ -62,7 +62,7 @@ export function registerGetCommand(program) {
         const index = resolveIndex(options.index)
 
         if (options.network) {
-          const network = resolveNetwork(options.network)
+          const network = options.network
           const result = await getAddress({ network, index, wallet: options.wallet })
 
           if (program.opts().json) {
@@ -128,7 +128,7 @@ export function registerGetCommand(program) {
         const index = resolveIndex(options.index)
 
         if (options.network) {
-          const network = resolveNetwork(options.network)
+          const network = options.network
           const result = await getBalance({ network, index, token: options.token, wallet: options.wallet })
 
           if (program.opts().json) {
@@ -201,7 +201,7 @@ export function registerGetCommand(program) {
 
   history.action(async (options) => {
       try {
-        const network = resolveNetwork(options.network)
+        const network = options.network
         const index = resolveIndex(options.index)
         const limit = options.limit ? parseInt(options.limit, 10) : undefined
 

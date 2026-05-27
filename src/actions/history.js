@@ -23,7 +23,6 @@ import {
   getTokenTransfersBatch
 } from '../services/indexer-service.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
-import { requireUnlockedWallet } from '../utils/wallet.js'
 
 /**
  * @typedef {Object} GetHistoryInput
@@ -63,7 +62,7 @@ import { requireUnlockedWallet } from '../utils/wallet.js'
  * @returns {Promise<HistoryResult>} The history result.
  */
 export async function getHistory(input) {
-  const wallet = await requireUnlockedWallet(input.wallet)
+  const wallet = await daemonClient.requireUnlocked(input.wallet)
   validateNetwork(input.network)
   if (!isIndexerSupported(input.network)) {
     throw new WdkCliError(

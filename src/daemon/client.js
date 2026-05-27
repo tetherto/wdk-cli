@@ -36,6 +36,7 @@ import {
   DAEMON_SPAWN_TIMEOUT_MS,
 } from '../config/constants.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
+import { configService } from '../services/config-service.js'
 
 /**
  * Resolves the absolute path to the wdk-daemon.mjs binary by walking up the directory tree.
@@ -334,6 +335,31 @@ export class DaemonClient {
     } catch {
       return false
     }
+  }
+
+  /**
+   * Asserts that a wallet is unlocked, resolving the default wallet name when none is provided.
+   *
+   * @param {string} [wallet] - The wallet name. Defaults to the configured default wallet.
+   * @returns {Promise<string>} The resolved wallet name.
+   */
+  async requireUnlocked(wallet) {
+    const resolved = wallet || configService.getDefaultWallet()
+    if (!resolved) {
+      throw new WdkCliError(
+        'No default wallet configured.',
+        ErrorCode.MISSING_CONFIG,
+        'Set one with: wdk wallet default --name <name>'
+      )
+    }
+    if (!(await this.isWalletUnlocked(resolved))) {
+      throw new WdkCliError(
+        `Wallet '${resolved}' is not unlocked.`,
+        ErrorCode.WALLET_NOT_UNLOCKED,
+        `Run: wdk wallet unlock --name ${resolved}`
+      )
+    }
+    return resolved
   }
 
   /**
