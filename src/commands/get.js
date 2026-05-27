@@ -19,6 +19,7 @@ import { formatNetworkLabel, formatAddress, formatTxHash } from '../ui/formatter
 import { INDEXER_TOKENS } from '../services/indexer-service.js'
 import { createTable } from '../ui/tables.js'
 import { configureHelp } from '../ui/help.js'
+import { positiveInt, nonNegativeInt } from '../ui/parsers.js'
 import { getBalance, getAllBalances } from '../actions/balance.js'
 import { getAddress, getAllAddresses } from '../actions/address.js'
 import { getHistory } from '../actions/history.js'
@@ -43,7 +44,7 @@ export function registerGetCommand(program) {
     .description('Derive wallet address for a network. Omit --network to show all.')
     .option('--wallet <name>', 'Wallet name')
     .option('--network <network>', 'Blockchain network (omit for all)')
-    .option('--index <n>', 'Account index')
+    .option('--index <n>', 'Account index', nonNegativeInt)
     .option('--testnet', 'Include testnet networks (for all-network mode)')
 
   configureHelp(address, {
@@ -107,7 +108,7 @@ export function registerGetCommand(program) {
     .description('Check wallet balance (native, ERC-20, or SPL token). Omit --network to show all.')
     .option('--wallet <name>', 'Wallet name')
     .option('--network <network>', 'Blockchain network (omit for all)')
-    .option('--index <n>', 'Account index')
+    .option('--index <n>', 'Account index', nonNegativeInt)
     .option('--token <address>', 'Token contract address (ERC-20 or SPL mint)')
     .option('--testnet', 'Include testnet networks (for all-network mode)')
 
@@ -179,9 +180,9 @@ export function registerGetCommand(program) {
     .description('Get token transfer history (requires indexer API key)')
     .option('--wallet <name>', 'Wallet name')
     .requiredOption('--network <network>', 'Blockchain network')
-    .option('--index <n>', 'Account index')
+    .option('--index <n>', 'Account index', nonNegativeInt)
     .option('--token <token>', `Token: ${INDEXER_TOKENS.join(', ')} (omit for all supported)`)
-    .option('--limit <n>', 'Number of transfers (default: 30)')
+    .option('--limit <n>', 'Number of transfers (default: 30)', positiveInt)
     .option('--from-date <date>', 'Start date (ISO 8601, e.g. 2026-01-01)')
     .option('--to-date <date>', 'End date (ISO 8601, e.g. 2026-12-31)')
 
@@ -203,7 +204,7 @@ export function registerGetCommand(program) {
       try {
         const network = options.network
         const index = resolveIndex(options.index)
-        const limit = options.limit ? parseInt(options.limit, 10) : undefined
+        const limit = options.limit
 
         const result = await getHistory({
           network,

@@ -17,6 +17,7 @@ import { resolveIndex } from '../services/config-service.js'
 import { handleError } from '../errors/index.js'
 import { formatNetworkLabel } from '../ui/formatters.js'
 import { configureHelp } from '../ui/help.js'
+import { nonNegativeInt } from '../ui/parsers.js'
 import { createRampUrl } from '../actions/ramp.js'
 
 /** @typedef {import('commander').Command} Command */
@@ -25,7 +26,7 @@ import { createRampUrl } from '../actions/ramp.js'
  * @typedef {Object} RampActionOptions
  * @property {string} network - Blockchain network (required).
  * @property {string} token - Crypto asset code, e.g. "usdt" (required).
- * @property {string} [index] - Account index string.
+ * @property {number} [index] - Account index.
  * @property {string} [fiatCurrency] - Fiat currency code.
  * @property {string} [fiatAmount] - Fiat amount string.
  * @property {string} [cryptoAmount] - Crypto amount string.
@@ -89,7 +90,7 @@ export function registerRampCommands(program) {
     .description('Buy crypto with fiat via on-ramp provider')
     .option('--wallet <name>', 'Wallet name')
     .requiredOption('--network <network>', 'Blockchain network')
-    .option('--index <n>', 'Account index')
+    .option('--index <n>', 'Account index', nonNegativeInt)
     .requiredOption('--token <token>', 'Crypto asset code (e.g. usdt, eth, btc)')
     .option('--fiat-currency <currency>', 'Fiat currency code', 'usd')
     .option('--fiat-amount <value>', 'Fiat amount (e.g. 100 for $100)')
@@ -124,7 +125,7 @@ export function registerRampCommands(program) {
     .description('Sell crypto for fiat via off-ramp provider')
     .option('--wallet <name>', 'Wallet name')
     .requiredOption('--network <network>', 'Blockchain network')
-    .option('--index <n>', 'Account index')
+    .option('--index <n>', 'Account index', nonNegativeInt)
     .requiredOption('--token <token>', 'Crypto asset code (e.g. usdt, eth, btc)')
     .option('--fiat-currency <currency>', 'Fiat currency code', 'usd')
     .option('--fiat-amount <value>', 'Fiat amount (e.g. 200 for $200)')

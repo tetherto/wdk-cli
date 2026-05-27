@@ -18,6 +18,7 @@ import { resolveIndex } from '../services/config-service.js'
 import { handleError } from '../errors/index.js'
 import { formatAddress, formatNetworkLabel } from '../ui/formatters.js'
 import { configureHelp } from '../ui/help.js'
+import { nonNegativeInt } from '../ui/parsers.js'
 import { previewSend, executeSend } from '../actions/send.js'
 
 /** @typedef {import('commander').Command} Command */
@@ -34,7 +35,7 @@ export function registerSendCommand(program) {
     .description('Send tokens (native, ERC-20, SPL, TRC-20, ...)')
     .option('--wallet <name>', 'Wallet name')
     .requiredOption('--network <network>', 'Blockchain network')
-    .option('--index <n>', 'Account index')
+    .option('--index <n>', 'Account index', nonNegativeInt)
     .requiredOption('--to <address>', 'Recipient address')
     .requiredOption('--amount <value>', 'Amount in base units (wei/satoshis/lamports)')
     .option('--token <address>', 'Token contract address (ERC-20, SPL, TRC-20)')

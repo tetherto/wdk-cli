@@ -14,7 +14,6 @@
 
 import Conf from 'conf'
 import { APP_NAME, CONFIG_DEFAULTS, getConfigDir } from '../config/constants.js'
-import { WdkCliError, ErrorCode } from '../errors/index.js'
 
 /** @type {Record<string, string>} */
 const ENV_MAP = {
@@ -149,16 +148,11 @@ class ConfigService {
 export const configService = new ConfigService()
 
 /**
- * Resolves the account index from a CLI option string, falling back to the configured default.
+ * Resolves the account index, falling back to the configured default when omitted.
  *
- * @param {string | undefined} optionIndex - The --index CLI option value.
+ * @param {number | undefined} optionIndex - The parsed --index CLI option value.
  * @returns {number} The resolved account index.
  */
 export function resolveIndex(optionIndex) {
-  if (!optionIndex) return configService.getDefaultIndex()
-  const index = parseInt(optionIndex, 10)
-  if (isNaN(index) || index < 0) {
-    throw new WdkCliError('Invalid account index. Must be a non-negative integer.', ErrorCode.INVALID_INDEX)
-  }
-  return index
+  return optionIndex ?? configService.getDefaultIndex()
 }

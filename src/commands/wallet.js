@@ -21,8 +21,9 @@ import { daemonClient } from '../daemon/client.js'
 import { configService } from '../services/config-service.js'
 import { SESSION_TTL_MINUTES, getWalletDir } from '../config/constants.js'
 import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
-import { promptPassphrase, promptSeedPhrase, promptConfirm } from '../ui/prompts.js'
+import { promptPassphrase, promptSeedPhrase } from '../ui/prompts.js'
 import { configureHelp } from '../ui/help.js'
+import { nonNegativeInt } from '../ui/parsers.js'
 
 /** @typedef {import('commander').Command} Command */
 
@@ -70,10 +71,10 @@ export function registerWalletCommand(program) {
   create.action(async (options) => {
       const name = options.name
       try {
-        const wordCount = parseInt(options.words, 10)
-        if (wordCount !== 12 && wordCount !== 24) {
+        if (options.words !== '12' && options.words !== '24') {
           throw new WdkCliError('--words must be 12 or 24', ErrorCode.INVALID_ARGUMENT)
         }
+        const wordCount = options.words === '24' ? 24 : 12
 
         const keyService = createKeyService()
 
@@ -196,7 +197,7 @@ export function registerWalletCommand(program) {
         const keyService = createKeyService()
 
         if (!(await keyService.hasKey(name))) {
-          throw new WdkCliError('No key found.', ErrorCode.KEY_NOT_FOUND)
+          throw new WdkCliError(`Wallet '${name}' not found.`, ErrorCode.KEY_NOT_FOUND)
         }
 
         const passphrase = await promptPassphrase(`Enter passphrase of '${name}' wallet:`)
@@ -306,14 +307,6 @@ export function registerWalletCommand(program) {
         const passphrase = await promptPassphrase(`Enter passphrase of '${name}' wallet to confirm deletion:`)
         await keyService.unlock(passphrase, name)
 
-        if (!process.env.WDK_PASSPHRASE) {
-          const confirm = await promptConfirm(`Delete wallet '${name}'? This cannot be undone.`)
-          if (!confirm) {
-            console.log('Cancelled.')
-            return
-          }
-        }
-
         try {
           if (await daemonClient.isRunning()) {
             await daemonClient.lockWallet(name)
@@ -348,7 +341,7 @@ export function registerWalletCommand(program) {
     .command('unlock')
     .description('Unlock a wallet (starts background daemon if needed)')
     .requiredOption('--name <name>', 'Wallet name')
-    .option('--ttl <minutes>', 'Session duration in minutes (0 = unlimited)', String(SESSION_TTL_MINUTES))
+    .option('--ttl <minutes>', 'Session duration in minutes (0 = unlimited)', nonNegativeInt, SESSION_TTL_MINUTES)
 
   configureHelp(unlockCmd, {
     params: [
@@ -365,10 +358,10 @@ export function registerWalletCommand(program) {
         const keyService = createKeyService()
 
         if (!(await keyService.hasKey(name))) {
-          throw new WdkCliError('No key found.', ErrorCode.KEY_NOT_FOUND)
+          throw new WdkCliError(`Wallet '${name}' not found.`, ErrorCode.KEY_NOT_FOUND)
         }
 
-        const ttl = parseInt(options.ttl, 10)
+        const ttl = options.ttl
 
         if (await daemonClient.isRunning()) {
           try {
@@ -521,6 +514,9 @@ export function registerWalletCommand(program) {
         if (await keyService.hasKey(newName)) {
           throw new WdkCliError(`Wallet '${newName}' already exists.`, ErrorCode.WALLET_EXISTS)
         }
+
+        const passphrase = await promptPassphrase(`Enter passphrase of '${oldName}' wallet to confirm rename:`)
+        await keyService.unlock(passphrase, oldName)
 
         try {
           if (await daemonClient.isRunning()) {

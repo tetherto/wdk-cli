@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { input, password, confirm } from '@inquirer/prompts'
+import { input, password } from '@inquirer/prompts'
 import chalk from 'chalk'
 
 let envPassphraseNoticeShown = false
@@ -42,14 +42,4 @@ export async function promptPassphrase(message = 'Enter passphrase:') {
  */
 export async function promptSeedPhrase() {
   return input({ message: 'Enter your seed phrase:' })
-}
-
-/**
- * Prompts the user with a yes/no confirmation question.
- *
- * @param {string} message - The confirmation prompt message.
- * @returns {Promise<boolean>} True if the user confirmed.
- */
-export async function promptConfirm(message) {
-  return confirm({ message })
 }
