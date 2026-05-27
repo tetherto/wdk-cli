@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/** @typedef {import('../../config/ramp.js').RampModule} RampModule */
 /** @typedef {import('./types.js').RampProvider} RampProvider */
 
 import { WdkCliError, ErrorCode } from '../../errors/index.js'
@@ -21,7 +20,7 @@ import { MoonPayRampProvider } from './moonpay.js'
 /**
  * Returns the RampProvider implementation for the given ramp module.
  *
- * @param {RampModule} module - The ramp module identifier.
+ * @param {string} module - The ramp module identifier.
  * @returns {RampProvider} The ramp provider instance.
  */
 export function getRampProvider(module) {

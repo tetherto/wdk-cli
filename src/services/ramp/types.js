@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/** @typedef {import('../../config/ramp.js').RampModule} RampModule */
-
 /**
  * @typedef {'buy' | 'sell'} Direction
  */
@@ -54,7 +52,7 @@
  * The contract every on-ramp / off-ramp provider must implement.
  *
  * @typedef {Object} RampProvider
- * @property {RampModule} name - The provider identifier.
+ * @property {string} name - The provider identifier.
  * @property {(network: string) => void} validateEnvironment - Throws if the provider environment does not match the network (e.g. production vs. testnet).
  * @property {(network: string, token: string, fiatCurrency: string) => Promise<ResolvedAssets>} resolveAssets - Resolves provider-canonical asset codes and decimals.
  * @property {(input: RampInput, direction: Direction) => Promise<QuoteResult | undefined>} quote - Returns a price quote, or undefined when the provider cannot quote this pair/direction.

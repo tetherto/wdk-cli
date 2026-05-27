@@ -15,22 +15,16 @@
 import { walletsFile } from './wdk-config.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 
-/**
- * The identifier of a supported ramp provider.
- *
- * @typedef {'moonpay'} RampModule
- */
+const SUPPORTED_MODULES = Object.freeze(['moonpay'])
 
 /**
  * @typedef {Object} ResolvedAsset
- * @property {string} code - The provider-canonical asset code (e.g. "usdt_arbitrum").
+ * @property {string} code - The provider-canonical asset code.
  * @property {string} token - The lowercase token alias.
  */
 
 // MoonPay encodes network in its asset code (e.g. usdt_arbitrum), so per-
 // network config is a flat token-alias → asset-code map.
-
-const SUPPORTED_MODULES = Object.freeze(['moonpay'])
 
 const moonpayConfigs = {}
 
@@ -43,7 +37,7 @@ for (const [name, entry] of Object.entries(walletsFile.networks)) {
  * Validates that the given module name is a supported ramp provider.
  *
  * @param {string} module - The provider name to validate.
- * @returns {RampModule} The validated module name.
+ * @returns {string} The validated module name.
  * @throws {WdkCliError} When the module is not supported.
  */
 export function validateModule(module) {
@@ -53,7 +47,7 @@ export function validateModule(module) {
       ErrorCode.UNSUPPORTED_MODULE
     )
   }
-  return /** @type {RampModule} */ (module)
+  return module
 }
 
 /**
@@ -61,7 +55,7 @@ export function validateModule(module) {
  *
  * @param {string} network - The blockchain network name.
  * @param {string} token - The wdk token alias (case-insensitive).
- * @param {RampModule} module - The ramp provider module name.
+ * @param {string} module - The ramp provider module name.
  * @returns {ResolvedAsset} The resolved provider asset code and lowercase token.
  * @throws {WdkCliError} When the network or token is not supported by the module.
  */

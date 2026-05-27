@@ -34,6 +34,7 @@ function normalizeAddress(address) {
   return address.startsWith('0x') ? address.toLowerCase() : address
 }
 
+/** @type {Map<string, Map<string, TokenConfig>>} */
 const lookupCache = new Map()
 
 function getLookup(network) {
