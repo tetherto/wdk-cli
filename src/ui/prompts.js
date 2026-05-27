@@ -13,6 +13,9 @@
 // limitations under the License.
 
 import { input, password, confirm } from '@inquirer/prompts'
+import chalk from 'chalk'
+
+let envPassphraseNoticeShown = false
 
 /**
  * Prompts the user for a passphrase, or reads it from the WDK_PASSPHRASE environment variable.
@@ -22,7 +25,13 @@ import { input, password, confirm } from '@inquirer/prompts'
  */
 export async function promptPassphrase(message = 'Enter passphrase:') {
   const envPassphrase = process.env.WDK_PASSPHRASE
-  if (envPassphrase) return envPassphrase
+  if (envPassphrase) {
+    if (!envPassphraseNoticeShown) {
+      console.error(chalk.dim('Note: using passphrase from WDK_PASSPHRASE env var.'))
+      envPassphraseNoticeShown = true
+    }
+    return envPassphrase
+  }
   return password({ message })
 }
 
@@ -43,14 +52,4 @@ export async function promptSeedPhrase() {
  */
 export async function promptConfirm(message) {
   return confirm({ message })
-}
-
-/**
- * Prompts the user for a text input string.
- *
- * @param {string} message - The input prompt message.
- * @returns {Promise<string>} The entered string.
- */
-export async function promptInput(message) {
-  return input({ message })
 }
