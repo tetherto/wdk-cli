@@ -31,6 +31,8 @@ import { configureHelp } from '../ui/help.js'
 import { requirePassphraseConfirmation } from '../ui/auth.js'
 import walletsFile from '../../wdk.config.json' with { type: 'json' }
 
+/** @typedef {import('commander').Command} Command */
+
 const VALID_WALLET_TYPES = [...new Set(Object.values(walletsFile.networks).map(w => parseModuleName(w.module).name))]
 const DEFAULT_DECIMALS = {}
 for (const entry of Object.values(walletsFile.networks)) {
@@ -43,7 +45,7 @@ for (const entry of Object.values(walletsFile.networks)) {
 /**
  * Registers the `network` subcommand tree (list, create, delete, info) on the root program.
  *
- * @param {import('commander').Command} program - The root Commander program instance.
+ * @param {Command} program - The root Commander program instance.
  * @returns {void}
  */
 export function registerNetworkCommand(program) {

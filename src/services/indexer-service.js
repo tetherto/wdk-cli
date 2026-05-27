@@ -13,17 +13,14 @@
 // limitations under the License.
 
 /** @typedef {import('../types/index.js').IndexerEntry} IndexerEntry */
+/** @typedef {import('../types/index.js').WdkConfigFile} WdkConfigFile */
 
 import { configService } from './config-service.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 import walletsFileRaw from '../../wdk.config.json' with { type: 'json' }
 
-/** @type {import('../types/index.js').WdkConfigFile} */
+/** @type {WdkConfigFile} */
 const walletsFile = walletsFileRaw
-
-/**
- * @typedef {'usdt' | 'usat' | 'xaut' | 'btc'} IndexerToken
- */
 
 /**
  * @typedef {Object} TokenTransfer
@@ -51,7 +48,7 @@ const walletsFile = walletsFileRaw
 /**
  * @typedef {Object} BatchTransferRequestItem
  * @property {string} blockchain - The blockchain identifier.
- * @property {IndexerToken} token - The token symbol to query.
+ * @property {string} token - The token symbol to query.
  * @property {string} address - The wallet address to query.
  * @property {number} [limit] - Maximum number of transfers to return.
  * @property {number} [fromTs] - Start timestamp filter (Unix seconds).
@@ -97,12 +94,12 @@ export function getIndexerBlockchain(network) {
  * Returns the supported indexer tokens for a network.
  *
  * @param {string} network - The network name.
- * @returns {IndexerToken[]} Array of supported token symbols.
+ * @returns {string[]} Array of supported token symbols.
  */
 export function getIndexerTokens(network) {
   const entry = getIndexerEntry(network)
   if (!entry) return []
-  return /** @type {IndexerToken[]} */ (entry.tokens.filter((t) => INDEXER_TOKENS.includes(t)))
+  return entry.tokens.filter((t) => INDEXER_TOKENS.includes(t))
 }
 
 /**
@@ -119,7 +116,7 @@ export function isIndexerSupported(network) {
  * Fetches token transfer history for a single address from the indexer API.
  *
  * @param {string} network - The network name.
- * @param {IndexerToken} token - The token symbol to query.
+ * @param {string} token - The token symbol to query.
  * @param {string} address - The wallet address.
  * @param {TokenTransferOptions} [options] - Optional filter parameters.
  * @returns {Promise<TokenTransfer[]>} Array of token transfers.

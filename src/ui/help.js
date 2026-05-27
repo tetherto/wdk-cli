@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/** @typedef {import('commander').Command} Command */
+
 /**
  * @typedef {Object} HelpItem
  * @property {string} flags - The flag or param string, e.g. `--network <name>`.
@@ -46,7 +48,7 @@ function formatSection(title, items, pad) {
 /**
  * Configures a Commander command with a custom help formatter.
  *
- * @param {import('commander').Command} cmd - The Commander command to configure.
+ * @param {Command} cmd - The Commander command to configure.
  * @param {HelpConfig} config - Help configuration with params, options, and hidden flags.
  * @returns {void}
  */

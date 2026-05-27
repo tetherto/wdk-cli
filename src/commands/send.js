@@ -20,10 +20,12 @@ import { formatAddress, formatNetworkLabel } from '../ui/formatters.js'
 import { configureHelp } from '../ui/help.js'
 import { previewSend, executeSend } from '../actions/send.js'
 
+/** @typedef {import('commander').Command} Command */
+
 /**
  * Registers the `send` command on the root program.
  *
- * @param {import('commander').Command} program - The root Commander program instance.
+ * @param {Command} program - The root Commander program instance.
  * @returns {void}
  */
 export function registerSendCommand(program) {

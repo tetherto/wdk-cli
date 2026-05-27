@@ -15,12 +15,14 @@
 import WalletManager from '@tetherto/wdk-wallet'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 
+/** @typedef {import('../security/keyring.js').WalletKeyring} WalletKeyring */
+
 export class KeyService {
   /**
-   * @param {import('../security/keyring.js').WalletKeyring} walletKeyring - The keyring backend.
+   * @param {WalletKeyring} walletKeyring - The keyring backend.
    */
   constructor(walletKeyring) {
-    /** @type {import('../security/keyring.js').WalletKeyring} */
+    /** @type {WalletKeyring} */
     this.walletKeyring = walletKeyring
   }
 

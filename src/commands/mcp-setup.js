@@ -21,6 +21,8 @@ import chalk from 'chalk'
 import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
 import { configureHelp } from '../ui/help.js'
 
+/** @typedef {import('commander').Command} Command */
+
 /**
  * @typedef {Object} McpCliSetup
  * @property {function({command: string, args: string[]}): boolean} add - Registers the MCP server via CLI.
@@ -607,7 +609,7 @@ function runVerifySetup(aiTool) {
 /**
  * Registers the `mcp` subcommand tree (setup, remove, verify-setup, list) on the root program.
  *
- * @param {import('commander').Command} program - The root Commander program instance.
+ * @param {Command} program - The root Commander program instance.
  * @returns {void}
  */
 export function registerMcpCommand(program) {

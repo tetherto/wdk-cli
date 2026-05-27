@@ -14,6 +14,8 @@
 
 /** @typedef {import('./protocol.js').DaemonRequest} DaemonRequest */
 /** @typedef {import('./protocol.js').DaemonResponse} DaemonResponse */
+/** @typedef {import('node:net').Server} Server */
+/** @typedef {import('node:net').Socket} Socket */
 
 import { createServer } from 'node:net'
 import { readFileSync } from 'node:fs'
@@ -45,7 +47,7 @@ import { formatAmount } from '../ui/formatters.js'
 export class WalletDaemon {
   /** @type {Map<string, WalletState>} */
   #wallets = new Map()
-  /** @type {import('node:net').Server | null} */
+  /** @type {Server | null} */
   #server = null
 
   /**
@@ -213,7 +215,7 @@ export class WalletDaemon {
   /**
    * Handles a new incoming socket connection, reading newline-delimited JSON requests.
    *
-   * @param {import('node:net').Socket} socket - The connected socket.
+   * @param {Socket} socket - The connected socket.
    * @returns {void}
    */
   #handleConnection(socket) {

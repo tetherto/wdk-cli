@@ -23,10 +23,12 @@ import { getBalance, getAllBalances } from '../actions/balance.js'
 import { getAddress, getAllAddresses } from '../actions/address.js'
 import { getHistory } from '../actions/history.js'
 
+/** @typedef {import('commander').Command} Command */
+
 /**
  * Registers the `get` subcommand tree (address, balance, history) on the root program.
  *
- * @param {import('commander').Command} program - The root Commander program instance.
+ * @param {Command} program - The root Commander program instance.
  * @returns {void}
  */
 export function registerGetCommand(program) {

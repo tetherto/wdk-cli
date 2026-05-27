@@ -25,7 +25,7 @@ import { registerRampCommands } from './commands/ramp.js'
 /**
  * Creates and configures the root Commander program with all subcommands registered.
  *
- * @returns {import('commander').Command} The configured Commander program.
+ * @returns {Command} The configured Commander program.
  */
 export function createProgram() {
   const program = new Command()

@@ -86,7 +86,7 @@ export async function getHistory(input) {
   const address = await daemonClient.getAddress(input.network, input.index, wallet)
 
   if (input.token) {
-    const transfers = await getTokenTransfers(input.network, /** @type {import('../services/indexer-service.js').IndexerToken} */ (input.token), address, { limit, fromTs, toTs })
+    const transfers = await getTokenTransfers(input.network, input.token, address, { limit, fromTs, toTs })
     return {
       network: input.network,
       index: input.index,

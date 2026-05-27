@@ -20,6 +20,8 @@ import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
 import { configureHelp } from '../ui/help.js'
 import { requirePassphraseConfirmation } from '../ui/auth.js'
 
+/** @typedef {import('commander').Command} Command */
+
 /**
  * Traverses a nested object by a dot-separated path and returns the value.
  *
@@ -76,7 +78,7 @@ function printEntries(entries) {
 /**
  * Registers the `config` subcommand tree (get, set, reset, path) on the root program.
  *
- * @param {import('commander').Command} program - The root Commander program instance.
+ * @param {Command} program - The root Commander program instance.
  * @returns {void}
  */
 export function registerConfigCommand(program) {

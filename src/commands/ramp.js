@@ -19,6 +19,7 @@ import { formatNetworkLabel } from '../ui/formatters.js'
 import { configureHelp } from '../ui/help.js'
 import { createRampUrl } from '../actions/ramp.js'
 
+/** @typedef {import('commander').Command} Command */
 
 /**
  * @typedef {Object} RampActionOptions
@@ -37,7 +38,7 @@ import { createRampUrl } from '../actions/ramp.js'
  *
  * @param {'buy' | 'sell'} direction - The ramp direction.
  * @param {RampActionOptions} options - Parsed Commander options for the buy/sell command.
- * @param {import('commander').Command} program - The root Commander program instance.
+ * @param {Command} program - The root Commander program instance.
  * @returns {Promise<void>}
  */
 async function handleRampAction(direction, options, program) {
@@ -79,7 +80,7 @@ async function handleRampAction(direction, options, program) {
 /**
  * Registers the `buy` and `sell` commands on the root program.
  *
- * @param {import('commander').Command} program - The root Commander program instance.
+ * @param {Command} program - The root Commander program instance.
  * @returns {void}
  */
 export function registerRampCommands(program) {

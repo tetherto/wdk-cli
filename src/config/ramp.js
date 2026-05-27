@@ -15,7 +15,9 @@
 import walletsFileRaw from '../../wdk.config.json' with { type: 'json' }
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 
-/** @type {import('../types/index.js').WdkConfigFile} */
+/** @typedef {import('../types/index.js').WdkConfigFile} WdkConfigFile */
+
+/** @type {WdkConfigFile} */
 const walletsFile = walletsFileRaw
 
 /**
