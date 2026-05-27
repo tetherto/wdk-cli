@@ -22,7 +22,6 @@ export class KeyService {
    * @param {WalletKeyring} walletKeyring - The keyring backend.
    */
   constructor(walletKeyring) {
-    /** @type {WalletKeyring} */
     this.walletKeyring = walletKeyring
   }
 

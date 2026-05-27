@@ -28,11 +28,8 @@ export const CONFIG_DEFAULTS = {
   networks: networkDefaults
 }
 
-/** @type {string} */
 export const APP_NAME = pkg.name
-/** @type {string} */
 export const APP_VERSION = pkg.version
-/** @type {string} */
 export const CONFIG_DIR = APP_NAME
 const WALLETS_DIR = 'wallets'
 
@@ -47,19 +44,12 @@ export function getConfigDir() {
   return join(base, CONFIG_DIR)
 }
 
-/** @type {number} */
 export const SESSION_TTL_MINUTES = 5
-/** @type {string} */
 export const DAEMON_SOCKET = 'daemon.sock'
-/** @type {string} */
 export const DAEMON_PID = 'daemon.pid'
-/** @type {number} */
 export const DAEMON_MAX_REQUEST_BYTES = 64 * 1024
-/** @type {number} */
 export const DAEMON_START_RETRIES = 5
-/** @type {number} */
 export const DAEMON_START_RETRY_INTERVAL_MS = 500
-/** @type {number} */
 export const DAEMON_SPAWN_TIMEOUT_MS = 2000
 
 /**

@@ -51,7 +51,6 @@ for (const [name, entry] of Object.entries(walletsFile.networks)) {
 
 export { NETWORKS }
 
-/** @type {string[]} */
 export const NETWORK_NAMES = Object.keys(NETWORKS)
 
 /**

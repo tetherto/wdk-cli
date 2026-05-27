@@ -22,7 +22,6 @@ const ENV_MAP = {
 
 class ConfigService {
   constructor() {
-    /** @type {Conf} */
     this.conf = new Conf({
       projectName: APP_NAME,
       cwd: getConfigDir(),

@@ -90,7 +90,6 @@ function spawnDaemon() {
 }
 
 export class DaemonClient {
-  /** @type {string} */
   socketPath = getDaemonSocketPath()
 
   /**

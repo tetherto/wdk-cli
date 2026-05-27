@@ -99,9 +99,7 @@ export class WdkCliError extends Error {
   constructor(message, code, suggestion) {
     super(message)
     this.name = 'WdkCliError'
-    /** @type {ErrorCodeType} */
     this.code = code
-    /** @type {string | undefined} */
     this.suggestion = suggestion
   }
 
