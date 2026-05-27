@@ -14,7 +14,7 @@
 
 import { join } from 'node:path'
 import { homedir } from 'node:os'
-import walletsFile from '../../wdk.config.json' with { type: 'json' }
+import { walletsFile } from './wdk-config.js'
 import pkg from '../../package.json' with { type: 'json' }
 
 const networkDefaults = {}

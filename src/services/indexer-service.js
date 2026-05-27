@@ -12,15 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/** @typedef {import('../config/networks.js').IndexerEntry} IndexerEntry */
-/** @typedef {import('../config/networks.js').WdkConfigFile} WdkConfigFile */
+/** @typedef {import('../config/wdk-config.js').IndexerEntry} IndexerEntry */
 
 import { configService } from './config-service.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
-import walletsFileRaw from '../../wdk.config.json' with { type: 'json' }
-
-/** @type {WdkConfigFile} */
-const walletsFile = walletsFileRaw
+import { walletsFile } from '../config/wdk-config.js'
 
 /**
  * @typedef {Object} TokenTransfer

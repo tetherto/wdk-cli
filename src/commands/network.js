@@ -29,7 +29,7 @@ import { createTable } from '../ui/tables.js'
 import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
 import { configureHelp } from '../ui/help.js'
 import { requirePassphraseConfirmation } from '../ui/auth.js'
-import walletsFile from '../../wdk.config.json' with { type: 'json' }
+import { walletsFile } from '../config/wdk-config.js'
 
 /** @typedef {import('commander').Command} Command */
 

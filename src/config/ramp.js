@@ -12,13 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import walletsFileRaw from '../../wdk.config.json' with { type: 'json' }
+import { walletsFile } from './wdk-config.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
-
-/** @typedef {import('./networks.js').WdkConfigFile} WdkConfigFile */
-
-/** @type {WdkConfigFile} */
-const walletsFile = walletsFileRaw
 
 /**
  * The identifier of a supported ramp provider.
