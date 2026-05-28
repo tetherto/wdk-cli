@@ -24,8 +24,8 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       
-      - name: Build
-        run: npm run build
+      - name: Typecheck
+        run: npm run typecheck
 
       - name: Lint
         run: npm run lint

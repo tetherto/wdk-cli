@@ -15,7 +15,7 @@ metadata:
 
 # WDK Wallet Skill
 
-Operate a self-custody multi-chain wallet through the `wdk` CLI. For AI agents with shell access (Claude Code, OpenClaw, custom agents). MCP agents (Claude Desktop) use structured tools instead — see `src/mcp/server.ts`.
+Operate a self-custody multi-chain wallet through the `wdk` CLI. For AI agents with shell access (Claude Code, OpenClaw, custom agents). MCP agents (Claude Desktop) use structured tools instead — see `src/mcp/server.js`.
 
 ## Rules
 
@@ -63,7 +63,7 @@ wdk get address --network ethereum --json
 
 # All mainnet addresses (omit --network)
 wdk get address --json
-# {"index":0,"addresses":[{"network":"ethereum","address":"0x..."},{"network":"bitcoin","address":"1A1z..."},...]}
+# {"index":0,"type":"mainnet","addresses":[{"network":"ethereum","address":"0x..."},{"network":"bitcoin","address":"1A1z..."},...]}
 
 # All testnet addresses
 wdk get address --testnet --json
@@ -74,14 +74,14 @@ wdk get address --testnet --json
 ```bash
 # Single network
 wdk get balance --network ethereum --json
-# {"network":"ethereum","index":0,"balance":"1000000000000000000","symbol":"ETH","decimals":18}
+# {"network":"ethereum","index":0,"balance":"1000000000000000000","symbol":"ETH","decimals":18,"formatted":"1.00 ETH","usd":2100.50}
 
 # Token balance (USDT)
 wdk get balance --network ethereum --token 0xdAC17F958D2ee523a2206206994597C13D831ec7 --json
 
 # All mainnet balances with USD totals (omit --network)
 wdk get balance --json
-# {"index":0,"balances":[{"network":"ethereum","address":"0x...","balance":"...","formatted":"1.00 ETH","usd":2100.50},...],"totalUsd":2500.75}
+# {"index":0,"type":"mainnet","balances":[{"network":"ethereum","address":"0x...","balance":"...","symbol":"ETH","decimals":18,"formatted":"1.00 ETH","usd":2100.50},...],"totalUsd":2500.75}
 
 # All testnet balances
 wdk get balance --testnet --json

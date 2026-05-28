@@ -62,7 +62,6 @@ A multi-chain crypto wallet for AI agents, built on [Wallet Development Kit (WDK
 git clone <repo-url>
 cd wdk-cli
 npm install
-npm run build
 npm link  # makes `wdk` available globally
 ```
 
@@ -411,15 +410,13 @@ Both MCP and CLI route through the daemon — the agent never has access to keys
 ## Development
 
 ```bash
-npm run build             # Build
-npm run dev               # Build in watch mode
 npm test                  # Run unit tests
-npm run test:watch        # Run unit tests in watch mode
-npm run test:coverage     # Run unit tests with coverage
 npm run test:integration  # Run integration tests (spawns CLI in isolated temp dir)
-npm run lint              # Lint (check only)
-npm run lint:fix          # Lint and auto-fix
+npm run format            # Format with Prettier
+npm run format:check      # Check formatting
 ```
+
+This project is plain JavaScript (ESM) — no build step. Source under `src/` is run directly via the `bin/*.mjs` entry points.
 
 ## License
 
