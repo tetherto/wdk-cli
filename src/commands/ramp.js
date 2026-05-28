@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import chalk from 'chalk'
+import ora from 'ora'
 import { resolveIndex } from '../services/config-service.js'
 import { handleError } from '../errors/index.js'
 import { formatNetworkLabel } from '../ui/formatters.js'
@@ -42,21 +43,29 @@ import { createRampUrl } from '../actions/ramp.js'
  * @param {Command} program - The root Commander program instance.
  * @returns {Promise<void>}
  */
-async function handleRampAction(direction, options, program) {
+async function handleRampAction (direction, options, program) {
   const network = options.network
   const index = resolveIndex(options.index)
 
-  const result = await createRampUrl({
-    direction,
-    network,
-    index,
-    token: options.token,
-    module: options.module,
-    fiatCurrency: options.fiatCurrency,
-    fiatAmount: options.fiatAmount,
-    cryptoAmount: options.cryptoAmount,
-    wallet: options.wallet,
-  })
+  const spinner = program.opts().json ? null : ora('Fetching quote...').start()
+  let result
+  try {
+    result = await createRampUrl({
+      direction,
+      network,
+      index,
+      token: options.token,
+      module: options.module,
+      fiatCurrency: options.fiatCurrency,
+      fiatAmount: options.fiatAmount,
+      cryptoAmount: options.cryptoAmount,
+      wallet: options.wallet
+    })
+    spinner?.stop()
+  } catch (error) {
+    spinner?.fail()
+    throw error
+  }
 
   if (program.opts().json) {
     console.log(JSON.stringify(result))
@@ -71,7 +80,11 @@ async function handleRampAction(direction, options, program) {
     console.log(`  Pay:      ${result.payAmount}`)
     if (result.receiveAmount) console.log(`  Receive:  ~${result.receiveAmount}`)
     if (result.fee) console.log(`  Fee:      ${result.fee}`)
-    if (result.rate) console.log(`  Rate:     1 ${result.token.toUpperCase()} ≈ ${result.rate} ${result.fiatCurrency.toUpperCase()}`)
+    if (result.rate) {
+      console.log(
+        `  Rate:     1 ${result.token.toUpperCase()} ≈ ${result.rate} ${result.fiatCurrency.toUpperCase()}`
+      )
+    }
     console.log()
     console.log(`  ${chalk.cyan(result.url)}`)
     console.log()
@@ -84,7 +97,7 @@ async function handleRampAction(direction, options, program) {
  * @param {Command} program - The root Commander program instance.
  * @returns {void}
  */
-export function registerRampCommands(program) {
+export function registerRampCommands (program) {
   const buy = program
     .command('buy')
     .description('Buy crypto with fiat via on-ramp provider')
@@ -100,25 +113,35 @@ export function registerRampCommands(program) {
   configureHelp(buy, {
     params: [
       { flags: '--network <network>', description: 'Blockchain network', required: true },
-      { flags: '--token <token>', description: 'Crypto asset code (e.g. usdt, eth, btc)', required: true },
-      { flags: '--fiat-amount <value>', description: 'Amount in fiat to spend (e.g. 100), mutually exclusive with --crypto-amount' },
+      {
+        flags: '--token <token>',
+        description: 'Crypto asset code (e.g. usdt, eth, btc)',
+        required: true
+      },
+      {
+        flags: '--fiat-amount <value>',
+        description: 'Amount in fiat to spend (e.g. 100), mutually exclusive with --crypto-amount'
+      },
       { flags: '--fiat-currency <currency>', description: 'Fiat currency code (default: usd)' },
-      { flags: '--crypto-amount <value>', description: 'Amount in crypto to buy (e.g. 0.05), mutually exclusive with --fiat-amount' },
-      { flags: '--module <module>', description: 'Fiat provider module (default: moonpay)' },
+      {
+        flags: '--crypto-amount <value>',
+        description: 'Amount in crypto to buy (e.g. 0.05), mutually exclusive with --fiat-amount'
+      },
+      { flags: '--module <module>', description: 'Fiat provider module (default: moonpay)' }
     ],
     options: [
       { flags: '--wallet <name>', description: 'Wallet name (default: default wallet)' },
-      { flags: '--index <n>', description: 'Account index (default: 0)' },
-    ],
+      { flags: '--index <n>', description: 'Account index (default: 0)' }
+    ]
   })
 
   buy.action(async (options) => {
-      try {
-        await handleRampAction('buy', options, program)
-      } catch (error) {
-        handleError(error, program.opts().verbose, program.opts().json)
-      }
-    })
+    try {
+      await handleRampAction('buy', options, program)
+    } catch (error) {
+      handleError(error, program.opts().verbose, program.opts().json)
+    }
+  })
 
   const sell = program
     .command('sell')
@@ -135,23 +158,33 @@ export function registerRampCommands(program) {
   configureHelp(sell, {
     params: [
       { flags: '--network <network>', description: 'Blockchain network', required: true },
-      { flags: '--token <token>', description: 'Crypto asset code (e.g. usdt, eth, btc)', required: true },
-      { flags: '--fiat-amount <value>', description: 'Amount in fiat to spend (e.g. 200), mutually exclusive with --crypto-amount' },
+      {
+        flags: '--token <token>',
+        description: 'Crypto asset code (e.g. usdt, eth, btc)',
+        required: true
+      },
+      {
+        flags: '--fiat-amount <value>',
+        description: 'Amount in fiat to spend (e.g. 200), mutually exclusive with --crypto-amount'
+      },
       { flags: '--fiat-currency <currency>', description: 'Fiat currency code (default: usd)' },
-      { flags: '--crypto-amount <value>', description: 'Amount in crypto to sell (e.g. 50), mutually exclusive with --fiat-amount' },
-      { flags: '--module <module>', description: 'Fiat provider module (default: moonpay)' },
+      {
+        flags: '--crypto-amount <value>',
+        description: 'Amount in crypto to sell (e.g. 50), mutually exclusive with --fiat-amount'
+      },
+      { flags: '--module <module>', description: 'Fiat provider module (default: moonpay)' }
     ],
     options: [
       { flags: '--wallet <name>', description: 'Wallet name (default: default wallet)' },
-      { flags: '--index <n>', description: 'Account index (default: 0)' },
-    ],
+      { flags: '--index <n>', description: 'Account index (default: 0)' }
+    ]
   })
 
   sell.action(async (options) => {
-      try {
-        await handleRampAction('sell', options, program)
-      } catch (error) {
-        handleError(error, program.opts().verbose, program.opts().json)
-      }
-    })
+    try {
+      await handleRampAction('sell', options, program)
+    } catch (error) {
+      handleError(error, program.opts().verbose, program.opts().json)
+    }
+  })
 }

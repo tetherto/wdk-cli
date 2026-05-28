@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import tokensFile from '../../wdk.tokens.json' with { type: 'json' }
+import { createRequire } from 'node:module'
 import { configService } from '../services/config-service.js'
+
+const tokensFile = createRequire(import.meta.url)('../../wdk.tokens.json')
 
 /**
  * @typedef {Object} TokenConfig
@@ -24,20 +26,20 @@ import { configService } from '../services/config-service.js'
 
 const BUILTIN_TOKENS = tokensFile
 
-function getAllTokens(network) {
+function getAllTokens (network) {
   if (BUILTIN_TOKENS[network]) return BUILTIN_TOKENS[network]
   const custom = configService.get(`customNetworks.${network}.tokens`)
   return custom ?? []
 }
 
-function normalizeAddress(address) {
+function normalizeAddress (address) {
   return address.startsWith('0x') ? address.toLowerCase() : address
 }
 
 /** @type {Map<string, Map<string, TokenConfig>>} */
 const lookupCache = new Map()
 
-function getLookup(network) {
+function getLookup (network) {
   let map = lookupCache.get(network)
   if (!map) {
     map = new Map()
@@ -56,7 +58,7 @@ function getLookup(network) {
  * @param {string} address - Token contract address.
  * @returns {TokenConfig | undefined} The token config, or undefined if not found.
  */
-export function getTokenConfig(network, address) {
+export function getTokenConfig (network, address) {
   return getLookup(network).get(normalizeAddress(address))
 }
 
@@ -66,6 +68,6 @@ export function getTokenConfig(network, address) {
  * @param {string} network - Network name.
  * @returns {TokenConfig[]} Array of token configs.
  */
-export function getKnownTokens(network) {
+export function getKnownTokens (network) {
   return getAllTokens(network)
 }

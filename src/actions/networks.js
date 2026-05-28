@@ -12,11 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {
-  getAllNetworks,
-  getAllNetworkNames,
-  isTestnet,
-} from '../config/networks.js'
+import { getAllNetworks, getAllNetworkNames, isTestnet } from '../config/networks.js'
 
 /**
  * @typedef {Object} ListNetworksInput
@@ -48,7 +44,7 @@ import {
  * @param {ListNetworksInput} [input]
  * @returns {ListNetworksResult}
  */
-export function listNetworks(input = {}) {
+export function listNetworks (input = {}) {
   const allNetworks = getAllNetworks()
   let names = getAllNetworkNames()
 
@@ -65,7 +61,7 @@ export function listNetworks(input = {}) {
       symbol: config.nativeSymbol,
       decimals: config.decimals,
       testnet: isTestnet(name),
-      custom: !!config.custom,
+      custom: !!config.custom
     }
   })
 

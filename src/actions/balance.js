@@ -43,7 +43,7 @@ import { formatAmount } from '../ui/formatters.js'
  * @param {GetBalanceInput} input - The balance lookup parameters.
  * @returns {Promise<BalanceResult>} The balance result.
  */
-export async function getBalance(input) {
+export async function getBalance (input) {
   const wallet = await daemonClient.requireUnlocked(input.wallet)
   validateNetwork(input.network)
 
@@ -51,7 +51,11 @@ export async function getBalance(input) {
   const balanceBigInt = BigInt(r.balance)
   let usd = 0
   if (balanceBigInt > 0n) {
-    try { usd = await convertToUsd(input.network, balanceBigInt, input.token) } catch { /* no price */ }
+    try {
+      usd = await convertToUsd(input.network, balanceBigInt, input.token)
+    } catch {
+      /* no price */
+    }
   }
   return {
     network: input.network,
@@ -98,7 +102,7 @@ export async function getBalance(input) {
  * @param {GetAllBalancesInput} input - The lookup parameters.
  * @returns {Promise<AllBalancesResult>} The aggregated balance result.
  */
-export async function getAllBalances(input) {
+export async function getAllBalances (input) {
   const wallet = await daemonClient.requireUnlocked(input.wallet)
   const showTestnet = !!input.testnet
   const names = getAllNetworkNames().filter((n) => isTestnet(n) === showTestnet)
@@ -110,7 +114,11 @@ export async function getAllBalances(input) {
       const balanceBigInt = BigInt(r.balance)
       let usd = 0
       if (balanceBigInt > 0n) {
-        try { usd = await convertToUsd(network, balanceBigInt) } catch { /* no price */ }
+        try {
+          usd = await convertToUsd(network, balanceBigInt)
+        } catch {
+          /* no price */
+        }
       }
       return {
         network,

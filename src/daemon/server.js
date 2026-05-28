@@ -26,7 +26,7 @@ import {
   getDaemonPidPath,
   getWalletPath,
   SESSION_TTL_MINUTES,
-  DAEMON_MAX_REQUEST_BYTES,
+  DAEMON_MAX_REQUEST_BYTES
 } from '../config/constants.js'
 import { configService } from '../services/config-service.js'
 import { deriveKey, decryptWithKey } from '../security/encryption.js'
@@ -55,13 +55,17 @@ export class WalletDaemon {
    *
    * @returns {Promise<void>}
    */
-  async start() {
+  async start () {
     const socketPath = getDaemonSocketPath()
     const isWin = process.platform === 'win32'
 
     if (!isWin) {
       await mkdir(dirname(socketPath), { recursive: true })
-      try { await unlink(socketPath) } catch { /* socket may not exist */ }
+      try {
+        await unlink(socketPath)
+      } catch {
+        /* socket may not exist */
+      }
     }
 
     this.#server = createServer((socket) => this.#handleConnection(socket))
@@ -90,7 +94,7 @@ export class WalletDaemon {
    * @param {number} ttlMinutes - The session TTL in minutes (0 = no expiry).
    * @returns {void}
    */
-  #unlockWalletSync(name, passphrase, ttlMinutes) {
+  #unlockWalletSync (name, passphrase, ttlMinutes) {
     // If already unlocked, just reset the timer
     const existing = this.#wallets.get(name)
     if (existing) {
@@ -118,7 +122,7 @@ export class WalletDaemon {
         wdk,
         timer: null,
         ttlMs,
-        expiresAt: ttlMs > 0 ? Date.now() + ttlMs : 0,
+        expiresAt: ttlMs > 0 ? Date.now() + ttlMs : 0
       }
       this.#wallets.set(name, state)
       this.#startWalletTimer(name, state)
@@ -134,7 +138,7 @@ export class WalletDaemon {
    * @param {number} ttlMinutes - The new TTL in minutes (0 = no expiry).
    * @returns {void}
    */
-  #resetTimer(name, ttlMinutes) {
+  #resetTimer (name, ttlMinutes) {
     const state = this.#wallets.get(name)
     if (!state) return
 
@@ -155,7 +159,7 @@ export class WalletDaemon {
    * @param {WalletState} state - The wallet session state.
    * @returns {void}
    */
-  #startWalletTimer(name, state) {
+  #startWalletTimer (name, state) {
     if (state.ttlMs > 0) {
       state.timer = setTimeout(() => {
         this.#lockWallet(name)
@@ -170,7 +174,7 @@ export class WalletDaemon {
    * @param {string} name - The wallet name.
    * @returns {void}
    */
-  #lockWallet(name) {
+  #lockWallet (name) {
     const state = this.#wallets.get(name)
     if (!state) return
 
@@ -192,9 +196,15 @@ export class WalletDaemon {
    * @param {string} wallet - The wallet name.
    * @returns {WdkService} The WDK service instance.
    */
-  #requireWallet(wallet) {
+  #requireWallet (wallet) {
     const state = this.#wallets.get(wallet)
-    if (!state) throw new WdkCliError(`Wallet '${wallet}' is not unlocked.`, ErrorCode.WALLET_NOT_UNLOCKED, `Run: wdk wallet unlock --name ${wallet}`)
+    if (!state) {
+      throw new WdkCliError(
+        `Wallet '${wallet}' is not unlocked.`,
+        ErrorCode.WALLET_NOT_UNLOCKED,
+        `Run: wdk wallet unlock --name ${wallet}`
+      )
+    }
     return state.wdk
   }
 
@@ -203,11 +213,10 @@ export class WalletDaemon {
    *
    * @returns {Array<{ name: string, ttlMs: number, ttlRemaining: number }>} Array of wallet status entries.
    */
-  #getWalletStatusList() {
+  #getWalletStatusList () {
     return [...this.#wallets.entries()].map(([name, state]) => {
-      const ttlRemaining = state.ttlMs > 0 && state.expiresAt > 0
-        ? Math.max(0, state.expiresAt - Date.now())
-        : 0
+      const ttlRemaining =
+        state.ttlMs > 0 && state.expiresAt > 0 ? Math.max(0, state.expiresAt - Date.now()) : 0
       return { name, ttlMs: state.ttlMs, ttlRemaining }
     })
   }
@@ -218,7 +227,7 @@ export class WalletDaemon {
    * @param {Socket} socket - The connected socket.
    * @returns {void}
    */
-  #handleConnection(socket) {
+  #handleConnection (socket) {
     let buffer = ''
     socket.on('data', (chunk) => {
       buffer += chunk.toString()
@@ -234,11 +243,13 @@ export class WalletDaemon {
         if (!line.trim()) continue
         try {
           const request = JSON.parse(line)
-          this.#handleRequest(request).then((response) => {
-            socket.write(JSON.stringify(response) + '\n')
-          }).catch(() => {
-            socket.write(JSON.stringify({ ok: false, error: 'Internal error' }) + '\n')
-          })
+          this.#handleRequest(request)
+            .then((response) => {
+              socket.write(JSON.stringify(response) + '\n')
+            })
+            .catch(() => {
+              socket.write(JSON.stringify({ ok: false, error: 'Internal error' }) + '\n')
+            })
         } catch {
           socket.write(JSON.stringify({ ok: false, error: 'Invalid request' }) + '\n')
         }
@@ -252,7 +263,7 @@ export class WalletDaemon {
    * @param {DaemonRequest} req - The parsed request object.
    * @returns {Promise<DaemonResponse>} The response to send back to the client.
    */
-  async #handleRequest(req) {
+  async #handleRequest (req) {
     const wallet = req.wallet || configService.getDefaultWallet()
 
     switch (req.action) {
@@ -314,8 +325,8 @@ export class WalletDaemon {
               data: {
                 balance: balance.toString(),
                 symbol: config?.symbol || 'tokens',
-                decimals: config?.decimals || 0,
-              },
+                decimals: config?.decimals || 0
+              }
             }
           }
 
@@ -325,8 +336,8 @@ export class WalletDaemon {
             data: {
               balance: balance.toString(),
               symbol: networkConfig.nativeSymbol,
-              decimals: networkConfig.decimals,
-            },
+              decimals: networkConfig.decimals
+            }
           }
         } catch (e) {
           return { ok: false, error: e instanceof Error ? e.message : String(e) }
@@ -347,13 +358,13 @@ export class WalletDaemon {
             const quote = await account.quoteTransfer({
               token: req.token,
               recipient: req.to,
-              amount: BigInt(req.amount),
+              amount: BigInt(req.amount)
             })
             fee = quote.fee
           } else {
             const quote = await account.quoteSendTransaction({
               to: req.to,
-              value: BigInt(req.amount),
+              value: BigInt(req.amount)
             })
             fee = quote.fee
           }
@@ -372,7 +383,6 @@ export class WalletDaemon {
         }
         try {
           const wdk = this.#requireWallet(wallet)
-          const networkConfig = getNetworkConfig(req.network)
           const account = await wdk.getAccount(req.network, req.index ?? 0)
           const sendAmount = BigInt(req.amount)
 
@@ -381,27 +391,18 @@ export class WalletDaemon {
           let fee
 
           if (req.token) {
-            const tokenBalance = await account.getTokenBalance(req.token)
-            if (tokenBalance < sendAmount) {
-              return { ok: false, error: `Insufficient token balance: ${tokenBalance} < ${sendAmount}` }
-            }
             const result = await account.transfer({
               token: req.token,
               recipient: req.to,
-              amount: sendAmount,
+              amount: sendAmount
             })
             txHash = result.hash
             from = await account.getAddress()
             fee = result.fee?.toString()
           } else {
-            const balance = await account.getBalance()
-            if (balance < sendAmount) {
-              return { ok: false, error: `Insufficient balance: ${balance} ${networkConfig.nativeSymbol} < ${sendAmount}` }
-            }
-
             const result = await account.sendTransaction({
               to: req.to,
-              value: sendAmount,
+              value: sendAmount
             })
             txHash = result.hash
             from = await account.getAddress()
@@ -416,8 +417,8 @@ export class WalletDaemon {
               from,
               to: req.to,
               amount: req.amount,
-              fee,
-            },
+              fee
+            }
           }
         } catch (e) {
           return { ok: false, error: e instanceof Error ? e.message : String(e) }
@@ -434,8 +435,8 @@ export class WalletDaemon {
           data: {
             unlocked: this.#wallets.size > 0,
             wallets: this.#getWalletStatusList(),
-            pid: process.pid,
-          },
+            pid: process.pid
+          }
         }
       }
 
@@ -454,7 +455,7 @@ export class WalletDaemon {
    *
    * @returns {Promise<void>}
    */
-  async shutdown() {
+  async shutdown () {
     for (const [, state] of this.#wallets) {
       if (state.timer) clearTimeout(state.timer)
       state.wdk.dispose()
@@ -468,9 +469,17 @@ export class WalletDaemon {
 
     // Only unlink socket on Unix; on Windows the pipe vanishes with the process
     if (process.platform !== 'win32') {
-      try { await unlink(getDaemonSocketPath()) } catch { /* */ }
+      try {
+        await unlink(getDaemonSocketPath())
+      } catch {
+        /* */
+      }
     }
-    try { await unlink(getDaemonPidPath()) } catch { /* */ }
+    try {
+      await unlink(getDaemonPidPath())
+    } catch {
+      /* */
+    }
 
     process.exit(0)
   }
@@ -481,11 +490,13 @@ export class WalletDaemon {
  *
  * @returns {Promise<void>}
  */
-export async function startDaemon() {
+export async function startDaemon () {
   const daemon = new WalletDaemon()
   await daemon.start()
 
-  const handleSignal = () => { void daemon.shutdown() }
+  const handleSignal = () => {
+    daemon.shutdown().catch(() => {})
+  }
   process.on('SIGTERM', handleSignal)
   process.on('SIGINT', handleSignal)
   // On Windows, SIGTERM is not supported; listen for SIGHUP as a fallback

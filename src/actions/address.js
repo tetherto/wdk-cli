@@ -35,7 +35,7 @@ import { validateNetwork, getAllNetworkNames, isTestnet } from '../config/networ
  * @param {GetAddressInput} input - The address lookup parameters.
  * @returns {Promise<AddressResult>} The derived address.
  */
-export async function getAddress(input) {
+export async function getAddress (input) {
   const wallet = await daemonClient.requireUnlocked(input.wallet)
   validateNetwork(input.network)
   const address = await daemonClient.getAddress(input.network, input.index, wallet)
@@ -69,7 +69,7 @@ export async function getAddress(input) {
  * @param {GetAllAddressesInput} input - The lookup parameters.
  * @returns {Promise<AllAddressesResult>} The derived addresses.
  */
-export async function getAllAddresses(input) {
+export async function getAllAddresses (input) {
   const wallet = await daemonClient.requireUnlocked(input.wallet)
   const showTestnet = !!input.testnet
   const names = getAllNetworkNames().filter((n) => isTestnet(n) === showTestnet)

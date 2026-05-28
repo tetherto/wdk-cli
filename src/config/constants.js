@@ -14,8 +14,10 @@
 
 import { join } from 'node:path'
 import { homedir } from 'node:os'
+import { createRequire } from 'node:module'
 import { walletsFile } from './wdk-config.js'
-import pkg from '../../package.json' with { type: 'json' }
+
+const pkg = createRequire(import.meta.url)('../../package.json')
 
 const networkDefaults = {}
 for (const [name, entry] of Object.entries(walletsFile.networks)) {
@@ -38,7 +40,7 @@ const WALLETS_DIR = 'wallets'
  *
  * @returns {string} Absolute path to the config directory.
  */
-export function getConfigDir() {
+export function getConfigDir () {
   const xdgConfig = process.env.XDG_CONFIG_HOME
   const base = xdgConfig || join(homedir(), '.config')
   return join(base, CONFIG_DIR)
@@ -57,7 +59,7 @@ export const DAEMON_SPAWN_TIMEOUT_MS = 2000
  *
  * @returns {string} Absolute socket path or Windows named pipe.
  */
-export function getDaemonSocketPath() {
+export function getDaemonSocketPath () {
   if (process.platform === 'win32') {
     return '\\\\.\\pipe\\wdk-cli-daemon'
   }
@@ -69,7 +71,7 @@ export function getDaemonSocketPath() {
  *
  * @returns {string} Absolute path to the daemon PID file.
  */
-export function getDaemonPidPath() {
+export function getDaemonPidPath () {
   return join(getConfigDir(), DAEMON_PID)
 }
 
@@ -78,7 +80,7 @@ export function getDaemonPidPath() {
  *
  * @returns {string} Absolute path to the wallets directory.
  */
-export function getWalletsDir() {
+export function getWalletsDir () {
   return join(getConfigDir(), WALLETS_DIR)
 }
 
@@ -88,10 +90,12 @@ export function getWalletsDir() {
  * @param {string} name - The wallet name to validate.
  * @returns {string} The validated wallet name.
  */
-export function validateWalletName(name) {
+export function validateWalletName (name) {
   const sanitized = name.replace(/[^a-zA-Z0-9_-]/g, '')
   if (!sanitized || sanitized !== name) {
-    throw new Error(`Invalid wallet name: '${name}'. Use only letters, numbers, hyphens, and underscores.`)
+    throw new Error(
+      `Invalid wallet name: '${name}'. Use only letters, numbers, hyphens, and underscores.`
+    )
   }
   return sanitized
 }
@@ -102,7 +106,7 @@ export function validateWalletName(name) {
  * @param {string} name - The wallet name.
  * @returns {string} Absolute path to the wallet directory.
  */
-export function getWalletDir(name) {
+export function getWalletDir (name) {
   return join(getWalletsDir(), validateWalletName(name))
 }
 
@@ -112,6 +116,6 @@ export function getWalletDir(name) {
  * @param {string} name - The wallet name.
  * @returns {string} Absolute path to the seed.enc file.
  */
-export function getWalletPath(name) {
+export function getWalletPath (name) {
   return join(getWalletDir(name), 'seed.enc')
 }

@@ -21,7 +21,7 @@ const ENV_MAP = {
 }
 
 class ConfigService {
-  constructor() {
+  constructor () {
     this.conf = new Conf({
       projectName: APP_NAME,
       cwd: getConfigDir(),
@@ -35,7 +35,7 @@ class ConfigService {
    * @param {string} key - The dot-separated config key.
    * @returns {unknown} The config value, or undefined if not set.
    */
-  get(key) {
+  get (key) {
     const envKey = ENV_MAP[key]
     if (envKey && process.env[envKey]) {
       return process.env[envKey]
@@ -50,7 +50,7 @@ class ConfigService {
    * @param {unknown} value - The value to set.
    * @returns {void}
    */
-  set(key, value) {
+  set (key, value) {
     this.conf.set(key, value)
   }
 
@@ -60,7 +60,7 @@ class ConfigService {
    * @param {string} key - The dot-separated config key to delete.
    * @returns {void}
    */
-  delete(key) {
+  delete (key) {
     this.conf.delete(key)
   }
 
@@ -69,7 +69,7 @@ class ConfigService {
    *
    * @returns {Record<string, unknown>} The merged config object.
    */
-  list() {
+  list () {
     const store = { ...this.conf.store }
     for (const [confKey, envKey] of Object.entries(ENV_MAP)) {
       if (process.env[envKey]) {
@@ -84,7 +84,7 @@ class ConfigService {
    *
    * @returns {string} The default wallet name, or empty string if not set.
    */
-  getDefaultWallet() {
+  getDefaultWallet () {
     return /** @type {string | undefined} */ (this.get('defaultWallet')) || ''
   }
 
@@ -94,7 +94,7 @@ class ConfigService {
    * @param {string} name - The wallet name to set as default.
    * @returns {void}
    */
-  setDefaultWallet(name) {
+  setDefaultWallet (name) {
     this.conf.set('defaultWallet', name)
   }
 
@@ -103,7 +103,7 @@ class ConfigService {
    *
    * @returns {number} The default account index, or 0 if not set.
    */
-  getDefaultIndex() {
+  getDefaultIndex () {
     return /** @type {number | undefined} */ (this.get('defaultIndex')) || 0
   }
 
@@ -113,7 +113,7 @@ class ConfigService {
    * @param {number} index - The account index to set as default.
    * @returns {void}
    */
-  setDefaultIndex(index) {
+  setDefaultIndex (index) {
     this.conf.set('defaultIndex', index)
   }
 
@@ -122,7 +122,7 @@ class ConfigService {
    *
    * @type {string}
    */
-  get configPath() {
+  get configPath () {
     return this.conf.path
   }
 
@@ -134,7 +134,7 @@ class ConfigService {
    * @param {unknown} value - The value to assign.
    * @returns {void}
    */
-  #setNestedValue(obj, path, value) {
+  #setNestedValue (obj, path, value) {
     const keys = path.split('.')
     let current = obj
     for (let i = 0; i < keys.length - 1; i++) {
@@ -153,6 +153,6 @@ export const configService = new ConfigService()
  * @param {number | undefined} optionIndex - The parsed --index CLI option value.
  * @returns {number} The resolved account index.
  */
-export function resolveIndex(optionIndex) {
+export function resolveIndex (optionIndex) {
   return optionIndex ?? configService.getDefaultIndex()
 }

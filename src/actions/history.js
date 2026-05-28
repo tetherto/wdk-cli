@@ -61,7 +61,7 @@ import { WdkCliError, ErrorCode } from '../errors/index.js'
  * @param {GetHistoryInput} input - The history lookup parameters.
  * @returns {Promise<HistoryResult>} The history result.
  */
-export async function getHistory(input) {
+export async function getHistory (input) {
   const wallet = await daemonClient.requireUnlocked(input.wallet)
   validateNetwork(input.network)
   if (!isIndexerSupported(input.network)) {
@@ -85,7 +85,11 @@ export async function getHistory(input) {
   const address = await daemonClient.getAddress(input.network, input.index, wallet)
 
   if (input.token) {
-    const transfers = await getTokenTransfers(input.network, input.token, address, { limit, fromTs, toTs })
+    const transfers = await getTokenTransfers(input.network, input.token, address, {
+      limit,
+      fromTs,
+      toTs
+    })
     return {
       network: input.network,
       index: input.index,

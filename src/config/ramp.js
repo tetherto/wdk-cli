@@ -40,7 +40,7 @@ for (const [name, entry] of Object.entries(walletsFile.networks)) {
  * @returns {string} The validated module name.
  * @throws {WdkCliError} When the module is not supported.
  */
-export function validateModule(module) {
+export function validateModule (module) {
   if (!SUPPORTED_MODULES.includes(module)) {
     throw new WdkCliError(
       `Unsupported module '${module}'. Available: ${SUPPORTED_MODULES.join(', ')}`,
@@ -59,12 +59,15 @@ export function validateModule(module) {
  * @returns {ResolvedAsset} The resolved provider asset code and lowercase token.
  * @throws {WdkCliError} When the network or token is not supported by the module.
  */
-export function resolveAsset(network, token, module) {
+export function resolveAsset (network, token, module) {
   const lower = token.toLowerCase()
   if (module === 'moonpay') {
     const assets = moonpayConfigs[network]
     if (!assets) {
-      throw new WdkCliError(`Network '${network}' does not support moonpay.`, ErrorCode.NETWORK_NOT_SUPPORTED)
+      throw new WdkCliError(
+        `Network '${network}' does not support moonpay.`,
+        ErrorCode.NETWORK_NOT_SUPPORTED
+      )
     }
     const code = assets[lower]
     if (!code) {

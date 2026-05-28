@@ -20,7 +20,7 @@ import {
   removeMcp,
   verifyMcpSetup,
   listMcpStatus,
-  SUPPORTED_AI_TOOLS,
+  SUPPORTED_AI_TOOLS
 } from '../setup/ai-tools.js'
 
 /** @typedef {import('commander').Command} Command */
@@ -35,7 +35,7 @@ import {
  * @param {boolean} verified - true if the MCP server responded correctly, false otherwise.
  * @returns {void}
  */
-function printMcpVerification(verified) {
+function printMcpVerification (verified) {
   process.stdout.write(chalk.dim('  Verifying MCP server... '))
   if (verified) {
     console.log(chalk.green('OK'))
@@ -51,7 +51,7 @@ function printMcpVerification(verified) {
  * @param {SetupMcpResult} r - The setup outcome.
  * @returns {void}
  */
-function printSetupResult(r) {
+function printSetupResult (r) {
   console.log()
   if (r.status === 'already_configured') {
     console.log(chalk.green(`  ✓ wdk-wallet is already configured in ${r.targetName}`))
@@ -81,7 +81,7 @@ function printSetupResult(r) {
  * @param {RemoveMcpResult} r - The remove outcome.
  * @returns {void}
  */
-function printRemoveResult(r) {
+function printRemoveResult (r) {
   console.log()
   switch (r.status) {
     case 'not_configured':
@@ -105,7 +105,7 @@ function printRemoveResult(r) {
  * @param {string} aiTool - The original --ai-tool argument (for the setup-hint command).
  * @returns {void}
  */
-function printVerifyResult(r, aiTool) {
+function printVerifyResult (r, aiTool) {
   console.log()
   if (r.configured) {
     console.log(chalk.green(`  ✓ wdk-wallet found in ${r.targetName}`))
@@ -134,7 +134,7 @@ function printVerifyResult(r, aiTool) {
  * @param {ListMcpEntry[]} entries - The status entries to print.
  * @returns {void}
  */
-function printList(entries) {
+function printList (entries) {
   console.log()
   for (const { name, status } of entries) {
     let formatted
@@ -153,10 +153,8 @@ function printList(entries) {
  * @param {Command} program - The root Commander program instance.
  * @returns {void}
  */
-export function registerMcpCommand(program) {
-  const mcp = program
-    .command('mcp')
-    .description('Manage WDK MCP server')
+export function registerMcpCommand (program) {
+  const mcp = program.command('mcp').description('Manage WDK MCP server')
 
   configureHelp(mcp, {})
 
@@ -167,8 +165,12 @@ export function registerMcpCommand(program) {
 
   configureHelp(setup, {
     params: [
-      { flags: '--ai-tool <name>', description: `AI tool: ${SUPPORTED_AI_TOOLS.join(', ')}`, required: true },
-    ],
+      {
+        flags: '--ai-tool <name>',
+        description: `AI tool: ${SUPPORTED_AI_TOOLS.join(', ')}`,
+        required: true
+      }
+    ]
   })
 
   setup.action((options) => {
@@ -186,8 +188,12 @@ export function registerMcpCommand(program) {
 
   configureHelp(remove, {
     params: [
-      { flags: '--ai-tool <name>', description: `AI tool: ${SUPPORTED_AI_TOOLS.join(', ')}`, required: true },
-    ],
+      {
+        flags: '--ai-tool <name>',
+        description: `AI tool: ${SUPPORTED_AI_TOOLS.join(', ')}`,
+        required: true
+      }
+    ]
   })
 
   remove.action((options) => {
@@ -205,8 +211,12 @@ export function registerMcpCommand(program) {
 
   configureHelp(verifySetup, {
     params: [
-      { flags: '--ai-tool <name>', description: `AI tool: ${SUPPORTED_AI_TOOLS.join(', ')}`, required: true },
-    ],
+      {
+        flags: '--ai-tool <name>',
+        description: `AI tool: ${SUPPORTED_AI_TOOLS.join(', ')}`,
+        required: true
+      }
+    ]
   })
 
   verifySetup.action((options) => {
@@ -217,9 +227,7 @@ export function registerMcpCommand(program) {
     }
   })
 
-  const list = mcp
-    .command('list')
-    .description('Show WDK MCP server status across all AI tools')
+  const list = mcp.command('list').description('Show WDK MCP server status across all AI tools')
 
   configureHelp(list, {})
 

@@ -51,7 +51,7 @@ let cache = null
  *
  * @returns {string[]} Array of Bitfinex symbol strings.
  */
-function getAllBitfinexSymbols() {
+function getAllBitfinexSymbols () {
   const symbols = new Set()
   for (const sym of Object.values(NATIVE_SYMBOLS)) symbols.add(sym)
   for (const sym of Object.values(TOKEN_SYMBOLS)) symbols.add(sym)
@@ -63,7 +63,7 @@ function getAllBitfinexSymbols() {
  *
  * @returns {Promise<Map<string, number>>} Map of Bitfinex symbol to USD price.
  */
-async function fetchPrices() {
+async function fetchPrices () {
   if (cache && Date.now() - cache.timestamp < CACHE_TTL_MS) {
     return cache.prices
   }
@@ -73,7 +73,10 @@ async function fetchPrices() {
 
   const response = await fetch(url, { signal: AbortSignal.timeout(5000) })
   if (!response.ok) {
-    throw new WdkCliError(`Bitfinex API error: ${response.status} ${response.statusText}`, ErrorCode.NETWORK_ERROR)
+    throw new WdkCliError(
+      `Bitfinex API error: ${response.status} ${response.statusText}`,
+      ErrorCode.NETWORK_ERROR
+    )
   }
 
   const data = await response.json()
@@ -95,17 +98,23 @@ async function fetchPrices() {
  * @param {string} network - The network name.
  * @returns {Promise<number>} The USD price.
  */
-export async function getNativeUsdPrice(network) {
+export async function getNativeUsdPrice (network) {
   const config = getNetworkConfig(network)
   const bitfinexSymbol = NATIVE_SYMBOLS[config.nativeSymbol]
   if (!bitfinexSymbol) {
-    throw new WdkCliError(`No USD price available for ${config.nativeSymbol} on ${network}.`, ErrorCode.TOKEN_NOT_SUPPORTED)
+    throw new WdkCliError(
+      `No USD price available for ${config.nativeSymbol} on ${network}.`,
+      ErrorCode.TOKEN_NOT_SUPPORTED
+    )
   }
 
   const prices = await fetchPrices()
   const price = prices.get(bitfinexSymbol)
   if (!price) {
-    throw new WdkCliError(`Failed to fetch USD price for ${config.nativeSymbol}.`, ErrorCode.NETWORK_ERROR)
+    throw new WdkCliError(
+      `Failed to fetch USD price for ${config.nativeSymbol}.`,
+      ErrorCode.NETWORK_ERROR
+    )
   }
   return price
 }
@@ -117,7 +126,7 @@ export async function getNativeUsdPrice(network) {
  * @param {string} tokenAddress - The token contract address.
  * @returns {Promise<number>} The USD price.
  */
-export async function getTokenUsdPrice(network, tokenAddress) {
+export async function getTokenUsdPrice (network, tokenAddress) {
   const tokenConfig = getTokenConfig(network, tokenAddress)
   if (!tokenConfig) {
     throw new WdkCliError(`Unknown token ${tokenAddress} on ${network}.`, ErrorCode.INVALID_TOKEN)
@@ -125,13 +134,19 @@ export async function getTokenUsdPrice(network, tokenAddress) {
 
   const bitfinexSymbol = TOKEN_SYMBOLS[tokenConfig.symbol]
   if (!bitfinexSymbol) {
-    throw new WdkCliError(`No USD price available for ${tokenConfig.symbol} on ${network}.`, ErrorCode.TOKEN_NOT_SUPPORTED)
+    throw new WdkCliError(
+      `No USD price available for ${tokenConfig.symbol} on ${network}.`,
+      ErrorCode.TOKEN_NOT_SUPPORTED
+    )
   }
 
   const prices = await fetchPrices()
   const price = prices.get(bitfinexSymbol)
   if (!price) {
-    throw new WdkCliError(`Failed to fetch USD price for ${tokenConfig.symbol}.`, ErrorCode.NETWORK_ERROR)
+    throw new WdkCliError(
+      `Failed to fetch USD price for ${tokenConfig.symbol}.`,
+      ErrorCode.NETWORK_ERROR
+    )
   }
   return price
 }
@@ -144,7 +159,7 @@ export async function getTokenUsdPrice(network, tokenAddress) {
  * @param {string} [tokenAddress] - The token contract address; omit for native token.
  * @returns {Promise<number>} The equivalent USD value.
  */
-export async function convertToUsd(network, amount, tokenAddress) {
+export async function convertToUsd (network, amount, tokenAddress) {
   if (tokenAddress) {
     const tokenConfig = getTokenConfig(network, tokenAddress)
     if (!tokenConfig) {

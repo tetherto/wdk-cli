@@ -24,7 +24,7 @@ import { promptPassphrase } from './prompts.js'
  *
  * @returns {Promise<void>}
  */
-export async function requirePassphraseConfirmation() {
+export async function requirePassphraseConfirmation () {
   const keyService = new KeyService(new WalletKeyring())
   const wallets = await keyService.list()
   if (wallets.length === 0) return
@@ -45,6 +45,8 @@ export async function requirePassphraseConfirmation() {
     )
   }
 
-  const passphrase = await promptPassphrase(`Enter passphrase of '${defaultWallet}' wallet to confirm:`)
+  const passphrase = await promptPassphrase(
+    `Enter passphrase of '${defaultWallet}' wallet to confirm:`
+  )
   await keyService.unlock(passphrase, defaultWallet)
 }

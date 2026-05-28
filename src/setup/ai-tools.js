@@ -81,7 +81,7 @@ export const SUPPORTED_AI_TOOLS = Object.freeze(['claude-desktop', 'claude-code'
  *
  * @returns {string} The local app data directory path.
  */
-function getWindowsLocalAppData() {
+function getWindowsLocalAppData () {
   return process.env.LOCALAPPDATA || join(homedir(), 'AppData', 'Local')
 }
 
@@ -94,12 +94,12 @@ function getWindowsLocalAppData() {
  *
  * @returns {string | null} The package directory path, or null if not found.
  */
-function findClaudeMsixPackageDir() {
+function findClaudeMsixPackageDir () {
   if (platform() !== 'win32') return null
   const packagesDir = join(getWindowsLocalAppData(), 'Packages')
   if (!existsSync(packagesDir)) return null
   try {
-    const match = readdirSync(packagesDir).find(name => name.startsWith('Claude_'))
+    const match = readdirSync(packagesDir).find((name) => name.startsWith('Claude_'))
     return match ? join(packagesDir, match) : null
   } catch {
     return null
@@ -111,11 +111,13 @@ function findClaudeMsixPackageDir() {
  *
  * @returns {boolean} Whether Claude Desktop is installed.
  */
-function isClaudeDesktopInstalled() {
+function isClaudeDesktopInstalled () {
   const os = platform()
   const home = homedir()
   if (os === 'darwin') {
-    return existsSync('/Applications/Claude.app') || existsSync(join(home, 'Applications', 'Claude.app'))
+    return (
+      existsSync('/Applications/Claude.app') || existsSync(join(home, 'Applications', 'Claude.app'))
+    )
   }
   if (os === 'win32') {
     if (findClaudeMsixPackageDir()) return true
@@ -123,16 +125,21 @@ function isClaudeDesktopInstalled() {
     const candidates = [
       join(localAppData, 'Programs', 'claude-desktop', 'Claude.exe'),
       join(localAppData, 'AnthropicClaude', 'Claude.exe'),
-      join(localAppData, 'Claude', 'Claude.exe'),
+      join(localAppData, 'Claude', 'Claude.exe')
     ]
-    return candidates.some(p => existsSync(p))
+    return candidates.some((p) => existsSync(p))
   }
   if (os === 'linux') {
     try {
       execSync('which claude-desktop 2>/dev/null', { encoding: 'utf8', timeout: 3000 })
       return true
-    } catch { /* */ }
-    return existsSync('/opt/Claude/claude-desktop') || existsSync(join(home, '.local', 'bin', 'claude-desktop'))
+    } catch {
+      /* */
+    }
+    return (
+      existsSync('/opt/Claude/claude-desktop') ||
+      existsSync(join(home, '.local', 'bin', 'claude-desktop'))
+    )
   }
   return false
 }
@@ -142,16 +149,26 @@ function isClaudeDesktopInstalled() {
  *
  * @returns {string | null} The config file path.
  */
-function getClaudeDesktopConfigPath() {
+function getClaudeDesktopConfigPath () {
   const home = homedir()
   const os = platform()
-  if (os === 'darwin') return join(home, 'Library', 'Application Support', 'Claude', 'claude_desktop_config.json')
+  if (os === 'darwin') { return join(home, 'Library', 'Application Support', 'Claude', 'claude_desktop_config.json') }
   if (os === 'win32') {
     const msixPackageDir = findClaudeMsixPackageDir()
-    if (msixPackageDir) return join(msixPackageDir, 'LocalCache', 'Roaming', 'Claude', 'claude_desktop_config.json')
-    return join(process.env.APPDATA || join(home, 'AppData', 'Roaming'), 'Claude', 'claude_desktop_config.json')
+    if (msixPackageDir) { return join(msixPackageDir, 'LocalCache', 'Roaming', 'Claude', 'claude_desktop_config.json') }
+    return join(
+      process.env.APPDATA || join(home, 'AppData', 'Roaming'),
+      'Claude',
+      'claude_desktop_config.json'
+    )
   }
-  if (os === 'linux') return join(process.env.XDG_CONFIG_HOME || join(home, '.config'), 'Claude', 'claude_desktop_config.json')
+  if (os === 'linux') {
+    return join(
+      process.env.XDG_CONFIG_HOME || join(home, '.config'),
+      'Claude',
+      'claude_desktop_config.json'
+    )
+  }
   return null
 }
 
@@ -160,7 +177,7 @@ function getClaudeDesktopConfigPath() {
  *
  * @returns {string} The config file path.
  */
-function getClaudeCodeConfigPath() {
+function getClaudeCodeConfigPath () {
   return join(homedir(), '.claude.json')
 }
 
@@ -169,7 +186,7 @@ function getClaudeCodeConfigPath() {
  *
  * @returns {string} The config file path.
  */
-function getOpenClawConfigPath() {
+function getOpenClawConfigPath () {
   return join(homedir(), '.openclaw', 'openclaw.json')
 }
 
@@ -178,7 +195,7 @@ function getOpenClawConfigPath() {
  *
  * @returns {string} The absolute path to wdk-mcp.mjs.
  */
-function getMcpScriptPath() {
+function getMcpScriptPath () {
   const thisFile = fileURLToPath(import.meta.url)
   let dir = dirname(thisFile)
   for (let i = 0; i < 5; i++) {
@@ -194,7 +211,7 @@ function getMcpScriptPath() {
  *
  * @returns {McpCommand} The command descriptor.
  */
-function getWdkMcpCommand() {
+function getWdkMcpCommand () {
   return { command: process.execPath, args: [getMcpScriptPath()] }
 }
 
@@ -204,14 +221,15 @@ function getWdkMcpCommand() {
  * @param {McpCommand} mcpConfig - The MCP server command descriptor.
  * @returns {boolean} Whether the server responded with the expected wdk-wallet identity.
  */
-function testMcpServer(mcpConfig) {
+function testMcpServer (mcpConfig) {
   try {
-    const initRequest = '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"setup-test","version":"1.0"}}}\n'
+    const initRequest =
+      '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"setup-test","version":"1.0"}}}\n'
     const result = spawnSync(mcpConfig.command, mcpConfig.args ?? [], {
       input: initRequest,
       encoding: 'utf8',
       timeout: 15000,
-      stdio: ['pipe', 'pipe', 'pipe'],
+      stdio: ['pipe', 'pipe', 'pipe']
     })
     return (result.stdout ?? '').includes('"wdk-wallet"')
   } catch {
@@ -225,7 +243,7 @@ function testMcpServer(mcpConfig) {
  * @param {string} configPath - Absolute path to the JSON config file.
  * @returns {Record<string, unknown>} The parsed config object.
  */
-function readOrCreateConfig(configPath) {
+function readOrCreateConfig (configPath) {
   if (existsSync(configPath)) {
     const raw = readFileSync(configPath, 'utf8')
     try {
@@ -244,7 +262,7 @@ function readOrCreateConfig(configPath) {
  * @param {string[]} path - Array of keys forming the path to traverse.
  * @returns {Record<string, unknown>} The object at the end of the path.
  */
-function getServersObject(config, path) {
+function getServersObject (config, path) {
   let obj = config
   for (const key of path) {
     if (!obj[key] || typeof obj[key] !== 'object') obj[key] = {}
@@ -258,13 +276,13 @@ function getServersObject(config, path) {
  *
  * @returns {string[]} The JSON lines.
  */
-function buildManualMcpJson() {
+function buildManualMcpJson () {
   const mcpConfig = getWdkMcpCommand()
   return [
     '  "wdk-wallet": {',
     `    "command": ${JSON.stringify(mcpConfig.command)},`,
     `    "args": ${JSON.stringify(mcpConfig.args)}`,
-    '  }',
+    '  }'
   ]
 }
 
@@ -274,7 +292,7 @@ function buildManualMcpJson() {
  * @param {string} aiTool - The AI tool identifier (e.g. "claude-desktop", "claude-code", "openclaw").
  * @returns {SetupTarget} The setup target descriptor.
  */
-function getSetupTarget(aiTool) {
+function getSetupTarget (aiTool) {
   switch (aiTool) {
     case 'claude-desktop': {
       const configPath = getClaudeDesktopConfigPath()
@@ -282,7 +300,7 @@ function getSetupTarget(aiTool) {
         throw new WdkCliError(
           `Unsupported platform: ${platform()}`,
           ErrorCode.MISSING_CONFIG,
-          'Claude Desktop is available on macOS, Windows, and Linux',
+          'Claude Desktop is available on macOS, Windows, and Linux'
         )
       }
       return {
@@ -296,9 +314,9 @@ function getSetupTarget(aiTool) {
           `  ${configPath}`,
           '',
           'Add to "mcpServers":',
-          ...buildManualMcpJson(),
+          ...buildManualMcpJson()
         ],
-        restartMessage: `Restart Claude Desktop${platform() === 'darwin' ? ' (Cmd+Q, then reopen)' : ''}`,
+        restartMessage: `Restart Claude Desktop${platform() === 'darwin' ? ' (Cmd+Q, then reopen)' : ''}`
       }
     }
     case 'claude-code': {
@@ -308,7 +326,11 @@ function getSetupTarget(aiTool) {
         configPath,
         checkInstalled: () => {
           try {
-            execSync('which claude 2>/dev/null || where claude 2>nul', { encoding: 'utf8', timeout: 5000, stdio: ['ignore', 'pipe', 'pipe'] })
+            execSync('which claude 2>/dev/null || where claude 2>nul', {
+              encoding: 'utf8',
+              timeout: 5000,
+              stdio: ['ignore', 'pipe', 'pipe']
+            })
             return true
           } catch {
             return existsSync(join(homedir(), '.claude'))
@@ -318,13 +340,26 @@ function getSetupTarget(aiTool) {
           'Install (if not installed): https://docs.anthropic.com/en/docs/claude-code/overview',
           '',
           'Or add manually:',
-          `  claude mcp add -s user wdk-wallet -- ${process.execPath} ${getMcpScriptPath()}`,
+          `  claude mcp add -s user wdk-wallet -- ${process.execPath} ${getMcpScriptPath()}`
         ],
         restartMessage: 'Start a new Claude Code session to use wdk-wallet tools',
         cliSetup: {
           add: (mcpConfig) => {
             try {
-              const result = spawnSync('claude', ['mcp', 'add', '-s', 'user', 'wdk-wallet', '--', mcpConfig.command, ...mcpConfig.args], { encoding: 'utf8', timeout: 10000, stdio: ['ignore', 'pipe', 'pipe'] })
+              const result = spawnSync(
+                'claude',
+                [
+                  'mcp',
+                  'add',
+                  '-s',
+                  'user',
+                  'wdk-wallet',
+                  '--',
+                  mcpConfig.command,
+                  ...mcpConfig.args
+                ],
+                { encoding: 'utf8', timeout: 10000, stdio: ['ignore', 'pipe', 'pipe'] }
+              )
               return result.status === 0
             } catch {
               return false
@@ -332,7 +367,11 @@ function getSetupTarget(aiTool) {
           },
           remove: () => {
             try {
-              const result = spawnSync('claude', ['mcp', 'remove', '-s', 'user', 'wdk-wallet'], { encoding: 'utf8', timeout: 10000, stdio: ['ignore', 'pipe', 'pipe'] })
+              const result = spawnSync('claude', ['mcp', 'remove', '-s', 'user', 'wdk-wallet'], {
+                encoding: 'utf8',
+                timeout: 10000,
+                stdio: ['ignore', 'pipe', 'pipe']
+              })
               return result.status === 0
             } catch {
               return false
@@ -347,8 +386,8 @@ function getSetupTarget(aiTool) {
             } catch {
               return false
             }
-          },
-        },
+          }
+        }
       }
     }
     case 'openclaw': {
@@ -358,7 +397,11 @@ function getSetupTarget(aiTool) {
         configPath,
         serversPath: ['mcp', 'servers'],
         checkInstalled: () => {
-          const result = spawnSync('openclaw', ['--version'], { encoding: 'utf8', timeout: 5000, stdio: ['ignore', 'pipe', 'pipe'] })
+          const result = spawnSync('openclaw', ['--version'], {
+            encoding: 'utf8',
+            timeout: 5000,
+            stdio: ['ignore', 'pipe', 'pipe']
+          })
           if (result.status === 0) return true
           return existsSync(dirname(configPath))
         },
@@ -366,14 +409,21 @@ function getSetupTarget(aiTool) {
           'Install (if not installed): https://docs.openclaw.ai/install',
           '',
           'Or add manually:',
-          `  openclaw mcp set wdk-wallet '${JSON.stringify({ command: process.execPath, args: [getMcpScriptPath()] })}'`,
+          `  openclaw mcp set wdk-wallet '${JSON.stringify({ command: process.execPath, args: [getMcpScriptPath()] })}'`
         ],
         restartMessage: 'Restart OpenClaw gateway: openclaw gateway restart',
         cliSetup: {
           add: (mcpConfig) => {
             try {
-              const serverJson = JSON.stringify({ command: mcpConfig.command, args: mcpConfig.args })
-              const result = spawnSync('openclaw', ['mcp', 'set', 'wdk-wallet', serverJson], { encoding: 'utf8', timeout: 10000, stdio: ['ignore', 'pipe', 'pipe'] })
+              const serverJson = JSON.stringify({
+                command: mcpConfig.command,
+                args: mcpConfig.args
+              })
+              const result = spawnSync('openclaw', ['mcp', 'set', 'wdk-wallet', serverJson], {
+                encoding: 'utf8',
+                timeout: 10000,
+                stdio: ['ignore', 'pipe', 'pipe']
+              })
               return result.status === 0
             } catch {
               return false
@@ -381,7 +431,11 @@ function getSetupTarget(aiTool) {
           },
           remove: () => {
             try {
-              const result = spawnSync('openclaw', ['mcp', 'unset', 'wdk-wallet'], { encoding: 'utf8', timeout: 10000, stdio: ['ignore', 'pipe', 'pipe'] })
+              const result = spawnSync('openclaw', ['mcp', 'unset', 'wdk-wallet'], {
+                encoding: 'utf8',
+                timeout: 10000,
+                stdio: ['ignore', 'pipe', 'pipe']
+              })
               return result.status === 0
             } catch {
               return false
@@ -389,19 +443,23 @@ function getSetupTarget(aiTool) {
           },
           isConfigured: () => {
             try {
-              const result = spawnSync('openclaw', ['mcp', 'list'], { encoding: 'utf8', timeout: 10000, stdio: ['ignore', 'pipe', 'pipe'] })
+              const result = spawnSync('openclaw', ['mcp', 'list'], {
+                encoding: 'utf8',
+                timeout: 10000,
+                stdio: ['ignore', 'pipe', 'pipe']
+              })
               return (result.stdout ?? '').includes('wdk-wallet')
             } catch {
               return false
             }
-          },
-        },
+          }
+        }
       }
     }
     default:
       throw new WdkCliError(
         `Unknown AI tool '${aiTool}'. Supported: ${SUPPORTED_AI_TOOLS.join(', ')}`,
-        ErrorCode.INVALID_ARGUMENT,
+        ErrorCode.INVALID_ARGUMENT
       )
   }
 }
@@ -412,7 +470,7 @@ function getSetupTarget(aiTool) {
  * @param {SetupTarget} target - The AI tool setup target descriptor.
  * @returns {boolean} Whether wdk-wallet is configured.
  */
-function isConfigured(target) {
+function isConfigured (target) {
   if (target.cliSetup) return target.cliSetup.isConfigured()
   if (!existsSync(target.configPath)) return false
   try {
@@ -435,14 +493,14 @@ function isConfigured(target) {
  * @param {string} aiTool - The AI tool identifier.
  * @returns {SetupMcpResult} The setup outcome.
  */
-export function setupMcp(aiTool) {
+export function setupMcp (aiTool) {
   const target = getSetupTarget(aiTool)
 
   if (!target.checkInstalled()) {
     throw new WdkCliError(
       `${target.name} not found`,
       ErrorCode.MISSING_CONFIG,
-      target.notInstalledMessage.join('\n'),
+      target.notInstalledMessage.join('\n')
     )
   }
 
@@ -453,7 +511,7 @@ export function setupMcp(aiTool) {
         targetName: target.name,
         configPath: null,
         mcpVerified: null,
-        restartMessage: target.restartMessage,
+        restartMessage: target.restartMessage
       }
     }
     const mcpConfig = getWdkMcpCommand()
@@ -464,7 +522,7 @@ export function setupMcp(aiTool) {
       targetName: target.name,
       configPath: null,
       mcpVerified,
-      restartMessage: target.restartMessage,
+      restartMessage: target.restartMessage
     }
   }
 
@@ -478,7 +536,7 @@ export function setupMcp(aiTool) {
       targetName: target.name,
       configPath: target.configPath,
       mcpVerified: null,
-      restartMessage: target.restartMessage,
+      restartMessage: target.restartMessage
     }
   }
 
@@ -499,7 +557,7 @@ export function setupMcp(aiTool) {
     targetName: target.name,
     configPath: target.configPath,
     mcpVerified,
-    restartMessage: target.restartMessage,
+    restartMessage: target.restartMessage
   }
 }
 
@@ -509,23 +567,31 @@ export function setupMcp(aiTool) {
  * @param {string} aiTool - The AI tool identifier.
  * @returns {RemoveMcpResult} The remove outcome.
  */
-export function removeMcp(aiTool) {
+export function removeMcp (aiTool) {
   const target = getSetupTarget(aiTool)
 
   if (target.cliSetup) {
     if (!target.cliSetup.isConfigured()) {
-      return { status: 'not_configured', targetName: target.name, restartMessage: target.restartMessage }
+      return {
+        status: 'not_configured',
+        targetName: target.name,
+        restartMessage: target.restartMessage
+      }
     }
     const ok = target.cliSetup.remove()
     return {
       status: ok ? 'removed' : 'remove_failed',
       targetName: target.name,
-      restartMessage: target.restartMessage,
+      restartMessage: target.restartMessage
     }
   }
 
   if (!existsSync(target.configPath)) {
-    return { status: 'not_configured', targetName: target.name, restartMessage: target.restartMessage }
+    return {
+      status: 'not_configured',
+      targetName: target.name,
+      restartMessage: target.restartMessage
+    }
   }
 
   const config = readOrCreateConfig(target.configPath)
@@ -538,7 +604,11 @@ export function removeMcp(aiTool) {
     return { status: 'removed', targetName: target.name, restartMessage: target.restartMessage }
   }
 
-  return { status: 'not_configured', targetName: target.name, restartMessage: target.restartMessage }
+  return {
+    status: 'not_configured',
+    targetName: target.name,
+    restartMessage: target.restartMessage
+  }
 }
 
 /**
@@ -547,7 +617,7 @@ export function removeMcp(aiTool) {
  * @param {string} aiTool - The AI tool identifier.
  * @returns {VerifyMcpResult} The verification outcome.
  */
-export function verifyMcpSetup(aiTool) {
+export function verifyMcpSetup (aiTool) {
   const target = getSetupTarget(aiTool)
   const configured = isConfigured(target)
   const mcpConfig = getWdkMcpCommand()
@@ -557,7 +627,7 @@ export function verifyMcpSetup(aiTool) {
     configured,
     mcpWorks,
     mcpCommand: mcpConfig.command,
-    mcpArgs: mcpConfig.args,
+    mcpArgs: mcpConfig.args
   }
 }
 
@@ -566,14 +636,17 @@ export function verifyMcpSetup(aiTool) {
  *
  * @returns {ListMcpEntry[]} The status entries, in display order.
  */
-export function listMcpStatus() {
+export function listMcpStatus () {
   /** @type {ListMcpEntry[]} */
   const entries = []
 
   if (getClaudeDesktopConfigPath()) {
     try {
       const target = getSetupTarget('claude-desktop')
-      entries.push({ name: 'Claude Desktop', status: isConfigured(target) ? 'configured' : 'not_configured' })
+      entries.push({
+        name: 'Claude Desktop',
+        status: isConfigured(target) ? 'configured' : 'not_configured'
+      })
     } catch {
       entries.push({ name: 'Claude Desktop', status: 'error' })
     }
@@ -581,7 +654,10 @@ export function listMcpStatus() {
     entries.push({ name: 'Claude Desktop', status: 'n/a' })
   }
 
-  for (const [name, aiTool] of /** @type {[string, string][]} */ ([['Claude Code', 'claude-code'], ['OpenClaw', 'openclaw']])) {
+  for (const [name, aiTool] of /** @type {[string, string][]} */ ([
+    ['Claude Code', 'claude-code'],
+    ['OpenClaw', 'openclaw']
+  ])) {
     try {
       const target = getSetupTarget(aiTool)
       entries.push({ name, status: isConfigured(target) ? 'configured' : 'not_configured' })

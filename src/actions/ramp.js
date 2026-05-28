@@ -55,7 +55,7 @@ import { formatAmount } from '../ui/formatters.js'
  * @param {string} label - Field label used in error messages.
  * @returns {bigint} The amount in base units.
  */
-function toBaseUnits(humanAmount, decimals, label) {
+function toBaseUnits (humanAmount, decimals, label) {
   const match = humanAmount.match(/^(\d+)(?:\.(\d+))?$/)
   if (!match) {
     throw new WdkCliError(
@@ -80,12 +80,18 @@ function toBaseUnits(humanAmount, decimals, label) {
  * @param {CreateRampUrlInput} input - The ramp URL parameters.
  * @returns {Promise<RampResult>} The ramp result including the provider URL.
  */
-export async function createRampUrl(input) {
+export async function createRampUrl (input) {
   if (input.fiatAmount && input.cryptoAmount) {
-    throw new WdkCliError('Cannot specify both fiatAmount and cryptoAmount.', ErrorCode.INVALID_ARGUMENT)
+    throw new WdkCliError(
+      'Cannot specify both fiatAmount and cryptoAmount.',
+      ErrorCode.INVALID_ARGUMENT
+    )
   }
   if (!input.fiatAmount && !input.cryptoAmount) {
-    throw new WdkCliError('Must specify either fiatAmount or cryptoAmount.', ErrorCode.INVALID_ARGUMENT)
+    throw new WdkCliError(
+      'Must specify either fiatAmount or cryptoAmount.',
+      ErrorCode.INVALID_ARGUMENT
+    )
   }
   const wallet = await daemonClient.requireUnlocked(input.wallet)
   validateNetwork(input.network)

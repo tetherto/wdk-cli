@@ -39,8 +39,13 @@ const SCRYPT_MAX_MEM = 128 * 1024 * 1024
  * @param {Buffer} salt - The salt buffer.
  * @returns {Buffer} The derived key buffer.
  */
-export function deriveKey(password, salt) {
-  return scryptSync(password, salt, KEY_LEN, { N: SCRYPT_N, r: SCRYPT_R, p: SCRYPT_P, maxmem: SCRYPT_MAX_MEM })
+export function deriveKey (password, salt) {
+  return scryptSync(password, salt, KEY_LEN, {
+    N: SCRYPT_N,
+    r: SCRYPT_R,
+    p: SCRYPT_P,
+    maxmem: SCRYPT_MAX_MEM
+  })
 }
 
 /**
@@ -50,7 +55,7 @@ export function deriveKey(password, salt) {
  * @param {string} password - The passphrase used to derive the key.
  * @returns {EncryptedPayload} The encrypted payload including salt, IV, tag, and ciphertext.
  */
-export function encrypt(plaintext, password) {
+export function encrypt (plaintext, password) {
   const salt = randomBytes(SALT_LEN)
   const key = deriveKey(password, salt)
   const iv = randomBytes(IV_LEN)
@@ -80,7 +85,7 @@ export function encrypt(plaintext, password) {
  * @param {Buffer} key - The 32-byte AES key.
  * @returns {string} The decrypted plaintext.
  */
-export function decryptWithKey(payload, key) {
+export function decryptWithKey (payload, key) {
   if (payload.version !== 1) {
     throw new Error(`Unsupported keyring version: ${payload.version}`)
   }
@@ -100,7 +105,7 @@ export function decryptWithKey(payload, key) {
  * @param {string} password - The passphrase used to derive the key.
  * @returns {string} The decrypted plaintext.
  */
-export function decrypt(payload, password) {
+export function decrypt (payload, password) {
   if (payload.version !== 1) {
     throw new Error(`Unsupported keyring version: ${payload.version}`)
   }

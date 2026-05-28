@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import chalk from 'chalk'
+import ora from 'ora'
 import { resolveIndex } from '../services/config-service.js'
 import { handleError } from '../errors/index.js'
 import { formatNetworkLabel, formatAddress, formatTxHash } from '../ui/formatters.js'
@@ -32,7 +33,7 @@ import { getHistory } from '../actions/history.js'
  * @param {Command} program - The root Commander program instance.
  * @returns {void}
  */
-export function registerGetCommand(program) {
+export function registerGetCommand (program) {
   const get = program
     .command('get')
     .description('Query wallet address, balance, and transaction history')
@@ -48,60 +49,78 @@ export function registerGetCommand(program) {
     .option('--testnet', 'Include testnet networks (for all-network mode)')
 
   configureHelp(address, {
-    params: [
-      { flags: '--network <network>', description: 'Blockchain network (omit for all)' },
-    ],
+    params: [{ flags: '--network <network>', description: 'Blockchain network (omit for all)' }],
     options: [
       { flags: '--wallet <name>', description: 'Wallet name (default: default wallet)' },
       { flags: '--index <n>', description: 'Account index (default: 0)' },
-      { flags: '--testnet', description: 'Include testnet networks (for all-network mode)' },
-    ],
+      { flags: '--testnet', description: 'Include testnet networks (for all-network mode)' }
+    ]
   })
 
   address.action(async (options) => {
-      try {
-        const index = resolveIndex(options.index)
+    try {
+      const index = resolveIndex(options.index)
 
-        if (options.network) {
-          const network = options.network
-          const result = await getAddress({ network, index, wallet: options.wallet })
-
-          if (program.opts().json) {
-            console.log(JSON.stringify(result))
-          } else {
-            console.log()
-            console.log(`  Network: ${formatNetworkLabel(result.network)}`)
-            console.log(`  Index:   ${result.index}`)
-            console.log(`  Address: ${result.address}`)
-            console.log()
-          }
-          return
+      if (options.network) {
+        const network = options.network
+        const spinner = program.opts().json ? null : ora('Deriving address...').start()
+        let result
+        try {
+          result = await getAddress({ network, index, wallet: options.wallet })
+          spinner?.stop()
+        } catch (error) {
+          spinner?.fail()
+          throw error
         }
-
-        const result = await getAllAddresses({ index, testnet: options.testnet === true, wallet: options.wallet })
 
         if (program.opts().json) {
           console.log(JSON.stringify(result))
-          return
-        }
-
-        console.log()
-        console.log(chalk.bold(`Wallet Addresses (index: ${result.index}, ${result.type}):`))
-        console.log()
-        if (result.addresses.length === 0) {
-          console.log(chalk.dim('  No addresses available.'))
         } else {
-          console.log(`  ${'Network'.padEnd(28)} ${'Address'}`)
-          console.log(`  ${'─'.repeat(28)} ${'─'.repeat(44)}`)
-          for (const r of result.addresses) {
-            console.log(`  ${formatNetworkLabel(r.network).padEnd(28)} ${r.address}`)
-          }
+          console.log()
+          console.log(`  Network: ${formatNetworkLabel(result.network)}`)
+          console.log(`  Index:   ${result.index}`)
+          console.log(`  Address: ${result.address}`)
+          console.log()
         }
-        console.log()
-      } catch (error) {
-        handleError(error, program.opts().verbose, program.opts().json)
+        return
       }
-    })
+
+      const spinner = program.opts().json ? null : ora('Deriving addresses...').start()
+      let result
+      try {
+        result = await getAllAddresses({
+          index,
+          testnet: options.testnet === true,
+          wallet: options.wallet
+        })
+        spinner?.stop()
+      } catch (error) {
+        spinner?.fail()
+        throw error
+      }
+
+      if (program.opts().json) {
+        console.log(JSON.stringify(result))
+        return
+      }
+
+      console.log()
+      console.log(chalk.bold(`Wallet Addresses (index: ${result.index}, ${result.type}):`))
+      console.log()
+      if (result.addresses.length === 0) {
+        console.log(chalk.dim('  No addresses available.'))
+      } else {
+        console.log(`  ${'Network'.padEnd(28)} ${'Address'}`)
+        console.log(`  ${'─'.repeat(28)} ${'─'.repeat(44)}`)
+        for (const r of result.addresses) {
+          console.log(`  ${formatNetworkLabel(r.network).padEnd(28)} ${r.address}`)
+        }
+      }
+      console.log()
+    } catch (error) {
+      handleError(error, program.opts().verbose, program.opts().json)
+    }
+  })
 
   const balance = get
     .command('balance')
@@ -115,39 +134,38 @@ export function registerGetCommand(program) {
   configureHelp(balance, {
     params: [
       { flags: '--network <network>', description: 'Blockchain network (omit for all)' },
-      { flags: '--token <address>', description: 'Token contract address (ERC-20 or SPL mint), omit for native token' },
+      {
+        flags: '--token <address>',
+        description: 'Token contract address (ERC-20 or SPL mint), omit for native token'
+      }
     ],
     options: [
       { flags: '--wallet <name>', description: 'Wallet name (default: default wallet)' },
       { flags: '--index <n>', description: 'Account index (default: 0)' },
-      { flags: '--testnet', description: 'Include testnet networks (for all-network mode)' },
-    ],
+      { flags: '--testnet', description: 'Include testnet networks (for all-network mode)' }
+    ]
   })
 
   balance.action(async (options) => {
-      try {
-        const index = resolveIndex(options.index)
+    try {
+      const index = resolveIndex(options.index)
 
-        if (options.network) {
-          const network = options.network
-          const result = await getBalance({ network, index, token: options.token, wallet: options.wallet })
-
-          if (program.opts().json) {
-            console.log(JSON.stringify(result))
-            return
-          }
-
-          console.log()
-          console.log(`  ${formatNetworkLabel(result.network)} ${chalk.dim(`(index: ${result.index})`)}`)
-          console.log(`  Balance: ${chalk.bold(result.formatted)}`)
-          if (result.token) {
-            console.log(`  Token:   ${chalk.dim(result.token)}`)
-          }
-          console.log()
-          return
+      if (options.network) {
+        const network = options.network
+        const spinner = program.opts().json ? null : ora('Fetching balance...').start()
+        let result
+        try {
+          result = await getBalance({
+            network,
+            index,
+            token: options.token,
+            wallet: options.wallet
+          })
+          spinner?.stop()
+        } catch (error) {
+          spinner?.fail()
+          throw error
         }
-
-        const result = await getAllBalances({ index, testnet: options.testnet === true, wallet: options.wallet })
 
         if (program.opts().json) {
           console.log(JSON.stringify(result))
@@ -155,25 +173,58 @@ export function registerGetCommand(program) {
         }
 
         console.log()
-        console.log(chalk.bold(`Wallet Balance (index: ${result.index}, ${result.type}):`))
-        console.log()
-        if (result.balances.length === 0) {
-          console.log(chalk.dim('  No balances available.'))
-        } else {
-          console.log(`  ${'Network'.padEnd(28)} ${'Address'.padEnd(17)} ${'Balance'}`)
-          console.log(`  ${'─'.repeat(28)} ${'─'.repeat(17)} ${'─'.repeat(24)}`)
-          for (const r of result.balances) {
-            const usdStr = chalk.dim(` (~$${r.usd.toFixed(2)})`)
-            console.log(`  ${formatNetworkLabel(r.network).padEnd(28)} ${formatAddress(r.address, true).padEnd(17)} ${chalk.bold(r.formatted)}${usdStr}`)
-          }
-          console.log()
-          console.log(`  ${chalk.bold(`Total: ~$${result.totalUsd.toFixed(2)}`)}`)
+        console.log(
+          `  ${formatNetworkLabel(result.network)} ${chalk.dim(`(index: ${result.index})`)}`
+        )
+        console.log(`  Balance: ${chalk.bold(result.formatted)}`)
+        if (result.token) {
+          console.log(`  Token:   ${chalk.dim(result.token)}`)
         }
         console.log()
-      } catch (error) {
-        handleError(error, program.opts().verbose, program.opts().json)
+        return
       }
-    })
+
+      const spinner = program.opts().json ? null : ora('Fetching balances...').start()
+      let result
+      try {
+        result = await getAllBalances({
+          index,
+          testnet: options.testnet === true,
+          wallet: options.wallet
+        })
+        spinner?.stop()
+      } catch (error) {
+        spinner?.fail()
+        throw error
+      }
+
+      if (program.opts().json) {
+        console.log(JSON.stringify(result))
+        return
+      }
+
+      console.log()
+      console.log(chalk.bold(`Wallet Balance (index: ${result.index}, ${result.type}):`))
+      console.log()
+      if (result.balances.length === 0) {
+        console.log(chalk.dim('  No balances available.'))
+      } else {
+        console.log(`  ${'Network'.padEnd(28)} ${'Address'.padEnd(17)} ${'Balance'}`)
+        console.log(`  ${'─'.repeat(28)} ${'─'.repeat(17)} ${'─'.repeat(24)}`)
+        for (const r of result.balances) {
+          const usdStr = chalk.dim(` (~$${r.usd.toFixed(2)})`)
+          console.log(
+            `  ${formatNetworkLabel(r.network).padEnd(28)} ${formatAddress(r.address, true).padEnd(17)} ${chalk.bold(r.formatted)}${usdStr}`
+          )
+        }
+        console.log()
+        console.log(`  ${chalk.bold(`Total: ~$${result.totalUsd.toFixed(2)}`)}`)
+      }
+      console.log()
+    } catch (error) {
+      handleError(error, program.opts().verbose, program.opts().json)
+    }
+  })
 
   const history = get
     .command('history')
@@ -189,81 +240,94 @@ export function registerGetCommand(program) {
   configureHelp(history, {
     options: [
       { flags: '--wallet <name>', description: 'Wallet name (default: default wallet)' },
-      { flags: '--index <n>', description: 'Account index (default: 0)' },
+      { flags: '--index <n>', description: 'Account index (default: 0)' }
     ],
     params: [
       { flags: '--network <network>', description: 'Blockchain network', required: true },
-      { flags: '--token <token>', description: `Token: ${INDEXER_TOKENS.join(', ')} (omit for all supported)` },
+      {
+        flags: '--token <token>',
+        description: `Token: ${INDEXER_TOKENS.join(', ')} (omit for all supported)`
+      },
       { flags: '--limit <n>', description: 'Number of transfers (default: 30)' },
       { flags: '--from-date <date>', description: 'Start date (ISO 8601, e.g. 2026-01-01)' },
-      { flags: '--to-date <date>', description: 'End date (ISO 8601, e.g. 2026-12-31)' },
-    ],
+      { flags: '--to-date <date>', description: 'End date (ISO 8601, e.g. 2026-12-31)' }
+    ]
   })
 
   history.action(async (options) => {
-      try {
-        const network = options.network
-        const index = resolveIndex(options.index)
-        const limit = options.limit
+    try {
+      const network = options.network
+      const index = resolveIndex(options.index)
+      const limit = options.limit
 
-        const result = await getHistory({
+      const spinner = program.opts().json ? null : ora('Fetching transfer history...').start()
+      let result
+      try {
+        result = await getHistory({
           network,
           index,
           token: options.token,
           limit,
           fromDate: options.fromDate,
           toDate: options.toDate,
-          wallet: options.wallet,
+          wallet: options.wallet
         })
-
-        if (program.opts().json) {
-          console.log(JSON.stringify(result))
-          return
-        }
-
-        const token = result.token
-        const allTokens = Array.isArray(token)
-        const tokenLabel = Array.isArray(token)
-          ? token.map((t) => t.toUpperCase()).join(', ')
-          : token.toUpperCase()
-        console.log()
-        console.log(`  ${formatNetworkLabel(result.network)} ${chalk.dim(`(index: ${result.index})`)}`)
-        console.log(`  Address: ${formatAddress(result.address)}`)
-        console.log(`  ${allTokens ? 'Tokens' : 'Token '}:  ${tokenLabel}`)
-        console.log()
-
-        if (result.transfers.length === 0) {
-          console.log(chalk.dim('  No transfers found.'))
-          console.log()
-          return
-        }
-
-        const table = allTokens
-          ? createTable(['Date', 'Token', 'Direction', 'Amount', 'Counterparty', 'Tx Hash'])
-          : createTable(['Date', 'Direction', 'Amount', 'Counterparty', 'Tx Hash'])
-        const addrLower = result.address.toLowerCase()
-
-        for (const tx of result.transfers) {
-          const date = new Date(tx.timestamp).toLocaleString()
-          const isOutgoing = tx.from.toLowerCase() === addrLower
-          const direction = isOutgoing ? chalk.red('OUT') : chalk.green('IN')
-          const counterparty = isOutgoing ? tx.to : tx.from
-          const row = [
-            date,
-            direction,
-            tx.amount,
-            formatAddress(counterparty, true),
-            formatTxHash(tx.transactionHash),
-          ]
-          if (allTokens) row.splice(1, 0, tx.token.toUpperCase())
-          table.push(row)
-        }
-
-        console.log(table.toString())
-        console.log(chalk.dim(`\n  ${result.count} transfer(s)`))
-        console.log()
+        spinner?.stop()
       } catch (error) {
-        handleError(error, program.opts().verbose, program.opts().json)
+        spinner?.fail()
+        throw error
       }
-    })
+
+      if (program.opts().json) {
+        console.log(JSON.stringify(result))
+        return
+      }
+
+      const token = result.token
+      const allTokens = Array.isArray(token)
+      const tokenLabel = Array.isArray(token)
+        ? token.map((t) => t.toUpperCase()).join(', ')
+        : token.toUpperCase()
+      console.log()
+      console.log(
+        `  ${formatNetworkLabel(result.network)} ${chalk.dim(`(index: ${result.index})`)}`
+      )
+      console.log(`  Address: ${formatAddress(result.address)}`)
+      console.log(`  ${allTokens ? 'Tokens' : 'Token '}:  ${tokenLabel}`)
+      console.log()
+
+      if (result.transfers.length === 0) {
+        console.log(chalk.dim('  No transfers found.'))
+        console.log()
+        return
+      }
+
+      const table = allTokens
+        ? createTable(['Date', 'Token', 'Direction', 'Amount', 'Counterparty', 'Tx Hash'])
+        : createTable(['Date', 'Direction', 'Amount', 'Counterparty', 'Tx Hash'])
+      const addrLower = result.address.toLowerCase()
+
+      for (const tx of result.transfers) {
+        const date = new Date(tx.timestamp).toLocaleString()
+        const isOutgoing = tx.from.toLowerCase() === addrLower
+        const direction = isOutgoing ? chalk.red('OUT') : chalk.green('IN')
+        const counterparty = isOutgoing ? tx.to : tx.from
+        const row = [
+          date,
+          direction,
+          tx.amount,
+          formatAddress(counterparty, true),
+          formatTxHash(tx.transactionHash)
+        ]
+        if (allTokens) row.splice(1, 0, tx.token.toUpperCase())
+        table.push(row)
+      }
+
+      console.log(table.toString())
+      console.log(chalk.dim(`\n  ${result.count} transfer(s)`))
+      console.log()
+    } catch (error) {
+      handleError(error, program.opts().verbose, program.opts().json)
+    }
+  })
 }

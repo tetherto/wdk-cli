@@ -22,7 +22,7 @@ import Table from 'cli-table3'
  * @param {string[]} headers - Column header labels.
  * @returns {CliTable} A configured cli-table3 instance.
  */
-export function createTable(headers) {
+export function createTable (headers) {
   return new Table({
     head: headers,
     style: { head: ['cyan'] }

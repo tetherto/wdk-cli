@@ -74,12 +74,19 @@ export const ErrorCode = Object.freeze({
 
 const NETWORK_ERROR_PATTERNS = [
   // Node syscall codes
-  'ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND',
-  'EHOSTUNREACH', 'ENETUNREACH', 'EAI_AGAIN',
+  'ECONNREFUSED',
+  'ECONNRESET',
+  'ETIMEDOUT',
+  'ENOTFOUND',
+  'EHOSTUNREACH',
+  'ENETUNREACH',
+  'EAI_AGAIN',
   // Ethers / RPC library codes
-  'TIMEOUT', 'NETWORK_ERROR',
+  'TIMEOUT',
+  'NETWORK_ERROR',
   // Message fragments
-  'fetch failed', 'request timeout',
+  'fetch failed',
+  'request timeout'
 ]
 
 /**
@@ -88,7 +95,7 @@ const NETWORK_ERROR_PATTERNS = [
  * @param {unknown} error - The error to inspect.
  * @returns {boolean} True when the error matches a known network failure pattern.
  */
-export function isNetworkError(error) {
+export function isNetworkError (error) {
   const msg = error instanceof Error ? error.message : String(error)
   return NETWORK_ERROR_PATTERNS.some((p) => msg.includes(p))
 }
@@ -102,7 +109,7 @@ export class WdkCliError extends Error {
    * @param {ErrorCodeType} code - The stable error code.
    * @param {string} [suggestion] - An optional hint shown to the user.
    */
-  constructor(message, code, suggestion) {
+  constructor (message, code, suggestion) {
     super(message)
     this.name = 'WdkCliError'
     this.code = code
@@ -110,7 +117,7 @@ export class WdkCliError extends Error {
   }
 
   /** Prints the error and optional hint to stderr with color. */
-  display() {
+  display () {
     console.error(chalk.red(`Error: ${this.message}`))
     if (this.suggestion) {
       console.error(chalk.yellow(`Hint: ${this.suggestion}`))
@@ -126,14 +133,16 @@ export class WdkCliError extends Error {
  * @param {boolean} [json] - When true, prints a single JSON line instead of the human-readable format.
  * @returns {never}
  */
-export function handleError(error, verbose = false, json = false) {
+export function handleError (error, verbose = false, json = false) {
   if (error instanceof WdkCliError) {
     if (json) {
-      console.log(JSON.stringify({
-        error: error.message,
-        code: error.code,
-        ...(error.suggestion ? { suggestion: error.suggestion } : {})
-      }))
+      console.log(
+        JSON.stringify({
+          error: error.message,
+          code: error.code,
+          ...(error.suggestion ? { suggestion: error.suggestion } : {})
+        })
+      )
     } else {
       error.display()
     }
@@ -173,7 +182,9 @@ export function handleError(error, verbose = false, json = false) {
   }
 
   if (json) {
-    console.log(JSON.stringify({ error: 'Unexpected error occurred.', code: ErrorCode.UNEXPECTED_ERROR }))
+    console.log(
+      JSON.stringify({ error: 'Unexpected error occurred.', code: ErrorCode.UNEXPECTED_ERROR })
+    )
   } else {
     console.error(chalk.red('Unexpected error occurred.'))
   }

@@ -23,7 +23,7 @@ import { getTokenConfig } from '../config/tokens.js'
  * @param {string} symbol - Asset symbol (e.g. ETH, USDT).
  * @returns {string} Formatted amount string, e.g. `1.5 ETH`.
  */
-export function formatAmount(raw, decimals, symbol) {
+export function formatAmount (raw, decimals, symbol) {
   const divisor = 10n ** BigInt(decimals)
   const whole = raw / divisor
   const remainder = raw % divisor
@@ -40,7 +40,7 @@ export function formatAmount(raw, decimals, symbol) {
  * @param {boolean} [truncate] - Whether to truncate long addresses. Defaults to false.
  * @returns {string} The formatted address.
  */
-export function formatAddress(address, truncate = false) {
+export function formatAddress (address, truncate = false) {
   if (!truncate || address.length <= 16) return address
   return `${address.slice(0, 8)}...${address.slice(-6)}`
 }
@@ -52,7 +52,7 @@ export function formatAddress(address, truncate = false) {
  * @param {boolean} [truncate] - Whether to truncate long hashes. Defaults to true.
  * @returns {string} The formatted transaction hash.
  */
-export function formatTxHash(hash, truncate = true) {
+export function formatTxHash (hash, truncate = true) {
   if (!truncate || hash.length <= 16) return hash
   return `${hash.slice(0, 10)}...${hash.slice(-8)}`
 }
@@ -63,7 +63,7 @@ export function formatTxHash(hash, truncate = true) {
  * @param {string} network - Network name.
  * @returns {string} Human-readable network label.
  */
-export function formatNetworkLabel(network) {
+export function formatNetworkLabel (network) {
   const config = getNetworkConfig(network)
   return `${config.displayName} (${config.nativeSymbol})`
 }
@@ -74,7 +74,7 @@ export function formatNetworkLabel(network) {
  * @param {string} dateStr - ISO 8601 date string.
  * @returns {string} Locale-formatted date string.
  */
-export function formatDate(dateStr) {
+export function formatDate (dateStr) {
   const date = new Date(dateStr)
   return date.toLocaleString()
 }
@@ -88,13 +88,19 @@ export function formatDate(dateStr) {
  * @param {string} [token] - Token contract address. Omit for native asset.
  * @returns {{ formatted: string, symbol?: string }} Formatted amount and optional symbol.
  */
-export function formatTokenAmount(amount, rawAmount, network, token) {
+export function formatTokenAmount (amount, rawAmount, network, token) {
   if (token) {
     const tokenConfig = getTokenConfig(network, token)
     return tokenConfig
-      ? { formatted: formatAmount(amount, tokenConfig.decimals, tokenConfig.symbol), symbol: tokenConfig.symbol }
+      ? {
+          formatted: formatAmount(amount, tokenConfig.decimals, tokenConfig.symbol),
+          symbol: tokenConfig.symbol
+        }
       : { formatted: `${rawAmount} tokens (base units)` }
   }
   const config = getNetworkConfig(network)
-  return { formatted: formatAmount(amount, config.decimals, config.nativeSymbol), symbol: config.nativeSymbol }
+  return {
+    formatted: formatAmount(amount, config.decimals, config.nativeSymbol),
+    symbol: config.nativeSymbol
+  }
 }

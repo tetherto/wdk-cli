@@ -34,7 +34,7 @@ import { walletsFile } from './wdk-config.js'
  * @param {string} moduleSpec - Module specifier, e.g. `@tetherto/wdk-wallet-btc@1.0.0-beta.8`.
  * @returns {{ name: string, version?: string }} Parsed module name and version.
  */
-export function parseModuleName(moduleSpec) {
+export function parseModuleName (moduleSpec) {
   const idx = moduleSpec.startsWith('@') ? moduleSpec.indexOf('@', 1) : moduleSpec.indexOf('@')
   if (idx > 0) {
     return { name: moduleSpec.slice(0, idx), version: moduleSpec.slice(idx + 1) }
@@ -64,13 +64,13 @@ export const NETWORK_NAMES = Object.keys(NETWORKS)
  *
  * @returns {Record<string, NetworkConfig>} Map of custom network name to config.
  */
-export function getCustomNetworks() {
+export function getCustomNetworks () {
   const custom = configService.get('customNetworks')
   if (!custom || typeof custom !== 'object') return {}
   /** @type {Record<string, NetworkConfig>} */
   const result = {}
   for (const [name, config] of Object.entries(custom)) {
-    result[name] = { ...(/** @type {NetworkConfig} */ (config)), custom: true }
+    result[name] = { ...(config), custom: true }
   }
   return result
 }
@@ -80,7 +80,7 @@ export function getCustomNetworks() {
  *
  * @returns {Record<string, NetworkConfig>} Combined map of all network configs.
  */
-export function getAllNetworks() {
+export function getAllNetworks () {
   return { ...NETWORKS, ...getCustomNetworks() }
 }
 
@@ -89,7 +89,7 @@ export function getAllNetworks() {
  *
  * @returns {string[]} Array of all network names.
  */
-export function getAllNetworkNames() {
+export function getAllNetworkNames () {
   return Object.keys(getAllNetworks())
 }
 
@@ -99,7 +99,7 @@ export function getAllNetworkNames() {
  * @param {string} name - Network name to check.
  * @returns {boolean} True if the network is built-in.
  */
-export function isBuiltinNetwork(name) {
+export function isBuiltinNetwork (name) {
   return name in NETWORKS
 }
 
@@ -109,10 +109,10 @@ export function isBuiltinNetwork(name) {
  * @param {string} name - Network name.
  * @returns {NetworkConfig} The network configuration.
  */
-export function getNetworkConfig(name) {
+export function getNetworkConfig (name) {
   const all = getAllNetworks()
   const config = all[name]
-  if (!config) throw new WdkCliError(`Network '${name}' is not supported.`, ErrorCode.NETWORK_NOT_SUPPORTED)
+  if (!config) { throw new WdkCliError(`Network '${name}' is not supported.`, ErrorCode.NETWORK_NOT_SUPPORTED) }
   return config
 }
 
@@ -122,7 +122,7 @@ export function getNetworkConfig(name) {
  * @param {string} name - Network name to check.
  * @returns {boolean} True if the network exists.
  */
-export function isValidNetwork(name) {
+export function isValidNetwork (name) {
   return name in NETWORKS || name in getCustomNetworks()
 }
 
@@ -132,7 +132,7 @@ export function isValidNetwork(name) {
  * @param {string} name - Network name to check.
  * @returns {boolean} True if the network is a testnet.
  */
-export function isTestnet(name) {
+export function isTestnet (name) {
   try {
     const config = getNetworkConfig(name)
     return config?.testnet === true
@@ -147,7 +147,7 @@ export function isTestnet(name) {
  * @param {string} name - Network name to check.
  * @returns {boolean} True if the network is custom.
  */
-export function isCustomNetwork(name) {
+export function isCustomNetwork (name) {
   return name in getCustomNetworks()
 }
 
@@ -158,7 +158,7 @@ export function isCustomNetwork(name) {
  * @param {NetworkConfig} config - Network configuration to save.
  * @returns {void}
  */
-export function saveCustomNetwork(name, config) {
+export function saveCustomNetwork (name, config) {
   configService.set(`customNetworks.${name}`, config)
 }
 
@@ -168,7 +168,7 @@ export function saveCustomNetwork(name, config) {
  * @param {string} name - Network name to delete.
  * @returns {void}
  */
-export function deleteCustomNetwork(name) {
+export function deleteCustomNetwork (name) {
   configService.delete(`customNetworks.${name}`)
 }
 
@@ -178,7 +178,7 @@ export function deleteCustomNetwork(name) {
  * @param {string} network - Network name to validate.
  * @returns {void}
  */
-export function validateNetwork(network) {
+export function validateNetwork (network) {
   if (!isValidNetwork(network)) {
     throw new WdkCliError(`Network '${network}' is not supported.`, ErrorCode.NETWORK_NOT_SUPPORTED)
   }

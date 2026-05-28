@@ -23,7 +23,7 @@ let envPassphraseNoticeShown = false
  * @param {string} [message] - Prompt message. Defaults to `'Enter passphrase:'`.
  * @returns {Promise<string>} The entered passphrase.
  */
-export async function promptPassphrase(message = 'Enter passphrase:') {
+export async function promptPassphrase (message = 'Enter passphrase:') {
   const envPassphrase = process.env.WDK_PASSPHRASE
   if (envPassphrase) {
     if (!envPassphraseNoticeShown) {
@@ -40,6 +40,6 @@ export async function promptPassphrase(message = 'Enter passphrase:') {
  *
  * @returns {Promise<string>} The entered seed phrase.
  */
-export async function promptSeedPhrase() {
+export async function promptSeedPhrase () {
   return input({ message: 'Enter your seed phrase:' })
 }

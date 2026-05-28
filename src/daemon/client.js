@@ -24,34 +24,25 @@
 
 import { connect } from 'node:net'
 import { spawn } from 'node:child_process'
-import { existsSync } from 'node:fs'
 import { readFile, access, unlink } from 'node:fs/promises'
-import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   getDaemonSocketPath,
   getDaemonPidPath,
   DAEMON_START_RETRIES,
   DAEMON_START_RETRY_INTERVAL_MS,
-  DAEMON_SPAWN_TIMEOUT_MS,
+  DAEMON_SPAWN_TIMEOUT_MS
 } from '../config/constants.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 import { configService } from '../services/config-service.js'
 
 /**
- * Resolves the absolute path to the wdk-daemon.mjs binary by walking up the directory tree.
+ * Resolves the absolute path to the wdk-daemon.mjs binary, relative to this file.
  *
  * @returns {string} The absolute path to wdk-daemon.mjs.
  */
-function getDaemonScript() {
-  const thisFile = fileURLToPath(import.meta.url)
-  let dir = dirname(thisFile)
-  for (let i = 0; i < 5; i++) {
-    const candidate = join(dir, 'bin', 'wdk-daemon.mjs')
-    if (existsSync(candidate)) return candidate
-    dir = dirname(dir)
-  }
-  throw new Error('Cannot find wdk-daemon.mjs')
+function getDaemonScript () {
+  return fileURLToPath(new URL('../../bin/wdk-daemon.mjs', import.meta.url))
 }
 
 /**
@@ -59,16 +50,22 @@ function getDaemonScript() {
  *
  * @returns {Promise<void>}
  */
-function spawnDaemon() {
+function spawnDaemon () {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, ['--disable-warning=ExperimentalWarning', getDaemonScript()], {
-      stdio: ['ignore', 'ignore', 'pipe'],
-      detached: true, // Daemon must outlive the parent process on all platforms
-      windowsHide: true, // Prevents a new console window on Windows when detached
-    })
+    const child = spawn(
+      process.execPath,
+      ['--disable-warning=ExperimentalWarning', getDaemonScript()],
+      {
+        stdio: ['ignore', 'ignore', 'pipe'],
+        detached: true, // Daemon must outlive the parent process on all platforms
+        windowsHide: true // Prevents a new console window on Windows when detached
+      }
+    )
 
     let stderr = ''
-    child.stderr.on('data', (chunk) => { stderr += chunk.toString() })
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk.toString()
+    })
 
     const timeout = setTimeout(() => {
       child.stderr.destroy()
@@ -98,7 +95,7 @@ export class DaemonClient {
    *
    * @returns {Promise<boolean>} True if the daemon is running.
    */
-  async isRunning() {
+  async isRunning () {
     const isWindows = process.platform === 'win32'
     try {
       const pidPath = getDaemonPidPath()
@@ -116,9 +113,17 @@ export class DaemonClient {
           return true
         }
         if (!isWindows) {
-          try { await unlink(this.socketPath) } catch { /* */ }
+          try {
+            await unlink(this.socketPath)
+          } catch {
+            /* */
+          }
         }
-        try { await unlink(pidPath) } catch { /* */ }
+        try {
+          await unlink(pidPath)
+        } catch {
+          /* */
+        }
         return false
       }
     } catch {
@@ -131,7 +136,7 @@ export class DaemonClient {
    *
    * @returns {Promise<void>}
    */
-  async ensureRunning() {
+  async ensureRunning () {
     if (await this.isRunning()) return
 
     await spawnDaemon()
@@ -142,9 +147,11 @@ export class DaemonClient {
         try {
           await this.status()
           return
-        } catch { /* not ready yet */ }
+        } catch {
+          /* not ready yet */
+        }
       }
-      await new Promise((r) => setTimeout(r, DAEMON_START_RETRY_INTERVAL_MS))
+      await new Promise((resolve) => setTimeout(resolve, DAEMON_START_RETRY_INTERVAL_MS))
       retries--
     }
     throw new Error('Failed to start wallet daemon')
@@ -157,7 +164,7 @@ export class DaemonClient {
    * @param {number} [timeoutMs] - Request timeout in milliseconds.
    * @returns {Promise<DaemonResponse>} The daemon response.
    */
-  async request(req, timeoutMs = 5000) {
+  async request (req, timeoutMs = 5000) {
     if (!(await this.isRunning())) {
       throw new WdkCliError('Wallet is locked.', ErrorCode.WALLET_LOCKED)
     }
@@ -202,7 +209,7 @@ export class DaemonClient {
    * @param {string} fallbackMsg - Error message to use if response has no error field.
    * @returns {void}
    */
-  #assertOk(resp, fallbackMsg) {
+  #assertOk (resp, fallbackMsg) {
     if (!resp.ok) throw new Error(resp.error || fallbackMsg)
   }
 
@@ -214,7 +221,7 @@ export class DaemonClient {
    * @param {string} [wallet] - The wallet name.
    * @returns {Promise<string>} The derived address.
    */
-  async getAddress(network, index = 0, wallet) {
+  async getAddress (network, index = 0, wallet) {
     const resp = await this.request({ action: 'get_address', network, index, wallet }, 30000)
     this.#assertOk(resp, 'Failed to get address')
     const data = /** @type {GetAddressResult} */ (resp.data)
@@ -230,7 +237,7 @@ export class DaemonClient {
    * @param {string} [wallet] - The wallet name.
    * @returns {Promise<GetBalanceResult>} The balance info.
    */
-  async getBalance(network, index = 0, token, wallet) {
+  async getBalance (network, index = 0, token, wallet) {
     const resp = await this.request({ action: 'get_balance', network, index, token, wallet }, 30000)
     this.#assertOk(resp, 'Failed to get balance')
     const data = /** @type {GetBalanceResult} */ (resp.data)
@@ -248,8 +255,11 @@ export class DaemonClient {
    * @param {string} [wallet] - The wallet name.
    * @returns {Promise<EstimateFeeResult>} The estimated fee.
    */
-  async estimateFee(network, index, to, amount, token, wallet) {
-    const resp = await this.request({ action: 'estimate_fee', network, index, to, amount, token, wallet }, 30000)
+  async estimateFee (network, index, to, amount, token, wallet) {
+    const resp = await this.request(
+      { action: 'estimate_fee', network, index, to, amount, token, wallet },
+      30000
+    )
     this.#assertOk(resp, 'Failed to estimate fee')
     const data = /** @type {EstimateFeeResult} */ (resp.data)
     return data
@@ -266,8 +276,11 @@ export class DaemonClient {
    * @param {string} [wallet] - The wallet name.
    * @returns {Promise<SendResult>} The transaction result.
    */
-  async send(network, index, to, amount, token, wallet) {
-    const resp = await this.request({ action: 'send', network, index, to, amount, token, wallet }, 60000)
+  async send (network, index, to, amount, token, wallet) {
+    const resp = await this.request(
+      { action: 'send', network, index, to, amount, token, wallet },
+      60000
+    )
     this.#assertOk(resp, 'Failed to send transaction')
     const data = /** @type {SendResult} */ (resp.data)
     return data
@@ -281,8 +294,11 @@ export class DaemonClient {
    * @param {number} [ttlMinutes] - Session TTL in minutes (0 = no expiry).
    * @returns {Promise<void>}
    */
-  async unlockWallet(name, passphrase, ttlMinutes = 5) {
-    const resp = await this.request({ action: 'unlock_wallet', wallet: name, passphrase, ttl: ttlMinutes }, 30000)
+  async unlockWallet (name, passphrase, ttlMinutes = 5) {
+    const resp = await this.request(
+      { action: 'unlock_wallet', wallet: name, passphrase, ttl: ttlMinutes },
+      30000
+    )
     this.#assertOk(resp, `Failed to unlock wallet '${name}'`)
   }
 
@@ -292,7 +308,7 @@ export class DaemonClient {
    * @param {string} name - The wallet name.
    * @returns {Promise<void>}
    */
-  async lockWallet(name) {
+  async lockWallet (name) {
     const resp = await this.request({ action: 'lock_wallet', wallet: name })
     this.#assertOk(resp, `Failed to lock wallet '${name}'`)
   }
@@ -302,7 +318,7 @@ export class DaemonClient {
    *
    * @returns {Promise<WalletStatus[]>} Array of wallet status entries.
    */
-  async listWallets() {
+  async listWallets () {
     const resp = await this.request({ action: 'list_wallets' })
     this.#assertOk(resp, 'Failed to list wallets')
     const data = /** @type {ListWalletsResult} */ (resp.data)
@@ -314,7 +330,7 @@ export class DaemonClient {
    *
    * @returns {Promise<StatusResult>} The daemon status.
    */
-  async status() {
+  async status () {
     const resp = await this.request({ action: 'status' })
     this.#assertOk(resp, 'Failed to get daemon status')
     const data = /** @type {StatusResult} */ (resp.data)
@@ -327,7 +343,7 @@ export class DaemonClient {
    * @param {string} wallet - The wallet name.
    * @returns {Promise<boolean>} True if the wallet is unlocked.
    */
-  async isWalletUnlocked(wallet) {
+  async isWalletUnlocked (wallet) {
     if (!(await this.isRunning())) return false
     try {
       const status = await this.status()
@@ -343,7 +359,7 @@ export class DaemonClient {
    * @param {string} [wallet] - The wallet name. Defaults to the configured default wallet.
    * @returns {Promise<string>} The resolved wallet name.
    */
-  async requireUnlocked(wallet) {
+  async requireUnlocked (wallet) {
     const resolved = wallet || configService.getDefaultWallet()
     if (!resolved) {
       throw new WdkCliError(
@@ -367,7 +383,7 @@ export class DaemonClient {
    *
    * @returns {Promise<void>}
    */
-  async lock() {
+  async lock () {
     try {
       await this.request({ action: 'lock' })
     } catch {

@@ -20,7 +20,7 @@ import { InvalidArgumentError } from 'commander'
  * @param {string} value - The raw CLI argument.
  * @returns {number} The parsed positive integer.
  */
-export function positiveInt(value) {
+export function positiveInt (value) {
   const n = Number(value)
   if (!Number.isInteger(n) || n <= 0) {
     throw new InvalidArgumentError('Must be a positive integer.')
@@ -34,7 +34,7 @@ export function positiveInt(value) {
  * @param {string} value - The raw CLI argument.
  * @returns {number} The parsed non-negative integer.
  */
-export function nonNegativeInt(value) {
+export function nonNegativeInt (value) {
   const n = Number(value)
   if (!Number.isInteger(n) || n < 0) {
     throw new InvalidArgumentError('Must be a non-negative integer.')

@@ -71,9 +71,11 @@ export const INDEXER_TOKENS = Object.freeze(['usdt', 'usat', 'xaut', 'btc'])
  * @param {string} network - The network name.
  * @returns {IndexerEntry | undefined} The indexer entry, or undefined if not found.
  */
-function getIndexerEntry(network) {
+function getIndexerEntry (network) {
   if (INDEXER_MAP[network]) return INDEXER_MAP[network]
-  return /** @type {IndexerEntry | undefined} */ (configService.get(`customNetworks.${network}.indexer`))
+  return /** @type {IndexerEntry | undefined} */ (
+    configService.get(`customNetworks.${network}.indexer`)
+  )
 }
 
 /**
@@ -82,7 +84,7 @@ function getIndexerEntry(network) {
  * @param {string} network - The network name.
  * @returns {string | undefined} The blockchain identifier, or undefined if not supported.
  */
-export function getIndexerBlockchain(network) {
+export function getIndexerBlockchain (network) {
   return getIndexerEntry(network)?.blockchain
 }
 
@@ -92,7 +94,7 @@ export function getIndexerBlockchain(network) {
  * @param {string} network - The network name.
  * @returns {string[]} Array of supported token symbols.
  */
-export function getIndexerTokens(network) {
+export function getIndexerTokens (network) {
   const entry = getIndexerEntry(network)
   if (!entry) return []
   return entry.tokens.filter((t) => INDEXER_TOKENS.includes(t))
@@ -104,7 +106,7 @@ export function getIndexerTokens(network) {
  * @param {string} network - The network name.
  * @returns {boolean} True if the network has an indexer entry.
  */
-export function isIndexerSupported(network) {
+export function isIndexerSupported (network) {
   return !!getIndexerEntry(network)
 }
 
@@ -117,10 +119,13 @@ export function isIndexerSupported(network) {
  * @param {TokenTransferOptions} [options] - Optional filter parameters.
  * @returns {Promise<TokenTransfer[]>} Array of token transfers.
  */
-export async function getTokenTransfers(network, token, address, options = {}) {
+export async function getTokenTransfers (network, token, address, options = {}) {
   const blockchain = getIndexerBlockchain(network)
   if (!blockchain) {
-    throw new WdkCliError(`Network '${network}' is not supported by the indexer API.`, ErrorCode.NETWORK_NOT_SUPPORTED)
+    throw new WdkCliError(
+      `Network '${network}' is not supported by the indexer API.`,
+      ErrorCode.NETWORK_NOT_SUPPORTED
+    )
   }
 
   const baseUrl = /** @type {string | undefined} */ (configService.get('indexer.baseUrl'))
@@ -150,13 +155,16 @@ export async function getTokenTransfers(network, token, address, options = {}) {
   if (!response.ok) {
     if (response.status === 403) {
       throw new WdkCliError(
-        `Indexer API error: 403 Forbidden. Please set your API key or use a proxy API for the indexer provider:\n` +
-        `  wdk config set indexer.apiKey <your-api-key>\n` +
-        `  wdk config set indexer.baseUrl <your-proxy-url>`,
+        'Indexer API error: 403 Forbidden. Please set your API key or use a proxy API for the indexer provider:\n' +
+          '  wdk config set indexer.apiKey <your-api-key>\n' +
+          '  wdk config set indexer.baseUrl <your-proxy-url>',
         ErrorCode.NETWORK_ERROR
       )
     }
-    throw new WdkCliError(`Indexer API error: ${response.status} ${response.statusText}`, ErrorCode.NETWORK_ERROR)
+    throw new WdkCliError(
+      `Indexer API error: ${response.status} ${response.statusText}`,
+      ErrorCode.NETWORK_ERROR
+    )
   }
 
   const data = await response.json()
@@ -169,7 +177,7 @@ export async function getTokenTransfers(network, token, address, options = {}) {
  * @param {BatchTransferRequestItem[]} items - The batch request items.
  * @returns {Promise<BatchTransferResultItem[]>} Array of per-item results.
  */
-export async function getTokenTransfersBatch(items) {
+export async function getTokenTransfersBatch (items) {
   if (items.length === 0) return []
 
   const baseUrl = /** @type {string | undefined} */ (configService.get('indexer.baseUrl'))
@@ -196,13 +204,16 @@ export async function getTokenTransfersBatch(items) {
   if (!response.ok) {
     if (response.status === 403) {
       throw new WdkCliError(
-        `Indexer API error: 403 Forbidden. Please set your API key or use a proxy API for the indexer provider:\n` +
-        `  wdk config set indexer.apiKey <your-api-key>\n` +
-        `  wdk config set indexer.baseUrl <your-proxy-url>`,
+        'Indexer API error: 403 Forbidden. Please set your API key or use a proxy API for the indexer provider:\n' +
+          '  wdk config set indexer.apiKey <your-api-key>\n' +
+          '  wdk config set indexer.baseUrl <your-proxy-url>',
         ErrorCode.NETWORK_ERROR
       )
     }
-    throw new WdkCliError(`Indexer API error: ${response.status} ${response.statusText}`, ErrorCode.NETWORK_ERROR)
+    throw new WdkCliError(
+      `Indexer API error: ${response.status} ${response.statusText}`,
+      ErrorCode.NETWORK_ERROR
+    )
   }
 
   return await response.json()

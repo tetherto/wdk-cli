@@ -61,7 +61,7 @@ import { WdkCliError, ErrorCode } from '../errors/index.js'
  * @param {string} amount - The amount string to validate.
  * @returns {void}
  */
-function validateAmount(amount) {
+function validateAmount (amount) {
   if (!/^\d+$/.test(amount) || amount === '0') {
     throw new WdkCliError(
       'Invalid amount. Must be a positive integer in base units (wei/satoshis/lamports).',
@@ -77,12 +77,19 @@ function validateAmount(amount) {
  * @param {SendInput} input - The send parameters.
  * @returns {Promise<SendPreview>} The transaction preview including estimated fee.
  */
-export async function previewSend(input) {
+export async function previewSend (input) {
   const wallet = await daemonClient.requireUnlocked(input.wallet)
   validateNetwork(input.network)
   validateAmount(input.amount)
 
-  const feeQuote = await daemonClient.estimateFee(input.network, input.index, input.to, input.amount, input.token, wallet)
+  const feeQuote = await daemonClient.estimateFee(
+    input.network,
+    input.index,
+    input.to,
+    input.amount,
+    input.token,
+    wallet
+  )
 
   const networkConfig = getNetworkConfig(input.network)
   const amountBigInt = BigInt(input.amount)
@@ -95,8 +102,16 @@ export async function previewSend(input) {
 
   let amountUsd
   let estimatedFeeUsd
-  try { amountUsd = await convertToUsd(input.network, amountBigInt, input.token) } catch { /* no price */ }
-  try { estimatedFeeUsd = await convertToUsd(input.network, BigInt(feeQuote.fee)) } catch { /* no price */ }
+  try {
+    amountUsd = await convertToUsd(input.network, amountBigInt, input.token)
+  } catch {
+    /* no price */
+  }
+  try {
+    estimatedFeeUsd = await convertToUsd(input.network, BigInt(feeQuote.fee))
+  } catch {
+    /* no price */
+  }
 
   return {
     network: input.network,
@@ -119,15 +134,27 @@ export async function previewSend(input) {
  * @param {SendInput} input - The send parameters.
  * @returns {Promise<SendResult>} The transaction result including the tx hash.
  */
-export async function executeSend(input) {
+export async function executeSend (input) {
   const wallet = await daemonClient.requireUnlocked(input.wallet)
   validateNetwork(input.network)
   validateAmount(input.amount)
 
   const networkConfig = getNetworkConfig(input.network)
-  const sendData = await daemonClient.send(input.network, input.index, input.to, input.amount, input.token, wallet)
+  const sendData = await daemonClient.send(
+    input.network,
+    input.index,
+    input.to,
+    input.amount,
+    input.token,
+    wallet
+  )
   const amountBigInt = BigInt(input.amount)
-  const { formatted: amountFormatted } = formatTokenAmount(amountBigInt, input.amount, input.network, input.token)
+  const { formatted: amountFormatted } = formatTokenAmount(
+    amountBigInt,
+    input.amount,
+    input.network,
+    input.token
+  )
 
   return {
     network: input.network,

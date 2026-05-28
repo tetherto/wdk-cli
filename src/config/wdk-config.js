@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import walletsFileRaw from '../../wdk.config.json' with { type: 'json' }
+import { createRequire } from 'node:module'
+
+const walletsFileRaw = createRequire(import.meta.url)('../../wdk.config.json')
 
 /**
  * @typedef {Object} IndexerEntry

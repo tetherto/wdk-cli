@@ -12,14 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { readFile, writeFile, access, unlink, mkdir, chmod, readdir, rm, stat } from 'node:fs/promises'
+import {
+  readFile,
+  writeFile,
+  access,
+  unlink,
+  mkdir,
+  chmod,
+  readdir,
+  rm,
+  stat
+} from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { encrypt, decrypt } from './encryption.js'
 import { getWalletsDir, getWalletPath, getWalletDir } from '../config/constants.js'
 
 /** @typedef {import('./encryption.js').EncryptedPayload} EncryptedPayload */
 
-function isEnoent(err) {
+function isEnoent (err) {
   return err?.code === 'ENOENT'
 }
 
@@ -30,7 +40,7 @@ export class Keyring {
   /**
    * @param {string} path - Absolute path to the encrypted seed file.
    */
-  constructor(path) {
+  constructor (path) {
     this.path = path
   }
 
@@ -41,7 +51,7 @@ export class Keyring {
    * @param {string} passphrase - The passphrase used to encrypt the seed.
    * @returns {Promise<void>}
    */
-  async store(seedPhrase, passphrase) {
+  async store (seedPhrase, passphrase) {
     const payload = encrypt(seedPhrase, passphrase)
     await mkdir(dirname(this.path), { recursive: true })
     await writeFile(this.path, JSON.stringify(payload, null, 2), { encoding: 'utf8', mode: 0o600 })
@@ -54,7 +64,7 @@ export class Keyring {
    * @param {string} passphrase - The passphrase used to decrypt the seed.
    * @returns {Promise<string>} The decrypted seed phrase.
    */
-  async retrieve(passphrase) {
+  async retrieve (passphrase) {
     const data = await readFile(this.path, 'utf8')
     const payload = JSON.parse(data)
     return decrypt(payload, passphrase)
@@ -65,7 +75,7 @@ export class Keyring {
    *
    * @returns {Promise<boolean>} True if the file exists.
    */
-  async exists() {
+  async exists () {
     try {
       await access(this.path)
       return true
@@ -80,7 +90,7 @@ export class Keyring {
    *
    * @returns {Promise<void>}
    */
-  async destroy() {
+  async destroy () {
     try {
       await unlink(this.path)
     } catch (err) {
@@ -101,7 +111,7 @@ export class WalletKeyring {
    * @param {string} name - The wallet name.
    * @returns {Promise<void>}
    */
-  async store(seedPhrase, passphrase, name) {
+  async store (seedPhrase, passphrase, name) {
     const walletPath = getWalletPath(name)
     const keyring = new Keyring(walletPath)
     await keyring.store(seedPhrase, passphrase)
@@ -114,7 +124,7 @@ export class WalletKeyring {
    * @param {string} name - The wallet name.
    * @returns {Promise<string>} The decrypted seed phrase.
    */
-  async retrieve(passphrase, name) {
+  async retrieve (passphrase, name) {
     const walletPath = getWalletPath(name)
     const keyring = new Keyring(walletPath)
     return keyring.retrieve(passphrase)
@@ -126,7 +136,7 @@ export class WalletKeyring {
    * @param {string} name - The wallet name.
    * @returns {Promise<boolean>} True if the wallet seed file exists.
    */
-  async exists(name) {
+  async exists (name) {
     const walletPath = getWalletPath(name)
     const keyring = new Keyring(walletPath)
     return keyring.exists()
@@ -138,7 +148,7 @@ export class WalletKeyring {
    * @param {string} name - The wallet name.
    * @returns {Promise<void>}
    */
-  async destroy(name) {
+  async destroy (name) {
     const walletDir = getWalletDir(name)
     try {
       await rm(walletDir, { recursive: true })
@@ -152,7 +162,7 @@ export class WalletKeyring {
    *
    * @returns {Promise<string[]>} Sorted array of wallet names.
    */
-  async list() {
+  async list () {
     const dir = getWalletsDir()
     let entries
     try {

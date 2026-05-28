@@ -21,7 +21,7 @@ import {
   isValidNetwork,
   saveCustomNetwork,
   deleteCustomNetwork,
-  parseModuleName,
+  parseModuleName
 } from '../config/networks.js'
 import { listNetworks } from '../actions/networks.js'
 import { configService } from '../services/config-service.js'
@@ -33,7 +33,9 @@ import { walletsFile } from '../config/wdk-config.js'
 
 /** @typedef {import('commander').Command} Command */
 
-const VALID_WALLET_TYPES = [...new Set(Object.values(walletsFile.networks).map(w => parseModuleName(w.module).name))]
+const VALID_WALLET_TYPES = [
+  ...new Set(Object.values(walletsFile.networks).map((w) => parseModuleName(w.module).name))
+]
 const DEFAULT_DECIMALS = {}
 for (const entry of Object.values(walletsFile.networks)) {
   const mod = parseModuleName(entry.module).name
@@ -48,10 +50,8 @@ for (const entry of Object.values(walletsFile.networks)) {
  * @param {Command} program - The root Commander program instance.
  * @returns {void}
  */
-export function registerNetworkCommand(program) {
-  const network = program
-    .command('network')
-    .description('Manage blockchain networks')
+export function registerNetworkCommand (program) {
+  const network = program.command('network').description('Manage blockchain networks')
 
   configureHelp(network, {})
 
@@ -64,8 +64,8 @@ export function registerNetworkCommand(program) {
   configureHelp(listCmd, {
     options: [
       { flags: '--testnet', description: 'Show only testnets' },
-      { flags: '--mainnet', description: 'Show only mainnets' },
-    ],
+      { flags: '--mainnet', description: 'Show only mainnets' }
+    ]
   })
 
   listCmd.action((options) => {
@@ -86,7 +86,7 @@ export function registerNetworkCommand(program) {
           n.displayName,
           n.module,
           n.symbol,
-          n.testnet ? chalk.dim('yes') : '',
+          n.testnet ? chalk.dim('yes') : ''
         ])
       }
 
@@ -101,13 +101,24 @@ export function registerNetworkCommand(program) {
     .command('create')
     .description('Create a custom network')
     .requiredOption('--name <name>', 'Network identifier (e.g. base, optimism)')
-    .requiredOption('--network-data <json>', 'JSON with network definition (displayName, module, nativeSymbol, decimals, testnet, indexer, tokens, config)')
+    .requiredOption(
+      '--network-data <json>',
+      'JSON with network definition (displayName, module, nativeSymbol, decimals, testnet, indexer, tokens, config)'
+    )
 
   configureHelp(createCmd, {
     params: [
-      { flags: '--name <name>', description: 'Network identifier (e.g. base, optimism)', required: true },
-      { flags: '--network-data <json>', description: 'JSON with network definition', required: true },
-    ],
+      {
+        flags: '--name <name>',
+        description: 'Network identifier (e.g. base, optimism)',
+        required: true
+      },
+      {
+        flags: '--network-data <json>',
+        description: 'JSON with network definition',
+        required: true
+      }
+    ]
   })
 
   createCmd.action(async (options) => {
@@ -125,15 +136,20 @@ export function registerNetworkCommand(program) {
       const displayName = jsonData.displayName
       const walletType = jsonData.module
       const symbol = jsonData.nativeSymbol
-      const decimals = jsonData.decimals ?? (DEFAULT_DECIMALS[walletType] ?? 18)
+      const decimals = jsonData.decimals ?? DEFAULT_DECIMALS[walletType] ?? 18
       const testnet = jsonData.testnet ?? false
       const indexerRaw = jsonData.indexer
       let indexer
       if (indexerRaw && typeof indexerRaw === 'object') {
         const blockchain = indexerRaw.blockchain
-        const indexerTokens = Array.isArray(indexerRaw.tokens) ? indexerRaw.tokens.filter((t) => typeof t === 'string') : undefined
+        const indexerTokens = Array.isArray(indexerRaw.tokens)
+          ? indexerRaw.tokens.filter((t) => typeof t === 'string')
+          : undefined
         if (!blockchain || !indexerTokens) {
-          throw new WdkCliError('indexer must be { blockchain: string, tokens: string[] }', ErrorCode.INVALID_ARGUMENT)
+          throw new WdkCliError(
+            'indexer must be { blockchain: string, tokens: string[] }',
+            ErrorCode.INVALID_ARGUMENT
+          )
         }
         indexer = { blockchain, tokens: indexerTokens }
       }
@@ -148,20 +164,32 @@ export function registerNetworkCommand(program) {
       if (!walletType) missing.push('module')
       if (!symbol) missing.push('nativeSymbol')
       if (missing.length > 0) {
-        throw new WdkCliError(`JSON missing required fields: ${missing.join(', ')}`, ErrorCode.INVALID_ARGUMENT)
+        throw new WdkCliError(
+          `JSON missing required fields: ${missing.join(', ')}`,
+          ErrorCode.INVALID_ARGUMENT
+        )
       }
 
       if (!/^[a-z0-9][a-z0-9-]*$/.test(name)) {
-        throw new WdkCliError('Name must be lowercase alphanumeric with hyphens.', ErrorCode.INVALID_ARGUMENT)
+        throw new WdkCliError(
+          'Name must be lowercase alphanumeric with hyphens.',
+          ErrorCode.INVALID_ARGUMENT
+        )
       }
       if (isValidNetwork(name)) {
         throw new WdkCliError(`Network '${name}' already exists.`, ErrorCode.WALLET_EXISTS)
       }
       if (!VALID_WALLET_TYPES.includes(walletType)) {
-        throw new WdkCliError(`Wallet type must be one of: ${VALID_WALLET_TYPES.join(', ')}`, ErrorCode.UNSUPPORTED_MODULE)
+        throw new WdkCliError(
+          `Wallet type must be one of: ${VALID_WALLET_TYPES.join(', ')}`,
+          ErrorCode.UNSUPPORTED_MODULE
+        )
       }
       if (!Number.isInteger(decimals) || decimals < 0 || decimals > 24) {
-        throw new WdkCliError('Decimals must be an integer between 0 and 24.', ErrorCode.INVALID_ARGUMENT)
+        throw new WdkCliError(
+          'Decimals must be an integer between 0 and 24.',
+          ErrorCode.INVALID_ARGUMENT
+        )
       }
 
       const config = {
@@ -172,7 +200,7 @@ export function registerNetworkCommand(program) {
         nativeSymbol: symbol,
         decimals,
         custom: true,
-        testnet,
+        testnet
       }
       if (tokens) config.tokens = tokens
       if (indexer) config.indexer = indexer
@@ -195,10 +223,14 @@ export function registerNetworkCommand(program) {
       console.log(`  Testnet:    ${testnet ? 'yes' : 'no'}`)
       if (indexer) console.log(`  Indexer:    ${indexer.blockchain} [${indexer.tokens.join(', ')}]`)
       if (tokens) console.log(`  Tokens:     ${tokens.length} configured`)
-      if (Object.keys(networkConfig).length > 0) console.log(`  Config:     ${Object.keys(networkConfig).length} keys`)
+      if (Object.keys(networkConfig).length > 0) { console.log(`  Config:     ${Object.keys(networkConfig).length} keys`) }
       console.log()
       if (Object.keys(networkConfig).length === 0) {
-        console.log(chalk.dim(`Use wdk config set --key <key> --value <value> --network ${name} to configure network settings.`))
+        console.log(
+          chalk.dim(
+            `Use wdk config set --key <key> --value <value> --network ${name} to configure network settings.`
+          )
+        )
       }
     } catch (error) {
       handleError(error, program.opts().verbose, program.opts().json)
@@ -211,9 +243,7 @@ export function registerNetworkCommand(program) {
     .requiredOption('--name <name>', 'Network name to delete')
 
   configureHelp(deleteCmd, {
-    params: [
-      { flags: '--name <name>', description: 'Network name to delete', required: true },
-    ],
+    params: [{ flags: '--name <name>', description: 'Network name to delete', required: true }]
   })
 
   deleteCmd.action(async (options) => {
@@ -222,11 +252,17 @@ export function registerNetworkCommand(program) {
       const name = options.name
 
       if (isBuiltinNetwork(name)) {
-        throw new WdkCliError(`'${name}' is a built-in network and cannot be deleted.`, ErrorCode.INVALID_ARGUMENT)
+        throw new WdkCliError(
+          `'${name}' is a built-in network and cannot be deleted.`,
+          ErrorCode.INVALID_ARGUMENT
+        )
       }
 
       if (!isCustomNetwork(name)) {
-        throw new WdkCliError(`Custom network '${name}' not found.`, ErrorCode.NETWORK_NOT_SUPPORTED)
+        throw new WdkCliError(
+          `Custom network '${name}' not found.`,
+          ErrorCode.NETWORK_NOT_SUPPORTED
+        )
       }
 
       deleteCustomNetwork(name)
@@ -248,15 +284,18 @@ export function registerNetworkCommand(program) {
     .requiredOption('--network <network>', 'Blockchain network')
 
   configureHelp(info, {
-    params: [
-      { flags: '--network <network>', description: 'Blockchain network', required: true },
-    ],
+    params: [{ flags: '--network <network>', description: 'Blockchain network', required: true }]
   })
 
   info.action((options) => {
     try {
       const networkName = options.network
-      if (!isValidNetwork(networkName)) throw new WdkCliError(`Network '${networkName}' is not supported.`, ErrorCode.NETWORK_NOT_SUPPORTED)
+      if (!isValidNetwork(networkName)) {
+        throw new WdkCliError(
+          `Network '${networkName}' is not supported.`,
+          ErrorCode.NETWORK_NOT_SUPPORTED
+        )
+      }
 
       const config = getNetworkConfig(networkName)
       const netConf = configService.get(`networks.${networkName}`) ?? {}
@@ -283,9 +322,10 @@ export function registerNetworkCommand(program) {
         console.log()
         const maxKey = Math.max(...entries.map(([k]) => k.length))
         for (const [key, value] of entries) {
-          const display = (value === '' || value === null || value === undefined)
-            ? chalk.dim('(not set)')
-            : String(value)
+          const display =
+            value === '' || value === null || value === undefined
+              ? chalk.dim('(not set)')
+              : String(value)
           console.log(`  ${key.padEnd(maxKey + 2)}${display}`)
         }
       }

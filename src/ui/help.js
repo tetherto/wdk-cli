@@ -36,7 +36,7 @@
  * @param {number} pad - Column padding width.
  * @returns {string} Formatted section string.
  */
-function formatSection(title, items, pad) {
+function formatSection (title, items, pad) {
   const lines = [`${title}:`]
   for (const item of items) {
     const label = item.required ? ' (required)' : ''
@@ -52,12 +52,12 @@ function formatSection(title, items, pad) {
  * @param {HelpConfig} config - Help configuration with params, options, and hidden flags.
  * @returns {void}
  */
-export function configureHelp(cmd, config) {
+export function configureHelp (cmd, config) {
   const hasParams = config.params && config.params.length > 0
   const hasOptions = config.options && config.options.length > 0
 
   cmd.configureHelp({
-    formatHelp(cmd, helper) {
+    formatHelp (cmd, helper) {
       const usage = helper.commandUsage(cmd)
       const desc = helper.commandDescription(cmd)
 

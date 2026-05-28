@@ -23,7 +23,7 @@ import { MoonPayRampProvider } from './moonpay.js'
  * @param {string} module - The ramp module identifier.
  * @returns {RampProvider} The ramp provider instance.
  */
-export function getRampProvider(module) {
+export function getRampProvider (module) {
   switch (module) {
     case 'moonpay':
       return new MoonPayRampProvider()

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import WDK from '@tetherto/wdk'
+import chalk from 'chalk'
 import { isValidNetwork, getNetworkConfig, parseModuleName } from '../config/networks.js'
 import { configService } from './config-service.js'
 import { CONFIG_DEFAULTS } from '../config/constants.js'
@@ -30,7 +31,7 @@ const walletManagerCache = new Map()
  * @param {string} moduleSpec - The npm module specifier, e.g. `@tetherto/wdk-wallet` or `@scope/pkg@1.2.3`.
  * @returns {Promise<WalletManagerCtor>} The default export of the wallet manager module.
  */
-async function loadWalletManager(moduleSpec) {
+async function loadWalletManager (moduleSpec) {
   const cached = walletManagerCache.get(moduleSpec)
   if (cached) return cached
 
@@ -47,17 +48,24 @@ async function loadWalletManager(moduleSpec) {
         const require = createRequire(import.meta.url)
         const pkg = require(`${name}/package.json`)
         if (pkg.version && pkg.version !== version) {
-          console.warn(`Warning: ${name} installed ${pkg.version}, config expects ${version}. Run: npm install ${moduleSpec}`)
+          console.error(
+            chalk.yellow(
+              `Warning: ${name} installed ${pkg.version}, config expects ${version}. Run: npm install ${moduleSpec}`
+            )
+          )
         }
-      } catch { /* skip check if package.json not readable */ }
+      } catch {
+        /* skip check if package.json not readable */
+      }
     }
 
     walletManagerCache.set(moduleSpec, Manager)
     return Manager
   } catch (err) {
     if (err?.code === 'ERR_MODULE_NOT_FOUND' || err?.code === 'MODULE_NOT_FOUND') {
-      throw new Error(
-        `Wallet module '${moduleSpec}' is not installed.\n` +
+      throw new WdkCliError(
+        `Wallet module '${moduleSpec}' is not installed.`,
+        ErrorCode.UNSUPPORTED_MODULE,
         `Install it with: npm install ${moduleSpec}`
       )
     }
@@ -66,7 +74,7 @@ async function loadWalletManager(moduleSpec) {
 }
 
 export class WdkService {
-  constructor() {
+  constructor () {
     /** @type {WDK | null} */
     this.wdk = null
     /** @type {Set<string>} */
@@ -81,7 +89,7 @@ export class WdkService {
    * @param {string} seedPhrase - The BIP-39 seed phrase.
    * @returns {void}
    */
-  createInstance(seedPhrase) {
+  createInstance (seedPhrase) {
     if (!this.wdk) {
       this.wdk = new WDK(seedPhrase)
     }
@@ -94,9 +102,12 @@ export class WdkService {
    * @param {string} network - The network name to register.
    * @returns {Promise<void>}
    */
-  async initialize(seedPhrase, network) {
+  async initialize (seedPhrase, network) {
     if (!isValidNetwork(network)) {
-      throw new WdkCliError(`Network '${network}' is not supported.`, ErrorCode.NETWORK_NOT_SUPPORTED)
+      throw new WdkCliError(
+        `Network '${network}' is not supported.`,
+        ErrorCode.NETWORK_NOT_SUPPORTED
+      )
     }
 
     this.createInstance(seedPhrase)
@@ -112,12 +123,11 @@ export class WdkService {
    * @param {string} network - The network name to register.
    * @returns {Promise<void>}
    */
-  async #registerNetwork(network) {
-    if (!this.wdk) throw new Error('WDK not initialized')
+  async #registerNetwork (network) {
+    if (!this.wdk) throw new WdkCliError('WDK not initialized.', ErrorCode.UNEXPECTED_ERROR)
 
     const networkConfig = getNetworkConfig(network)
     const WalletManager = await loadWalletManager(networkConfig.module)
-    if (!WalletManager) throw new WdkCliError(`Network '${network}' is not supported.`, ErrorCode.NETWORK_NOT_SUPPORTED)
 
     const networkDefaults = CONFIG_DEFAULTS.networks || {}
     const fromService = configService.get(`networks.${network}`)
@@ -134,9 +144,12 @@ export class WdkService {
    * @param {number} [index] - The BIP-44 account index.
    * @returns {Promise<WalletAccount>} The wallet account instance.
    */
-  async getAccount(network, index = 0) {
+  async getAccount (network, index = 0) {
     if (!this.wdk) {
-      throw new Error('WDK not initialized. Call initialize() first.')
+      throw new WdkCliError(
+        'WDK not initialized. Call initialize() first.',
+        ErrorCode.UNEXPECTED_ERROR
+      )
     }
 
     const cacheKey = `${network}:${index}`
@@ -166,9 +179,12 @@ export class WdkService {
    * @param {string} network - The network name.
    * @returns {Promise<{ normal: bigint, fast: bigint }>} The fee rates.
    */
-  async getFeeRates(network) {
+  async getFeeRates (network) {
     if (!this.wdk) {
-      throw new Error('WDK not initialized. Call initialize() first.')
+      throw new WdkCliError(
+        'WDK not initialized. Call initialize() first.',
+        ErrorCode.UNEXPECTED_ERROR
+      )
     }
     return this.wdk.getFeeRates(network)
   }
@@ -178,7 +194,7 @@ export class WdkService {
    *
    * @returns {void}
    */
-  dispose() {
+  dispose () {
     if (this.wdk) {
       this.wdk.dispose()
       this.wdk = null

@@ -21,7 +21,7 @@ export class KeyService {
   /**
    * @param {WalletKeyring} walletKeyring - The keyring backend.
    */
-  constructor(walletKeyring) {
+  constructor (walletKeyring) {
     this.walletKeyring = walletKeyring
   }
 
@@ -31,7 +31,7 @@ export class KeyService {
    * @param {12 | 24} [wordCount] - Number of words (12 or 24).
    * @returns {string} The generated seed phrase.
    */
-  generate(wordCount = 12) {
+  generate (wordCount = 12) {
     return WalletManager.getRandomSeedPhrase(wordCount)
   }
 
@@ -41,7 +41,7 @@ export class KeyService {
    * @param {string} seedPhrase - The seed phrase to validate.
    * @returns {boolean} True if the seed phrase is valid.
    */
-  validate(seedPhrase) {
+  validate (seedPhrase) {
     return WalletManager.isValidSeedPhrase(seedPhrase)
   }
 
@@ -53,9 +53,12 @@ export class KeyService {
    * @param {string} name - The wallet name.
    * @returns {Promise<void>}
    */
-  async store(seedPhrase, passphrase, name) {
+  async store (seedPhrase, passphrase, name) {
     if (!this.validate(seedPhrase)) {
-      throw new WdkCliError('Invalid seed phrase. Must be 12 or 24 BIP-39 words.', ErrorCode.INVALID_SEED_PHRASE)
+      throw new WdkCliError(
+        'Invalid seed phrase. Must be 12 or 24 BIP-39 words.',
+        ErrorCode.INVALID_SEED_PHRASE
+      )
     }
     await this.walletKeyring.store(seedPhrase, passphrase, name)
   }
@@ -67,7 +70,7 @@ export class KeyService {
    * @param {string} name - The wallet name.
    * @returns {Promise<string>} The decrypted seed phrase.
    */
-  async unlock(passphrase, name) {
+  async unlock (passphrase, name) {
     if (!(await this.walletKeyring.exists(name))) {
       throw new WdkCliError('No key found.', ErrorCode.KEY_NOT_FOUND)
     }
@@ -84,7 +87,7 @@ export class KeyService {
    * @param {string} name - The wallet name.
    * @returns {Promise<boolean>} True if a key exists.
    */
-  async hasKey(name) {
+  async hasKey (name) {
     return this.walletKeyring.exists(name)
   }
 
@@ -94,7 +97,7 @@ export class KeyService {
    * @param {string} name - The wallet name to delete.
    * @returns {Promise<void>}
    */
-  async destroy(name) {
+  async destroy (name) {
     await this.walletKeyring.destroy(name)
   }
 
@@ -103,7 +106,7 @@ export class KeyService {
    *
    * @returns {Promise<string[]>} Array of wallet names.
    */
-  async list() {
+  async list () {
     return this.walletKeyring.list()
   }
 }

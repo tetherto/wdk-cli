@@ -27,7 +27,7 @@ import { registerRampCommands } from './commands/ramp.js'
  *
  * @returns {Command} The configured Commander program.
  */
-export function createProgram() {
+export function createProgram () {
   const program = new Command()
   program
     .name(APP_NAME)
@@ -57,7 +57,7 @@ export { startDaemon } from './daemon/server.js'
  * @param {string[]} argv - Process argument vector (typically `process.argv`).
  * @returns {Promise<void>}
  */
-export async function run(argv) {
+export async function run (argv) {
   const program = createProgram()
   await program.parseAsync(argv)
 }

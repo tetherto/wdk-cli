@@ -37,13 +37,15 @@ import { configService } from '../config-service.js'
  *
  * @returns {MoonPayConfig} The validated MoonPay configuration.
  */
-function loadConfig() {
+function loadConfig () {
   const missing = []
   const apiKey = /** @type {string | undefined} */ (configService.get('ramp.moonpay.apiKey')) ?? ''
   if (!apiKey) missing.push('ramp.moonpay.apiKey')
-  const signUrl = /** @type {string | undefined} */ (configService.get('ramp.moonpay.signUrl')) ?? ''
+  const signUrl =
+    /** @type {string | undefined} */ (configService.get('ramp.moonpay.signUrl')) ?? ''
   if (!signUrl) missing.push('ramp.moonpay.signUrl')
-  const env = /** @type {string | undefined} */ (configService.get('ramp.moonpay.environment')) ?? ''
+  const env =
+    /** @type {string | undefined} */ (configService.get('ramp.moonpay.environment')) ?? ''
   if (!env) missing.push('ramp.moonpay.environment')
 
   if (missing.length > 0) {
@@ -70,7 +72,7 @@ function loadConfig() {
  * @param {string} endpoint - The sign server endpoint URL.
  * @returns {Promise<string>} The signed URL.
  */
-async function postToSignServer(url, endpoint) {
+async function postToSignServer (url, endpoint) {
   let response
   try {
     response = await fetch(endpoint, {
@@ -94,7 +96,10 @@ async function postToSignServer(url, endpoint) {
   }
   const data = await response.json()
   if (typeof data.signedUrl !== 'string' || !data.signedUrl) {
-    throw new WdkCliError('Sign server returned invalid response: missing signedUrl', ErrorCode.SIGN_FAILED)
+    throw new WdkCliError(
+      'Sign server returned invalid response: missing signedUrl',
+      ErrorCode.SIGN_FAILED
+    )
   }
   return data.signedUrl
 }
@@ -105,7 +110,7 @@ async function postToSignServer(url, endpoint) {
  * @implements {RampProvider}
  */
 export class MoonPayRampProvider {
-  constructor() {
+  constructor () {
     /** @type {'moonpay'} */
     this.name = 'moonpay'
     /** @type {MoonPayProtocol | undefined} */
@@ -119,7 +124,7 @@ export class MoonPayRampProvider {
    *
    * @returns {MoonPayProtocol} The protocol instance.
    */
-  #getProtocol() {
+  #getProtocol () {
     if (!this.protocol) {
       const config = loadConfig()
       this.environment = config.environment
@@ -138,7 +143,7 @@ export class MoonPayRampProvider {
    * @param {string} network - The network name.
    * @returns {void}
    */
-  validateEnvironment(network) {
+  validateEnvironment (network) {
     this.#getProtocol()
     if (this.environment === 'production' && isTestnet(network)) {
       throw new WdkCliError(
@@ -162,7 +167,7 @@ export class MoonPayRampProvider {
    * @param {string} fiatCurrency - The fiat currency code (e.g. "usd").
    * @returns {Promise<ResolvedAssets>} The resolved asset metadata.
    */
-  async resolveAssets(network, token, fiatCurrency) {
+  async resolveAssets (network, token, fiatCurrency) {
     const protocol = this.#getProtocol()
     const { code: cryptoCode } = resolveAsset(network, token, 'moonpay')
     const [cryptos, fiats] = await Promise.all([
@@ -171,11 +176,17 @@ export class MoonPayRampProvider {
     ])
     const cryptoInfo = cryptos.find((a) => a.code === cryptoCode)
     if (!cryptoInfo) {
-      throw new WdkCliError(`Crypto asset '${cryptoCode}' is not supported by MoonPay.`, ErrorCode.TOKEN_NOT_SUPPORTED)
+      throw new WdkCliError(
+        `Crypto asset '${cryptoCode}' is not supported by MoonPay.`,
+        ErrorCode.TOKEN_NOT_SUPPORTED
+      )
     }
     const fiatInfo = fiats.find((f) => f.code === fiatCurrency)
     if (!fiatInfo) {
-      throw new WdkCliError(`Fiat currency '${fiatCurrency}' is not supported by MoonPay.`, ErrorCode.INVALID_ARGUMENT)
+      throw new WdkCliError(
+        `Fiat currency '${fiatCurrency}' is not supported by MoonPay.`,
+        ErrorCode.INVALID_ARGUMENT
+      )
     }
     return { cryptoCode, cryptoDecimals: cryptoInfo.decimals, fiatDecimals: fiatInfo.decimals }
   }
@@ -187,13 +198,17 @@ export class MoonPayRampProvider {
    * @param {Direction} direction - The ramp direction ("buy" or "sell").
    * @returns {Promise<QuoteResult | undefined>} The quote, or undefined if unavailable.
    */
-  async quote(input, direction) {
+  async quote (input, direction) {
     const protocol = this.#getProtocol()
     const { code: cryptoAsset } = resolveAsset(input.network, input.token, 'moonpay')
     try {
       if (direction === 'buy') {
         const spread = this.#amountSpread(input)
-        const q = await protocol.quoteBuy({ cryptoAsset, fiatCurrency: input.fiatCurrency, ...spread })
+        const q = await protocol.quoteBuy({
+          cryptoAsset,
+          fiatCurrency: input.fiatCurrency,
+          ...spread
+        })
         return { fiatAmount: q.fiatAmount, cryptoAmount: q.cryptoAmount, fee: q.fee, rate: q.rate }
       }
       // Sell quotes require cryptoAmount on the MoonPay side.
@@ -216,7 +231,7 @@ export class MoonPayRampProvider {
    * @param {Direction} direction - The ramp direction ("buy" or "sell").
    * @returns {Promise<UrlResult>} The signed redirect URL.
    */
-  async buildUrl(input, direction) {
+  async buildUrl (input, direction) {
     const protocol = this.#getProtocol()
     const { code: cryptoAsset } = resolveAsset(input.network, input.token, 'moonpay')
     const spread = this.#amountSpread(input)
@@ -244,9 +259,12 @@ export class MoonPayRampProvider {
    * @param {RampInput} input - The ramp input parameters.
    * @returns {{ fiatAmount: bigint } | { cryptoAmount: bigint }} The amount spread object.
    */
-  #amountSpread(input) {
+  #amountSpread (input) {
     if (input.fiatAmount !== undefined) return { fiatAmount: input.fiatAmount }
     if (input.cryptoAmount !== undefined) return { cryptoAmount: input.cryptoAmount }
-    throw new WdkCliError('Must specify either fiatAmount or cryptoAmount.', ErrorCode.INVALID_ARGUMENT)
+    throw new WdkCliError(
+      'Must specify either fiatAmount or cryptoAmount.',
+      ErrorCode.INVALID_ARGUMENT
+    )
   }
 }
