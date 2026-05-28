@@ -244,7 +244,13 @@ export async function startMcpServer () {
         cryptoAmount,
         wallet
       })
-      return jsonResult(result)
+      const action = direction === 'buy' ? 'Buy' : 'Sell'
+      return {
+        content: [
+          { type: 'text', text: JSON.stringify(result, null, 2) },
+          { type: 'text', text: `[Open ${action} ${result.token.toUpperCase()} on provider](${result.url})` }
+        ]
+      }
     } catch (e) {
       return errorResult(e)
     }
