@@ -22,6 +22,7 @@ import { configService } from '../services/config-service.js'
 import { SESSION_TTL_MINUTES, getWalletDir } from '../config/constants.js'
 import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
 import { promptPassphrase, promptSeedPhrase } from '../ui/prompts.js'
+import { requirePassphraseConfirmation } from '../ui/auth.js'
 import { configureHelp } from '../ui/help.js'
 import { nonNegativeInt } from '../ui/parsers.js'
 
@@ -495,6 +496,8 @@ export function registerWalletCommand (program) {
       if (!(await keyService.hasKey(name))) {
         throw new WdkCliError(`Wallet '${name}' not found.`, ErrorCode.KEY_NOT_FOUND)
       }
+
+      await requirePassphraseConfirmation()
 
       configService.setDefaultWallet(name)
       if (isJson()) {
