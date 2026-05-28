@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { describe, it, beforeEach, afterEach } from 'node:test'
-import assert from 'node:assert/strict'
 import { Keyring } from '../../../src/security/keyring.js'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -33,27 +31,28 @@ describe('Keyring', () => {
   })
 
   it('stores and retrieves a seed phrase', async () => {
-    const phrase = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'
+    const phrase =
+      'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'
     await keyring.store(phrase, 'password123')
-    assert.equal(await keyring.exists(), true)
+    expect(await keyring.exists()).toBe(true)
     const retrieved = await keyring.retrieve('password123')
-    assert.equal(retrieved, phrase)
+    expect(retrieved).toBe(phrase)
   })
 
   it('rejects wrong password on retrieve', async () => {
     await keyring.store('test phrase', 'correctpass')
-    await assert.rejects(keyring.retrieve('wrongpass'))
+    await expect(keyring.retrieve('wrongpass')).rejects.toThrow()
   })
 
   it('reports exists false when no file', async () => {
-    assert.equal(await keyring.exists(), false)
+    expect(await keyring.exists()).toBe(false)
   })
 
   it('destroys the keyring file', async () => {
     await keyring.store('phrase', 'pass')
-    assert.equal(await keyring.exists(), true)
+    expect(await keyring.exists()).toBe(true)
     await keyring.destroy()
-    assert.equal(await keyring.exists(), false)
+    expect(await keyring.exists()).toBe(false)
   })
 
   it('destroy is safe when no file exists', async () => {

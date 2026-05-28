@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { describe, it, beforeEach, mock } from 'node:test'
-import assert from 'node:assert/strict'
+import { jest } from '@jest/globals'
 
 const state = {
   list: async () => [],
@@ -21,38 +20,38 @@ const state = {
   getDefaultWallet: () => '',
   promptPassphrase: async () => '',
   promptArgs: [],
-  unlockArgs: [],
+  unlockArgs: []
 }
 
-mock.module('../../../src/services/key-service.js', {
-  namedExports: {
-    KeyService: class {
-      list(...args) { return state.list(...args) }
-      unlock(...args) { state.unlockArgs.push(args); return state.unlock(...args) }
-    },
-  },
-})
+jest.unstable_mockModule('../../../src/services/key-service.js', () => ({
+  KeyService: class {
+    list (...args) {
+      return state.list(...args)
+    }
 
-mock.module('../../../src/security/keyring.js', {
-  namedExports: { WalletKeyring: class {} },
-})
+    unlock (...args) {
+      state.unlockArgs.push(args)
+      return state.unlock(...args)
+    }
+  }
+}))
 
-mock.module('../../../src/services/config-service.js', {
-  namedExports: {
-    configService: {
-      getDefaultWallet: (...args) => state.getDefaultWallet(...args),
-    },
-  },
-})
+jest.unstable_mockModule('../../../src/security/keyring.js', () => ({
+  WalletKeyring: class {}
+}))
 
-mock.module('../../../src/ui/prompts.js', {
-  namedExports: {
-    promptPassphrase: async (...args) => {
-      state.promptArgs.push(args)
-      return state.promptPassphrase(...args)
-    },
-  },
-})
+jest.unstable_mockModule('../../../src/services/config-service.js', () => ({
+  configService: {
+    getDefaultWallet: (...args) => state.getDefaultWallet(...args)
+  }
+}))
+
+jest.unstable_mockModule('../../../src/ui/prompts.js', () => ({
+  promptPassphrase: async (...args) => {
+    state.promptArgs.push(args)
+    return state.promptPassphrase(...args)
+  }
+}))
 
 const { requirePassphraseConfirmation } = await import('../../../src/ui/auth.js')
 
@@ -71,9 +70,9 @@ describe('requirePassphraseConfirmation', () => {
     state.getDefaultWallet = () => ''
 
     const result = await requirePassphraseConfirmation()
-    assert.equal(result, undefined)
-    assert.equal(state.promptArgs.length, 0)
-    assert.equal(state.unlockArgs.length, 0)
+    expect(result).toBeUndefined()
+    expect(state.promptArgs.length).toBe(0)
+    expect(state.unlockArgs.length).toBe(0)
   })
 
   it('prompts and unlocks the default wallet when it exists', async () => {
@@ -84,35 +83,39 @@ describe('requirePassphraseConfirmation', () => {
 
     await requirePassphraseConfirmation()
 
-    assert.equal(state.promptArgs.length, 1)
-    assert.ok(state.promptArgs[0][0].includes("'wallet-b'"))
-    assert.deepEqual(state.unlockArgs[0], ['pass-b', 'wallet-b'])
+    expect(state.promptArgs.length).toBe(1)
+    expect(state.promptArgs[0][0]).toContain("'wallet-b'")
+    expect(state.unlockArgs[0]).toEqual(['pass-b', 'wallet-b'])
   })
 
   it('throws when wallets exist but defaultWallet is empty', async () => {
     state.list = async () => ['wallet-a', 'wallet-b']
     state.getDefaultWallet = () => ''
 
-    await assert.rejects(requirePassphraseConfirmation(), /No default wallet is set/)
-    assert.equal(state.promptArgs.length, 0)
-    assert.equal(state.unlockArgs.length, 0)
+    await expect(requirePassphraseConfirmation()).rejects.toThrow(/No default wallet is set/)
+    expect(state.promptArgs.length).toBe(0)
+    expect(state.unlockArgs.length).toBe(0)
   })
 
   it('throws when defaultWallet is stale', async () => {
     state.list = async () => ['wallet-a']
     state.getDefaultWallet = () => 'ghost-wallet'
 
-    await assert.rejects(requirePassphraseConfirmation(), /Default wallet 'ghost-wallet' no longer exists/)
-    assert.equal(state.promptArgs.length, 0)
-    assert.equal(state.unlockArgs.length, 0)
+    await expect(requirePassphraseConfirmation()).rejects.toThrow(
+      /Default wallet 'ghost-wallet' no longer exists/
+    )
+    expect(state.promptArgs.length).toBe(0)
+    expect(state.unlockArgs.length).toBe(0)
   })
 
   it('propagates unlock failure on wrong passphrase', async () => {
     state.list = async () => ['wallet-a']
     state.getDefaultWallet = () => 'wallet-a'
     state.promptPassphrase = async () => 'wrong-pass'
-    state.unlock = async () => { throw new Error('Incorrect passphrase.') }
+    state.unlock = async () => {
+      throw new Error('Incorrect passphrase.')
+    }
 
-    await assert.rejects(requirePassphraseConfirmation(), /Incorrect passphrase/)
+    await expect(requirePassphraseConfirmation()).rejects.toThrow(/Incorrect passphrase/)
   })
 })

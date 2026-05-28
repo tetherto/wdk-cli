@@ -1,8 +1,0 @@
-node_modules
-dist
-coverage
-.omc
-docs
-examples
-*.json
-*.md

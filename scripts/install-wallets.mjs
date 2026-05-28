@@ -26,7 +26,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const walletsPath = join(__dirname, '..', 'wdk.config.json')
 const wallets = JSON.parse(readFileSync(walletsPath, 'utf8'))
 
-const modules = [...new Set(Object.values(wallets.networks).map(w => w.module))]
+const modules = [...new Set(Object.values(wallets.networks).map((w) => w.module))]
 
 if (modules.length === 0) {
   console.log('No wallet modules to install.')
@@ -34,12 +34,12 @@ if (modules.length === 0) {
 }
 
 console.log(`Installing ${modules.length} wallet modules from wdk.config.json...`)
-console.log(modules.map(m => `  - ${m}`).join('\n'))
+console.log(modules.map((m) => `  - ${m}`).join('\n'))
 
 try {
   execFileSync('npm', ['install', '--no-save', ...modules], {
     cwd: join(__dirname, '..'),
-    stdio: 'inherit',
+    stdio: 'inherit'
   })
   console.log('\nAll wallet modules installed successfully.')
 } catch (err) {

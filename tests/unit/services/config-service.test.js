@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { describe, it, beforeEach, afterEach } from 'node:test'
-import assert from 'node:assert/strict'
 import { configService } from '../../../src/services/config-service.js'
 
 describe('ConfigService', () => {
@@ -29,38 +27,38 @@ describe('ConfigService', () => {
 
   it('gets config values', () => {
     const value = configService.get('defaultIndex')
-    assert.notEqual(value, undefined)
+    expect(value).not.toBeUndefined()
   })
 
   it('sets and gets config values', () => {
     configService.set('defaultIndex', 1)
-    assert.equal(configService.get('defaultIndex'), 1)
+    expect(configService.get('defaultIndex')).toBe(1)
     configService.set('defaultIndex', 0)
   })
 
   it('lists all config', () => {
     const config = configService.list()
-    assert.notEqual(config, undefined)
-    assert.equal(typeof config, 'object')
+    expect(config).not.toBeUndefined()
+    expect(typeof config).toBe('object')
   })
 
   it('returns config path', () => {
     const path = configService.configPath
-    assert.ok(path)
-    assert.equal(typeof path, 'string')
+    expect(path).toBeTruthy()
+    expect(typeof path).toBe('string')
   })
 
   it('prefers env var for indexer apiKey', () => {
     process.env.WDK_INDEXER_API_KEY = 'test-api-key-123'
     const value = configService.get('indexer.apiKey')
-    assert.equal(value, 'test-api-key-123')
+    expect(value).toBe('test-api-key-123')
     delete process.env.WDK_INDEXER_API_KEY
   })
 
   it('deletes config values', () => {
     configService.set('testKey', 'testValue')
-    assert.equal(configService.get('testKey'), 'testValue')
+    expect(configService.get('testKey')).toBe('testValue')
     configService.delete('testKey')
-    assert.equal(configService.get('testKey'), undefined)
+    expect(configService.get('testKey')).toBeUndefined()
   })
 })

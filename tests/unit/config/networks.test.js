@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { describe, it, beforeEach, afterEach, mock } from 'node:test'
-import assert from 'node:assert/strict'
+import { jest } from '@jest/globals'
 import {
   NETWORKS,
   NETWORK_NAMES,
@@ -26,49 +25,51 @@ import {
   isBuiltinNetwork,
   getCustomNetworks,
   saveCustomNetwork,
-  deleteCustomNetwork,
+  deleteCustomNetwork
 } from '../../../src/config/networks.js'
 import { configService } from '../../../src/services/config-service.js'
 
 describe('networks', () => {
   it('validates network names', () => {
-    assert.equal(isValidNetwork('ethereum'), true)
-    assert.equal(isValidNetwork('bitcoin'), true)
-    assert.equal(isValidNetwork('solana'), true)
-    assert.equal(isValidNetwork('solana-devnet'), true)
-    assert.equal(isValidNetwork('unknown-network'), false)
-    assert.equal(isValidNetwork(''), false)
+    expect(isValidNetwork('ethereum')).toBe(true)
+    expect(isValidNetwork('bitcoin')).toBe(true)
+    expect(isValidNetwork('solana')).toBe(true)
+    expect(isValidNetwork('solana-devnet')).toBe(true)
+    expect(isValidNetwork('unknown-network')).toBe(false)
+    expect(isValidNetwork('')).toBe(false)
   })
 
   it('identifies testnets', () => {
-    assert.equal(isTestnet('bitcoin-testnet3'), true)
-    assert.equal(isTestnet('sepolia'), true)
-    assert.equal(isTestnet('solana-testnet'), true)
-    assert.equal(isTestnet('solana-devnet'), true)
-    assert.equal(isTestnet('spark-regtest'), true)
-    assert.equal(isTestnet('smart-account-sepolia'), true)
-    assert.equal(isTestnet('bitcoin'), false)
-    assert.equal(isTestnet('ethereum'), false)
-    assert.equal(isTestnet('solana'), false)
-    assert.equal(isTestnet('spark'), false)
-    assert.equal(isTestnet('smart-account-ethereum'), false)
+    expect(isTestnet('bitcoin-testnet3')).toBe(true)
+    expect(isTestnet('sepolia')).toBe(true)
+    expect(isTestnet('solana-testnet')).toBe(true)
+    expect(isTestnet('solana-devnet')).toBe(true)
+    expect(isTestnet('spark-regtest')).toBe(true)
+    expect(isTestnet('smart-account-sepolia')).toBe(true)
+    expect(isTestnet('bitcoin')).toBe(false)
+    expect(isTestnet('ethereum')).toBe(false)
+    expect(isTestnet('solana')).toBe(false)
+    expect(isTestnet('spark')).toBe(false)
+    expect(isTestnet('smart-account-ethereum')).toBe(false)
   })
 
   it('all built-in networks have required fields', () => {
     for (const network of NETWORK_NAMES) {
       const config = NETWORKS[network]
-      assert.equal(config.name, network)
-      assert.ok(config.displayName)
-      assert.match(config.module, /^@tetherto\/wdk-wallet-(evm|btc|solana|spark|evm-erc-4337|tron)(@.+)?$/)
-      assert.ok(config.nativeSymbol)
-      assert.ok(config.decimals > 0)
+      expect(config.name).toBe(network)
+      expect(config.displayName).toBeTruthy()
+      expect(config.module).toMatch(
+        /^@tetherto\/wdk-wallet-(evm|btc|solana|spark|evm-erc-4337|tron)(@.+)?$/
+      )
+      expect(config.nativeSymbol).toBeTruthy()
+      expect(config.decimals).toBeGreaterThan(0)
     }
   })
 
   it('identifies built-in networks', () => {
-    assert.equal(isBuiltinNetwork('ethereum'), true)
-    assert.equal(isBuiltinNetwork('bitcoin'), true)
-    assert.equal(isBuiltinNetwork('nonexistent'), false)
+    expect(isBuiltinNetwork('ethereum')).toBe(true)
+    expect(isBuiltinNetwork('bitcoin')).toBe(true)
+    expect(isBuiltinNetwork('nonexistent')).toBe(false)
   })
 })
 
@@ -81,11 +82,11 @@ describe('custom networks', () => {
     nativeSymbol: 'ETH',
     decimals: 18,
     custom: true,
-    testnet: false,
+    testnet: false
   }
 
   beforeEach(() => {
-    mock.method(configService, 'get', (key) => {
+    jest.spyOn(configService, 'get').mockImplementation((key) => {
       if (key === 'customNetworks') {
         return { optimism: mockCustomNetwork }
       }
@@ -94,77 +95,79 @@ describe('custom networks', () => {
   })
 
   afterEach(() => {
-    mock.restoreAll()
+    jest.restoreAllMocks()
   })
 
   it('returns custom networks from config', () => {
     const custom = getCustomNetworks()
-    assert.ok(Object.prototype.hasOwnProperty.call(custom, 'optimism'))
-    assert.equal(custom.optimism.displayName, 'Optimism')
-    assert.equal(custom.optimism.custom, true)
+    expect(Object.prototype.hasOwnProperty.call(custom, 'optimism')).toBe(true)
+    expect(custom.optimism.displayName).toBe('Optimism')
+    expect(custom.optimism.custom).toBe(true)
   })
 
   it('getAllNetworks merges built-in and custom', () => {
     const all = getAllNetworks()
-    assert.ok(Object.prototype.hasOwnProperty.call(all, 'ethereum'))
-    assert.ok(Object.prototype.hasOwnProperty.call(all, 'optimism'))
+    expect(Object.prototype.hasOwnProperty.call(all, 'ethereum')).toBe(true)
+    expect(Object.prototype.hasOwnProperty.call(all, 'optimism')).toBe(true)
   })
 
   it('getAllNetworkNames includes custom networks', () => {
     const names = getAllNetworkNames()
-    assert.ok(names.includes('ethereum'))
-    assert.ok(names.includes('optimism'))
+    expect(names).toContain('ethereum')
+    expect(names).toContain('optimism')
   })
 
   it('isValidNetwork accepts custom networks', () => {
-    assert.equal(isValidNetwork('optimism'), true)
-    assert.equal(isValidNetwork('nonexistent'), false)
+    expect(isValidNetwork('optimism')).toBe(true)
+    expect(isValidNetwork('nonexistent')).toBe(false)
   })
 
   it('isCustomNetwork identifies custom networks', () => {
-    assert.equal(isCustomNetwork('optimism'), true)
-    assert.equal(isCustomNetwork('ethereum'), false)
+    expect(isCustomNetwork('optimism')).toBe(true)
+    expect(isCustomNetwork('ethereum')).toBe(false)
   })
 
   it('getNetworkConfig returns custom network config', () => {
     const config = getNetworkConfig('optimism')
-    assert.equal(config.displayName, 'Optimism')
-    assert.equal(config.module, '@tetherto/wdk-wallet-evm')
-    assert.equal(config.custom, true)
+    expect(config.displayName).toBe('Optimism')
+    expect(config.module).toBe('@tetherto/wdk-wallet-evm')
+    expect(config.custom).toBe(true)
   })
 
   it('isTestnet works with custom networks', () => {
-    assert.equal(isTestnet('optimism'), false)
+    expect(isTestnet('optimism')).toBe(false)
 
-    mock.restoreAll()
-    mock.method(configService, 'get', (key) => {
+    jest.restoreAllMocks()
+    jest.spyOn(configService, 'get').mockImplementation((key) => {
       if (key === 'customNetworks') {
-        return { 'optimism-testnet': { ...mockCustomNetwork, name: 'optimism-testnet', testnet: true } }
+        return {
+          'optimism-testnet': { ...mockCustomNetwork, name: 'optimism-testnet', testnet: true }
+        }
       }
       return undefined
     })
 
-    assert.equal(isTestnet('optimism-testnet'), true)
+    expect(isTestnet('optimism-testnet')).toBe(true)
   })
 
   it('saveCustomNetwork stores to config', () => {
-    const setMock = mock.method(configService, 'set', () => {})
+    const setMock = jest.spyOn(configService, 'set').mockImplementation(() => {})
     saveCustomNetwork('linea', mockCustomNetwork)
-    assert.equal(setMock.mock.callCount(), 1)
-    assert.deepEqual(setMock.mock.calls[0].arguments, ['customNetworks.linea', mockCustomNetwork])
+    expect(setMock).toHaveBeenCalledTimes(1)
+    expect(setMock.mock.calls[0]).toEqual(['customNetworks.linea', mockCustomNetwork])
   })
 
   it('deleteCustomNetwork removes from config', () => {
-    const deleteMock = mock.method(configService, 'delete', () => {})
+    const deleteMock = jest.spyOn(configService, 'delete').mockImplementation(() => {})
     deleteCustomNetwork('optimism')
-    assert.equal(deleteMock.mock.callCount(), 1)
-    assert.deepEqual(deleteMock.mock.calls[0].arguments, ['customNetworks.optimism'])
+    expect(deleteMock).toHaveBeenCalledTimes(1)
+    expect(deleteMock.mock.calls[0]).toEqual(['customNetworks.optimism'])
   })
 
   it('returns empty object when no custom networks exist', () => {
-    mock.restoreAll()
-    mock.method(configService, 'get', () => undefined)
+    jest.restoreAllMocks()
+    jest.spyOn(configService, 'get').mockImplementation(() => undefined)
     const custom = getCustomNetworks()
-    assert.deepEqual(custom, {})
+    expect(custom).toEqual({})
   })
 })

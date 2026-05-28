@@ -12,50 +12,48 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { describe, it } from 'node:test'
-import assert from 'node:assert/strict'
 import { WdkCliError, ErrorCode } from '../../../src/errors/index.js'
 
 describe('WdkCliError', () => {
   it('has code and suggestion', () => {
     const err = new WdkCliError('test message', 'TEST_CODE', 'try again')
-    assert.equal(err.message, 'test message')
-    assert.equal(err.code, 'TEST_CODE')
-    assert.equal(err.suggestion, 'try again')
-    assert.ok(err instanceof Error)
+    expect(err.message).toBe('test message')
+    expect(err.code).toBe('TEST_CODE')
+    expect(err.suggestion).toBe('try again')
+    expect(err).toBeInstanceOf(Error)
   })
 
   it('works without suggestion', () => {
     const err = new WdkCliError('no hint', ErrorCode.KEY_NOT_FOUND)
-    assert.equal(err.code, 'KEY_NOT_FOUND')
-    assert.equal(err.suggestion, undefined)
+    expect(err.code).toBe('KEY_NOT_FOUND')
+    expect(err.suggestion).toBeUndefined()
   })
 
   it('name is WdkCliError', () => {
     const err = new WdkCliError('test', ErrorCode.UNKNOWN_ERROR)
-    assert.equal(err.name, 'WdkCliError')
+    expect(err.name).toBe('WdkCliError')
   })
 
   it('display is callable', () => {
     const err = new WdkCliError('test', ErrorCode.UNKNOWN_ERROR, 'hint')
-    assert.equal(typeof err.display, 'function')
+    expect(typeof err.display).toBe('function')
   })
 })
 
 describe('ErrorCode', () => {
   it('has all expected codes', () => {
-    assert.equal(ErrorCode.KEY_NOT_FOUND, 'KEY_NOT_FOUND')
-    assert.equal(ErrorCode.INVALID_SEED_PHRASE, 'INVALID_SEED_PHRASE')
-    assert.equal(ErrorCode.WRONG_PASSPHRASE, 'WRONG_PASSPHRASE')
-    assert.equal(ErrorCode.NETWORK_NOT_SUPPORTED, 'NETWORK_NOT_SUPPORTED')
-    assert.equal(ErrorCode.INSUFFICIENT_BALANCE, 'INSUFFICIENT_BALANCE')
-    assert.equal(ErrorCode.TRANSACTION_FAILED, 'TRANSACTION_FAILED')
-    assert.equal(ErrorCode.NETWORK_ERROR, 'NETWORK_ERROR')
-    assert.equal(ErrorCode.WALLET_LOCKED, 'WALLET_LOCKED')
-    assert.equal(ErrorCode.WALLET_NOT_UNLOCKED, 'WALLET_NOT_UNLOCKED')
-    assert.equal(ErrorCode.INVALID_ARGUMENT, 'INVALID_ARGUMENT')
-    assert.equal(ErrorCode.INVALID_AMOUNT, 'INVALID_AMOUNT')
-    assert.equal(ErrorCode.PASSPHRASE_MISMATCH, 'PASSPHRASE_MISMATCH')
-    assert.equal(ErrorCode.ENVIRONMENT_MISMATCH, 'ENVIRONMENT_MISMATCH')
+    expect(ErrorCode.KEY_NOT_FOUND).toBe('KEY_NOT_FOUND')
+    expect(ErrorCode.INVALID_SEED_PHRASE).toBe('INVALID_SEED_PHRASE')
+    expect(ErrorCode.WRONG_PASSPHRASE).toBe('WRONG_PASSPHRASE')
+    expect(ErrorCode.NETWORK_NOT_SUPPORTED).toBe('NETWORK_NOT_SUPPORTED')
+    expect(ErrorCode.INSUFFICIENT_BALANCE).toBe('INSUFFICIENT_BALANCE')
+    expect(ErrorCode.TRANSACTION_FAILED).toBe('TRANSACTION_FAILED')
+    expect(ErrorCode.NETWORK_ERROR).toBe('NETWORK_ERROR')
+    expect(ErrorCode.WALLET_LOCKED).toBe('WALLET_LOCKED')
+    expect(ErrorCode.WALLET_NOT_UNLOCKED).toBe('WALLET_NOT_UNLOCKED')
+    expect(ErrorCode.INVALID_ARGUMENT).toBe('INVALID_ARGUMENT')
+    expect(ErrorCode.INVALID_AMOUNT).toBe('INVALID_AMOUNT')
+    expect(ErrorCode.PASSPHRASE_MISMATCH).toBe('PASSPHRASE_MISMATCH')
+    expect(ErrorCode.ENVIRONMENT_MISMATCH).toBe('ENVIRONMENT_MISMATCH')
   })
 })

@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { describe, it, beforeEach, afterEach } from 'node:test'
-import assert from 'node:assert/strict'
 import { KeyService } from '../../../src/services/key-service.js'
 import { WalletKeyring } from '../../../src/security/keyring.js'
 import { mkdtemp, rm } from 'node:fs/promises'
@@ -41,54 +39,60 @@ describe('KeyService', () => {
   it('generates a valid 12-word seed phrase', () => {
     const phrase = keyService.generate(12)
     const words = phrase.split(' ')
-    assert.equal(words.length, 12)
-    assert.equal(keyService.validate(phrase), true)
+    expect(words.length).toBe(12)
+    expect(keyService.validate(phrase)).toBe(true)
   })
 
   it('generates a valid 24-word seed phrase', () => {
     const phrase = keyService.generate(24)
     const words = phrase.split(' ')
-    assert.equal(words.length, 24)
-    assert.equal(keyService.validate(phrase), true)
+    expect(words.length).toBe(24)
+    expect(keyService.validate(phrase)).toBe(true)
   })
 
   it('validates correct seed phrases', () => {
-    assert.equal(keyService.validate('abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'), true)
+    expect(
+      keyService.validate(
+        'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'
+      )
+    ).toBe(true)
   })
 
   it('rejects invalid seed phrases', () => {
-    assert.equal(keyService.validate('not a valid seed phrase at all'), false)
-    assert.equal(keyService.validate(''), false)
+    expect(keyService.validate('not a valid seed phrase at all')).toBe(false)
+    expect(keyService.validate('')).toBe(false)
   })
 
   it('stores and unlocks seed phrase', async () => {
     const phrase = keyService.generate(12)
     await keyService.store(phrase, 'testpass', 'default')
-    assert.equal(await keyService.hasKey('default'), true)
+    expect(await keyService.hasKey('default')).toBe(true)
     const retrieved = await keyService.unlock('testpass', 'default')
-    assert.equal(retrieved, phrase)
+    expect(retrieved).toBe(phrase)
   })
 
   it('throws KeyNotFoundError when no key exists', async () => {
-    await assert.rejects(keyService.unlock('anypass', 'default'), /No key found/)
+    await expect(keyService.unlock('anypass', 'default')).rejects.toThrow(/No key found/)
   })
 
   it('throws WrongPasswordError on bad password', async () => {
     const phrase = keyService.generate(12)
     await keyService.store(phrase, 'correctpass', 'default')
-    await assert.rejects(keyService.unlock('wrongpass', 'default'), /Incorrect passphrase/)
+    await expect(keyService.unlock('wrongpass', 'default')).rejects.toThrow(/Incorrect passphrase/)
   })
 
   it('throws InvalidSeedPhraseError for invalid phrases', async () => {
-    await assert.rejects(keyService.store('invalid phrase', 'pass', 'default'), /Invalid seed phrase/)
+    await expect(
+      keyService.store('invalid phrase', 'pass', 'default')
+    ).rejects.toThrow(/Invalid seed phrase/)
   })
 
   it('destroys stored key', async () => {
     const phrase = keyService.generate(12)
     await keyService.store(phrase, 'pass', 'default')
-    assert.equal(await keyService.hasKey('default'), true)
+    expect(await keyService.hasKey('default')).toBe(true)
     await keyService.destroy('default')
-    assert.equal(await keyService.hasKey('default'), false)
+    expect(await keyService.hasKey('default')).toBe(false)
   })
 
   it('stores and unlocks with per-wallet passwords', async () => {
@@ -97,15 +101,15 @@ describe('KeyService', () => {
     await keyService.store(phrase1, 'pass1', 'wallet-a')
     await keyService.store(phrase2, 'pass2', 'wallet-b')
 
-    assert.equal(await keyService.hasKey('wallet-a'), true)
-    assert.equal(await keyService.hasKey('wallet-b'), true)
+    expect(await keyService.hasKey('wallet-a')).toBe(true)
+    expect(await keyService.hasKey('wallet-b')).toBe(true)
 
     const retrieved1 = await keyService.unlock('pass1', 'wallet-a')
     const retrieved2 = await keyService.unlock('pass2', 'wallet-b')
-    assert.equal(retrieved1, phrase1)
-    assert.equal(retrieved2, phrase2)
+    expect(retrieved1).toBe(phrase1)
+    expect(retrieved2).toBe(phrase2)
 
-    await assert.rejects(keyService.unlock('pass2', 'wallet-a'), /Incorrect passphrase/)
+    await expect(keyService.unlock('pass2', 'wallet-a')).rejects.toThrow(/Incorrect passphrase/)
   })
 
   it('lists wallets', async () => {
@@ -114,8 +118,8 @@ describe('KeyService', () => {
     await keyService.store(phrase1, 'pass1', 'default')
     await keyService.store(phrase2, 'pass2', 'trading')
     const wallets = await keyService.list()
-    assert.ok(wallets.includes('default'))
-    assert.ok(wallets.includes('trading'))
-    assert.equal(wallets.length, 2)
+    expect(wallets).toContain('default')
+    expect(wallets).toContain('trading')
+    expect(wallets.length).toBe(2)
   })
 })
