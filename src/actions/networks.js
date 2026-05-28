@@ -12,7 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { getAllNetworks, getAllNetworkNames, isTestnet } from '../config/networks.js'
+import {
+  getAllNetworks,
+  getAllNetworkNames,
+  isTestnet,
+} from '../config/networks.js'
 
 /**
  * @typedef {Object} ListNetworksInput
@@ -22,27 +26,27 @@ import { getAllNetworks, getAllNetworkNames, isTestnet } from '../config/network
 
 /**
  * @typedef {Object} NetworkInfo
- * @property {string} name - Network identifier (e.g. "ethereum").
- * @property {string} displayName - Human-readable network name.
- * @property {string} module - Wallet module name (e.g. "ethereum").
- * @property {string} type - Network type string.
- * @property {string} symbol - Native token symbol.
- * @property {number} decimals - Native token decimal places.
- * @property {boolean} testnet - Whether this is a testnet.
- * @property {boolean} custom - Whether this is a user-defined custom network.
+ * @property {string} name
+ * @property {string} displayName
+ * @property {string} module
+ * @property {string} type
+ * @property {string} symbol
+ * @property {number} decimals
+ * @property {boolean} testnet
+ * @property {boolean} custom
  */
 
 /**
  * @typedef {Object} ListNetworksResult
- * @property {NetworkInfo[]} networks - The matching network entries.
- * @property {number} count - Total number of networks returned.
+ * @property {NetworkInfo[]} networks
+ * @property {number} count
  */
 
 /**
  * Lists all supported blockchain networks, optionally filtered to mainnet or testnet.
  *
- * @param {ListNetworksInput} [input] - Optional filter parameters.
- * @returns {ListNetworksResult} The list of networks.
+ * @param {ListNetworksInput} [input]
+ * @returns {ListNetworksResult}
  */
 export function listNetworks(input = {}) {
   const allNetworks = getAllNetworks()
@@ -61,7 +65,7 @@ export function listNetworks(input = {}) {
       symbol: config.nativeSymbol,
       decimals: config.decimals,
       testnet: isTestnet(name),
-      custom: !!config.custom
+      custom: !!config.custom,
     }
   })
 

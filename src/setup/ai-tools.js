@@ -17,15 +17,17 @@ import { join, dirname } from 'node:path'
 import { homedir, platform } from 'node:os'
 import { execSync, spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import chalk from 'chalk'
-import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
-import { configureHelp } from '../ui/help.js'
+import { WdkCliError, ErrorCode } from '../errors/index.js'
 
-/** @typedef {import('commander').Command} Command */
+/**
+ * @typedef {Object} McpCommand
+ * @property {string} command - Absolute path to the executable that launches the MCP server.
+ * @property {string[]} args - Arguments passed to the executable.
+ */
 
 /**
  * @typedef {Object} McpCliSetup
- * @property {function({command: string, args: string[]}): boolean} add - Registers the MCP server via CLI.
+ * @property {function(McpCommand): boolean} add - Registers the MCP server via CLI.
  * @property {function(): boolean} remove - Unregisters the MCP server via CLI.
  * @property {function(): boolean} isConfigured - Returns true if the MCP server is already registered.
  */
@@ -40,6 +42,39 @@ import { configureHelp } from '../ui/help.js'
  * @property {string[]} [serversPath] - Path within the config JSON to the mcpServers object.
  * @property {McpCliSetup} [cliSetup] - CLI-based setup callbacks (used instead of direct file write).
  */
+
+/**
+ * @typedef {Object} SetupMcpResult
+ * @property {'already_configured' | 'added' | 'add_failed'} status - Outcome of the setup attempt.
+ * @property {string} targetName - Human-readable AI tool name.
+ * @property {string | null} configPath - Config file path (null when configured via CLI tool).
+ * @property {boolean | null} mcpVerified - true=OK, false=failed verification, null=not tested.
+ * @property {string} restartMessage - Message instructing the user to restart the AI tool.
+ */
+
+/**
+ * @typedef {Object} RemoveMcpResult
+ * @property {'removed' | 'not_configured' | 'remove_failed'} status - Outcome of the remove attempt.
+ * @property {string} targetName - Human-readable AI tool name.
+ * @property {string} restartMessage - Message instructing the user to restart the AI tool.
+ */
+
+/**
+ * @typedef {Object} VerifyMcpResult
+ * @property {string} targetName - Human-readable AI tool name.
+ * @property {boolean} configured - Whether wdk-wallet is registered in the AI tool config.
+ * @property {boolean | null} mcpWorks - MCP server response check (null when not configured).
+ * @property {string} mcpCommand - Command path used to launch the MCP server.
+ * @property {string[]} mcpArgs - Arguments used to launch the MCP server.
+ */
+
+/**
+ * @typedef {Object} ListMcpEntry
+ * @property {string} name - Human-readable AI tool name.
+ * @property {'configured' | 'not_configured' | 'n/a' | 'error'} status - Configuration status.
+ */
+
+export const SUPPORTED_AI_TOOLS = Object.freeze(['claude-desktop', 'claude-code', 'openclaw'])
 
 /**
  * Returns the Windows %LOCALAPPDATA% directory path.
@@ -157,7 +192,7 @@ function getMcpScriptPath() {
 /**
  * Returns the command and args needed to launch the WDK MCP server.
  *
- * @returns {{command: string, args: string[]}} The command descriptor.
+ * @returns {McpCommand} The command descriptor.
  */
 function getWdkMcpCommand() {
   return { command: process.execPath, args: [getMcpScriptPath()] }
@@ -166,7 +201,7 @@ function getWdkMcpCommand() {
 /**
  * Sends a JSON-RPC initialize request to the MCP server and returns true if it responds correctly.
  *
- * @param {{command: string, args?: string[]}} mcpConfig - The MCP server command descriptor.
+ * @param {McpCommand} mcpConfig - The MCP server command descriptor.
  * @returns {boolean} Whether the server responded with the expected wdk-wallet identity.
  */
 function testMcpServer(mcpConfig) {
@@ -195,13 +230,8 @@ function readOrCreateConfig(configPath) {
     const raw = readFileSync(configPath, 'utf8')
     try {
       return JSON.parse(raw)
-    } catch (e) {
-      throw new WdkCliError(
-        `Invalid JSON in config file: ${configPath}`,
-        ErrorCode.INVALID_CONFIG,
-        `Original error: ${e instanceof Error ? e.message : String(e)}\n` +
-          'Please fix the JSON manually or delete the file and re-run this command',
-      )
+    } catch {
+      throw new WdkCliError(`Invalid JSON in config file: ${configPath}`, ErrorCode.INVALID_CONFIG)
     }
   }
   return {}
@@ -232,200 +262,11 @@ function buildManualMcpJson() {
   const mcpConfig = getWdkMcpCommand()
   return [
     '  "wdk-wallet": {',
-    `    "command": "${mcpConfig.command}",`,
-    `    "args": ["${mcpConfig.args[0]}"]`,
+    `    "command": ${JSON.stringify(mcpConfig.command)},`,
+    `    "args": ${JSON.stringify(mcpConfig.args)}`,
     '  }',
   ]
 }
-
-/**
- * Runs the setup flow for the given AI tool target, writing the MCP server entry to its config.
- *
- * @param {SetupTarget} target - The AI tool setup target descriptor.
- * @returns {void}
- */
-function runSetup(target) {
-  console.log()
-
-  if (!target.checkInstalled()) {
-    throw new WdkCliError(
-      `${target.name} not found`,
-      ErrorCode.MISSING_CONFIG,
-      target.notInstalledMessage.join('\n'),
-    )
-  }
-
-  if (target.cliSetup) {
-    if (target.cliSetup.isConfigured()) {
-      console.log(chalk.green(`  ✓ wdk-wallet is already configured in ${target.name}`))
-      console.log(chalk.dim(`    To reinstall: wdk mcp remove --ai-tool <name>, then re-run setup`))
-      console.log()
-      return
-    }
-
-    const mcpConfig = getWdkMcpCommand()
-
-    process.stdout.write(chalk.dim('  Verifying MCP server... '))
-    const works = testMcpServer(mcpConfig)
-    if (works) {
-      console.log(chalk.green('OK'))
-    } else {
-      console.log(chalk.yellow('SKIP'))
-      console.log(chalk.dim('    Could not verify MCP server (may still work)'))
-    }
-
-    const ok = target.cliSetup.add(mcpConfig)
-    if (ok) {
-      console.log(chalk.green(`  ✓ Added wdk-wallet to ${target.name}`))
-    } else {
-      console.log(chalk.red(`  ✗ Failed to add wdk-wallet to ${target.name}`))
-    }
-    console.log()
-    console.log(chalk.dim(`  ${target.restartMessage}`))
-    console.log()
-    return
-  }
-
-  const config = readOrCreateConfig(target.configPath)
-  const serversPath = target.serversPath ?? ['mcpServers']
-  const servers = getServersObject(config, serversPath)
-
-  if ('wdk-wallet' in servers) {
-    console.log(chalk.green(`  ✓ wdk-wallet is already configured in ${target.name}`))
-    console.log(chalk.dim(`    Config: ${target.configPath}`))
-    console.log(chalk.dim(`    To reinstall: wdk mcp remove --ai-tool <name>, then re-run setup`))
-    console.log()
-    return
-  }
-
-  const mcpConfig = getWdkMcpCommand()
-
-  process.stdout.write(chalk.dim('  Verifying MCP server... '))
-  const works = testMcpServer(mcpConfig)
-  if (works) {
-    console.log(chalk.green('OK'))
-  } else {
-    console.log(chalk.yellow('SKIP'))
-    console.log(chalk.dim('    Could not verify MCP server (may still work)'))
-  }
-
-  const serverEntry = { command: mcpConfig.command }
-  if (mcpConfig.args && mcpConfig.args.length > 0) {
-    serverEntry.args = mcpConfig.args
-  }
-  servers['wdk-wallet'] = serverEntry
-  mkdirSync(dirname(target.configPath), { recursive: true })
-  writeFileSync(target.configPath, JSON.stringify(config, null, 2) + '\n')
-  console.log(chalk.green(`  ✓ Added wdk-wallet to ${target.name}`))
-  console.log(chalk.dim(`    Config: ${target.configPath}`))
-
-  console.log()
-  console.log(chalk.dim(`  ${target.restartMessage}`))
-  console.log()
-}
-
-/**
- * Removes the wdk-wallet MCP server entry from the given AI tool target config.
- *
- * @param {SetupTarget} target - The AI tool setup target descriptor.
- * @returns {void}
- */
-function runRemove(target) {
-  console.log()
-
-  if (target.cliSetup) {
-    if (!target.cliSetup.isConfigured()) {
-      console.log(chalk.dim(`  wdk-wallet is not configured in ${target.name}`))
-      console.log()
-      return
-    }
-    const ok = target.cliSetup.remove()
-    if (ok) {
-      console.log(chalk.green(`  ✓ Removed wdk-wallet from ${target.name}`))
-      console.log(chalk.dim(`    ${target.restartMessage}`))
-    } else {
-      console.log(chalk.red(`  ✗ Failed to remove wdk-wallet from ${target.name}`))
-    }
-    console.log()
-    return
-  }
-
-  if (!existsSync(target.configPath)) {
-    console.log(chalk.dim(`  wdk-wallet is not configured in ${target.name}`))
-    console.log()
-    return
-  }
-
-  const config = readOrCreateConfig(target.configPath)
-  const serversPath = target.serversPath ?? ['mcpServers']
-  const servers = getServersObject(config, serversPath)
-
-  if ('wdk-wallet' in servers) {
-    delete servers['wdk-wallet']
-    writeFileSync(target.configPath, JSON.stringify(config, null, 2) + '\n')
-    console.log(chalk.green(`  ✓ Removed wdk-wallet from ${target.name}`))
-    console.log(chalk.dim(`    ${target.restartMessage}`))
-  } else {
-    console.log(chalk.dim(`  wdk-wallet is not configured in ${target.name}`))
-  }
-  console.log()
-}
-
-/**
- * Returns true if wdk-wallet is already registered in the given AI tool target config.
- *
- * @param {SetupTarget} target - The AI tool setup target descriptor.
- * @returns {boolean} Whether wdk-wallet is configured.
- */
-function isConfigured(target) {
-  if (target.cliSetup) return target.cliSetup.isConfigured()
-  if (!existsSync(target.configPath)) return false
-  try {
-    const raw = readFileSync(target.configPath, 'utf8')
-    const config = JSON.parse(raw)
-    const path = target.serversPath ?? ['mcpServers']
-    let servers = config
-    for (const key of path) {
-      servers = servers?.[key]
-    }
-    return !!servers && 'wdk-wallet' in servers
-  } catch {
-    return false
-  }
-}
-
-/**
- * Prints the wdk-wallet configuration status for all supported AI tools to stdout.
- *
- * @returns {void}
- */
-function runList() {
-  console.log()
-  const targets = [
-    { name: 'Claude Desktop', target: getClaudeDesktopConfigPath() ? getSetupTarget('claude-desktop') : null },
-    { name: 'Claude Code', target: getSetupTarget('claude-code') },
-    { name: 'OpenClaw', target: getSetupTarget('openclaw') },
-  ]
-
-  for (const { name, target } of targets) {
-    if (!target) {
-      console.log(`  ${name.padEnd(20)} ${chalk.dim('n/a')}`)
-      continue
-    }
-    try {
-      if (isConfigured(target)) {
-        console.log(`  ${name.padEnd(20)} ${chalk.green('✓ configured')}`)
-      } else {
-        console.log(`  ${name.padEnd(20)} ${chalk.dim('not configured')}`)
-      }
-    } catch {
-      console.log(`  ${name.padEnd(20)} ${chalk.yellow('error')}`)
-    }
-  }
-  console.log()
-}
-
-const SUPPORTED_AI_TOOLS = Object.freeze(['claude-desktop', 'claude-code', 'openclaw'])
 
 /**
  * Returns the SetupTarget descriptor for the given AI tool identifier.
@@ -447,14 +288,7 @@ function getSetupTarget(aiTool) {
       return {
         name: 'Claude Desktop',
         configPath,
-        checkInstalled: () => {
-          if (existsSync(dirname(configPath))) return true
-          if (isClaudeDesktopInstalled()) {
-            mkdirSync(dirname(configPath), { recursive: true })
-            return true
-          }
-          return false
-        },
+        checkInstalled: () => isClaudeDesktopInstalled() || existsSync(dirname(configPath)),
         notInstalledMessage: [
           'Install (if not installed): https://claude.ai/download',
           '',
@@ -573,122 +407,188 @@ function getSetupTarget(aiTool) {
 }
 
 /**
- * Verifies that wdk-wallet is configured for the given AI tool and that the MCP server responds.
+ * Returns true if wdk-wallet is already registered in the given AI tool target config.
  *
- * @param {string} aiTool - The AI tool identifier.
- * @returns {void}
+ * @param {SetupTarget} target - The AI tool setup target descriptor.
+ * @returns {boolean} Whether wdk-wallet is configured.
  */
-function runVerifySetup(aiTool) {
-  const target = getSetupTarget(aiTool)
-  console.log()
-
-  const configOk = isConfigured(target)
-  if (configOk) {
-    console.log(chalk.green(`  ✓ wdk-wallet found in ${target.name}`))
-  } else {
-    console.log(chalk.red(`  ✗ wdk-wallet not found in ${target.name}`))
-    console.log(chalk.dim(`    Run: wdk mcp setup --ai-tool ${aiTool}`))
-  }
-
-  if (configOk) {
-    process.stdout.write(chalk.dim('  Testing MCP server... '))
-    const mcpConfig = getWdkMcpCommand()
-    const works = testMcpServer(mcpConfig)
-    if (works) {
-      console.log(chalk.green('OK'))
-    } else {
-      console.log(chalk.red('FAILED'))
-      console.log(chalk.dim('    MCP server did not respond correctly'))
-      console.log(chalk.dim(`    Command: ${mcpConfig.command} ${mcpConfig.args.join(' ')}`))
+function isConfigured(target) {
+  if (target.cliSetup) return target.cliSetup.isConfigured()
+  if (!existsSync(target.configPath)) return false
+  try {
+    const raw = readFileSync(target.configPath, 'utf8')
+    const config = JSON.parse(raw)
+    const path = target.serversPath ?? ['mcpServers']
+    let servers = config
+    for (const key of path) {
+      servers = servers?.[key]
     }
+    return !!servers && 'wdk-wallet' in servers
+  } catch {
+    return false
   }
-
-  console.log()
 }
 
 /**
- * Registers the `mcp` subcommand tree (setup, remove, verify-setup, list) on the root program.
+ * Registers the wdk-wallet MCP server in the given AI tool's config.
  *
- * @param {Command} program - The root Commander program instance.
- * @returns {void}
+ * @param {string} aiTool - The AI tool identifier.
+ * @returns {SetupMcpResult} The setup outcome.
  */
-export function registerMcpCommand(program) {
-  const mcp = program
-    .command('mcp')
-    .description('Manage WDK MCP server')
+export function setupMcp(aiTool) {
+  const target = getSetupTarget(aiTool)
 
-  configureHelp(mcp, {})
+  if (!target.checkInstalled()) {
+    throw new WdkCliError(
+      `${target.name} not found`,
+      ErrorCode.MISSING_CONFIG,
+      target.notInstalledMessage.join('\n'),
+    )
+  }
 
-  const setup = mcp
-    .command('setup')
-    .description('Configure WDK MCP server for an AI tool')
-    .requiredOption('--ai-tool <name>', `AI tool: ${SUPPORTED_AI_TOOLS.join(', ')}`)
-
-  configureHelp(setup, {
-    params: [
-      { flags: '--ai-tool <name>', description: `AI tool: ${SUPPORTED_AI_TOOLS.join(', ')}`, required: true },
-    ],
-  })
-
-  setup.action((options) => {
-    try {
-      const target = getSetupTarget(options.aiTool)
-      runSetup(target)
-    } catch (e) {
-      handleError(e, program.opts().verbose, program.opts().json)
+  if (target.cliSetup) {
+    if (target.cliSetup.isConfigured()) {
+      return {
+        status: 'already_configured',
+        targetName: target.name,
+        configPath: null,
+        mcpVerified: null,
+        restartMessage: target.restartMessage,
+      }
     }
-  })
-
-  const remove = mcp
-    .command('remove')
-    .description('Remove WDK MCP server from an AI tool')
-    .requiredOption('--ai-tool <name>', `AI tool: ${SUPPORTED_AI_TOOLS.join(', ')}`)
-
-  configureHelp(remove, {
-    params: [
-      { flags: '--ai-tool <name>', description: `AI tool: ${SUPPORTED_AI_TOOLS.join(', ')}`, required: true },
-    ],
-  })
-
-  remove.action((options) => {
-    try {
-      const target = getSetupTarget(options.aiTool)
-      runRemove(target)
-    } catch (e) {
-      handleError(e, program.opts().verbose, program.opts().json)
+    const mcpConfig = getWdkMcpCommand()
+    const mcpVerified = testMcpServer(mcpConfig)
+    const ok = target.cliSetup.add(mcpConfig)
+    return {
+      status: ok ? 'added' : 'add_failed',
+      targetName: target.name,
+      configPath: null,
+      mcpVerified,
+      restartMessage: target.restartMessage,
     }
-  })
+  }
 
-  const verifySetup = mcp
-    .command('verify-setup')
-    .description('Verify WDK MCP server is correctly configured for an AI tool')
-    .requiredOption('--ai-tool <name>', `AI tool: ${SUPPORTED_AI_TOOLS.join(', ')}`)
+  const config = readOrCreateConfig(target.configPath)
+  const serversPath = target.serversPath ?? ['mcpServers']
+  const servers = getServersObject(config, serversPath)
 
-  configureHelp(verifySetup, {
-    params: [
-      { flags: '--ai-tool <name>', description: `AI tool: ${SUPPORTED_AI_TOOLS.join(', ')}`, required: true },
-    ],
-  })
-
-  verifySetup.action((options) => {
-    try {
-      runVerifySetup(options.aiTool)
-    } catch (e) {
-      handleError(e, program.opts().verbose, program.opts().json)
+  if ('wdk-wallet' in servers) {
+    return {
+      status: 'already_configured',
+      targetName: target.name,
+      configPath: target.configPath,
+      mcpVerified: null,
+      restartMessage: target.restartMessage,
     }
-  })
+  }
 
-  const list = mcp
-    .command('list')
-    .description('Show WDK MCP server status across all AI tools')
+  const mcpConfig = getWdkMcpCommand()
+  const mcpVerified = testMcpServer(mcpConfig)
 
-  configureHelp(list, {})
+  /** @type {{ command: string, args?: string[] }} */
+  const serverEntry = { command: mcpConfig.command }
+  if (mcpConfig.args && mcpConfig.args.length > 0) {
+    serverEntry.args = mcpConfig.args
+  }
+  servers['wdk-wallet'] = serverEntry
+  mkdirSync(dirname(target.configPath), { recursive: true })
+  writeFileSync(target.configPath, JSON.stringify(config, null, 2) + '\n')
 
-  list.action(() => {
-    try {
-      runList()
-    } catch (e) {
-      handleError(e, program.opts().verbose, program.opts().json)
+  return {
+    status: 'added',
+    targetName: target.name,
+    configPath: target.configPath,
+    mcpVerified,
+    restartMessage: target.restartMessage,
+  }
+}
+
+/**
+ * Unregisters the wdk-wallet MCP server from the given AI tool's config.
+ *
+ * @param {string} aiTool - The AI tool identifier.
+ * @returns {RemoveMcpResult} The remove outcome.
+ */
+export function removeMcp(aiTool) {
+  const target = getSetupTarget(aiTool)
+
+  if (target.cliSetup) {
+    if (!target.cliSetup.isConfigured()) {
+      return { status: 'not_configured', targetName: target.name, restartMessage: target.restartMessage }
     }
-  })
+    const ok = target.cliSetup.remove()
+    return {
+      status: ok ? 'removed' : 'remove_failed',
+      targetName: target.name,
+      restartMessage: target.restartMessage,
+    }
+  }
+
+  if (!existsSync(target.configPath)) {
+    return { status: 'not_configured', targetName: target.name, restartMessage: target.restartMessage }
+  }
+
+  const config = readOrCreateConfig(target.configPath)
+  const serversPath = target.serversPath ?? ['mcpServers']
+  const servers = getServersObject(config, serversPath)
+
+  if ('wdk-wallet' in servers) {
+    delete servers['wdk-wallet']
+    writeFileSync(target.configPath, JSON.stringify(config, null, 2) + '\n')
+    return { status: 'removed', targetName: target.name, restartMessage: target.restartMessage }
+  }
+
+  return { status: 'not_configured', targetName: target.name, restartMessage: target.restartMessage }
+}
+
+/**
+ * Verifies that wdk-wallet is configured for the given AI tool and that the MCP server responds.
+ *
+ * @param {string} aiTool - The AI tool identifier.
+ * @returns {VerifyMcpResult} The verification outcome.
+ */
+export function verifyMcpSetup(aiTool) {
+  const target = getSetupTarget(aiTool)
+  const configured = isConfigured(target)
+  const mcpConfig = getWdkMcpCommand()
+  const mcpWorks = configured ? testMcpServer(mcpConfig) : null
+  return {
+    targetName: target.name,
+    configured,
+    mcpWorks,
+    mcpCommand: mcpConfig.command,
+    mcpArgs: mcpConfig.args,
+  }
+}
+
+/**
+ * Returns the wdk-wallet configuration status for all supported AI tools.
+ *
+ * @returns {ListMcpEntry[]} The status entries, in display order.
+ */
+export function listMcpStatus() {
+  /** @type {ListMcpEntry[]} */
+  const entries = []
+
+  if (getClaudeDesktopConfigPath()) {
+    try {
+      const target = getSetupTarget('claude-desktop')
+      entries.push({ name: 'Claude Desktop', status: isConfigured(target) ? 'configured' : 'not_configured' })
+    } catch {
+      entries.push({ name: 'Claude Desktop', status: 'error' })
+    }
+  } else {
+    entries.push({ name: 'Claude Desktop', status: 'n/a' })
+  }
+
+  for (const [name, aiTool] of /** @type {[string, string][]} */ ([['Claude Code', 'claude-code'], ['OpenClaw', 'openclaw']])) {
+    try {
+      const target = getSetupTarget(aiTool)
+      entries.push({ name, status: isConfigured(target) ? 'configured' : 'not_configured' })
+    } catch {
+      entries.push({ name, status: 'error' })
+    }
+  }
+
+  return entries
 }

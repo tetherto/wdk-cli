@@ -69,36 +69,32 @@ export function registerSendCommand(program) {
           wallet: options.wallet,
         }
 
-        const spinner = ora('Estimating fee...').start()
-        let preview
-        try {
-          preview = await previewSend(sendInput)
-        } finally {
-          spinner.stop()
-        }
-
-        const printPreview = (title) => {
-          console.log()
-          console.log(chalk.bold(title))
-          console.log(`  Network:   ${formatNetworkLabel(preview.network)}`)
-          console.log(`  To:        ${formatAddress(preview.to)}`)
-          let amountLine = `  Amount:    ${preview.amountFormatted}`
-          if (preview.amountUsd && preview.amountUsd > 0) amountLine += ` (~$${preview.amountUsd.toFixed(2)})`
-          console.log(amountLine)
-          if (preview.token) {
-            console.log(`  Token:     ${preview.token}`)
-          }
-          let feeLine = `  Est. Fee:  ${preview.estimatedFeeFormatted}`
-          if (preview.estimatedFeeUsd && preview.estimatedFeeUsd > 0) feeLine += ` (~$${preview.estimatedFeeUsd.toFixed(2)})`
-          console.log(feeLine)
-          console.log()
-        }
-
         if (options.dryRun) {
+          const spinner = ora('Estimating fee...').start()
+          let preview
+          try {
+            preview = await previewSend(sendInput)
+          } finally {
+            spinner.stop()
+          }
+
           if (program.opts().json) {
             console.log(JSON.stringify(preview))
           } else {
-            printPreview('Transaction Preview (dry run):')
+            console.log()
+            console.log(chalk.bold('Transaction Preview (dry run):'))
+            console.log(`  Network:   ${formatNetworkLabel(preview.network)}`)
+            console.log(`  To:        ${formatAddress(preview.to)}`)
+            let amountLine = `  Amount:    ${preview.amountFormatted}`
+            if (preview.amountUsd && preview.amountUsd > 0) amountLine += ` (~$${preview.amountUsd.toFixed(2)})`
+            console.log(amountLine)
+            if (preview.token) {
+              console.log(`  Token:     ${preview.token}`)
+            }
+            let feeLine = `  Est. Fee:  ${preview.estimatedFeeFormatted}`
+            if (preview.estimatedFeeUsd && preview.estimatedFeeUsd > 0) feeLine += ` (~$${preview.estimatedFeeUsd.toFixed(2)})`
+            console.log(feeLine)
+            console.log()
           }
           return
         }
