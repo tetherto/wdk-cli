@@ -39,7 +39,8 @@ console.log(modules.map((m) => `  - ${m}`).join('\n'))
 try {
   execFileSync('npm', ['install', '--no-save', ...modules], {
     cwd: join(__dirname, '..'),
-    stdio: 'inherit'
+    stdio: 'inherit',
+    shell: true
   })
   console.log('\nAll wallet modules installed successfully.')
 } catch (err) {
