@@ -400,6 +400,7 @@ function getSetupTarget (aiTool) {
           const result = spawnSync('openclaw', ['--version'], {
             encoding: 'utf8',
             timeout: 5000,
+            shell: true,
             stdio: ['ignore', 'pipe', 'pipe']
           })
           if (result.status === 0) return true
@@ -415,13 +416,11 @@ function getSetupTarget (aiTool) {
         cliSetup: {
           add: (mcpConfig) => {
             try {
-              const serverJson = JSON.stringify({
-                command: mcpConfig.command,
-                args: mcpConfig.args
-              })
+              const serverJson = JSON.stringify({ command: mcpConfig.command, args: mcpConfig.args }).replace(/"/g, '\\"')
               const result = spawnSync('openclaw', ['mcp', 'set', 'wdk-wallet', serverJson], {
                 encoding: 'utf8',
                 timeout: 10000,
+                shell: true,
                 stdio: ['ignore', 'pipe', 'pipe']
               })
               return result.status === 0
@@ -434,6 +433,7 @@ function getSetupTarget (aiTool) {
               const result = spawnSync('openclaw', ['mcp', 'unset', 'wdk-wallet'], {
                 encoding: 'utf8',
                 timeout: 10000,
+                shell: true,
                 stdio: ['ignore', 'pipe', 'pipe']
               })
               return result.status === 0
@@ -446,6 +446,7 @@ function getSetupTarget (aiTool) {
               const result = spawnSync('openclaw', ['mcp', 'list'], {
                 encoding: 'utf8',
                 timeout: 10000,
+                shell: true,
                 stdio: ['ignore', 'pipe', 'pipe']
               })
               return (result.stdout ?? '').includes('wdk-wallet')
