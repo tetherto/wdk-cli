@@ -107,12 +107,14 @@ export function registerConfigCommand (program) {
 
   const getCmd = config
     .command('get')
-    .description('Get a config value, or all values if key is omitted')
-    .option('--key <key>', 'Config key (omit to show all)')
+    .description('Get a config value (use --all to dump everything)')
+    .option('--key <key>', 'Config key')
+    .option('--all', 'Show all config values')
 
   configureHelp(getCmd, {
     params: [
-      { flags: '--key <key>', description: 'Config key (omit to show all)' },
+      { flags: '--key <key>', description: 'Config key' },
+      { flags: '--all', description: 'Show all config values' },
       { flags: '--network <network>', description: 'Scope to a specific network' }
     ]
   })
@@ -121,6 +123,20 @@ export function registerConfigCommand (program) {
     try {
       const network = config.opts().network
       const key = options.key
+      const all = options.all
+
+      if (!key && !network && !all) {
+        throw new WdkCliError(
+          'Either --key, --network, or --all is required.',
+          ErrorCode.INVALID_ARGUMENT
+        )
+      }
+      if (all && (key || network)) {
+        throw new WdkCliError(
+          '--all cannot be combined with --key or --network.',
+          ErrorCode.INVALID_ARGUMENT
+        )
+      }
 
       if (network) {
         validateNetwork(network)
@@ -161,11 +177,11 @@ export function registerConfigCommand (program) {
           console.log(typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value))
         }
       } else {
-        const all = configService.list()
+        const allConfig = configService.list()
         if (isJson()) {
-          console.log(JSON.stringify(all))
+          console.log(JSON.stringify(allConfig))
         } else {
-          printEntries(flatten(all))
+          printEntries(flatten(allConfig))
           console.log(chalk.dim(`\n  Config file: ${configService.configPath}`))
         }
       }
@@ -246,21 +262,60 @@ export function registerConfigCommand (program) {
 
   const resetCmd = config
     .command('reset')
-    .description('Reset a config value to its default')
-    .requiredOption('--key <key>', 'Config key')
+    .description('Reset a config value to its default (or all values with --all)')
+    .option('--key <key>', 'Config key')
+    .option('--all', 'Reset all config to factory defaults')
 
   configureHelp(resetCmd, {
     params: [
-      { flags: '--key <key>', description: 'Config key', required: true },
+      { flags: '--key <key>', description: 'Config key' },
+      { flags: '--all', description: 'Reset all config to factory defaults' },
       { flags: '--network <network>', description: 'Scope to a specific network' }
     ]
   })
 
   resetCmd.action(async (options) => {
     try {
-      await requirePassphraseConfirmation()
       const network = config.opts().network
-      const { key } = options
+      const { key, all } = options
+
+      if (!key && !all) {
+        throw new WdkCliError(
+          'Either --key or --all is required.',
+          ErrorCode.INVALID_ARGUMENT
+        )
+      }
+      if (key && all) {
+        throw new WdkCliError(
+          '--key and --all are mutually exclusive.',
+          ErrorCode.INVALID_ARGUMENT
+        )
+      }
+      if (all && network) {
+        throw new WdkCliError(
+          '--all and --network are mutually exclusive.',
+          ErrorCode.INVALID_ARGUMENT
+        )
+      }
+
+      await requirePassphraseConfirmation()
+
+      if (all) {
+        configService.clear()
+        await daemonClient.lock()
+
+        if (isJson()) {
+          console.log(JSON.stringify({ reset: true, all: true }))
+        } else {
+          console.log(chalk.green('All config has been reset to factory defaults.'))
+          console.log(
+            chalk.yellow(
+              'Note: all wallets have been locked so the new config takes effect. Run `wdk wallet unlock` to continue.'
+            )
+          )
+        }
+        return
+      }
 
       if (network) validateNetwork(network)
 

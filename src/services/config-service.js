@@ -65,6 +65,15 @@ class ConfigService {
   }
 
   /**
+   * Clears all config values, restoring the factory defaults from `CONFIG_DEFAULTS`.
+   *
+   * @returns {void}
+   */
+  clear () {
+    this.conf.clear()
+  }
+
+  /**
    * Returns the full config store, merging in any active environment variable overrides.
    *
    * @returns {Record<string, unknown>} The merged config object.
