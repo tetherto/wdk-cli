@@ -36,6 +36,8 @@ import {
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 /** @typedef {import('../errors/index.js').ErrorCodeType} ErrorCodeType */
 import { configService } from '../services/config-service.js'
+import { KeyService } from '../services/key-service.js'
+import { WalletKeyring } from '../security/keyring.js'
 
 /**
  * Resolves the absolute path to the wdk-daemon.mjs binary, relative to this file.
@@ -373,6 +375,10 @@ export class DaemonClient {
         ErrorCode.MISSING_CONFIG,
         'Set one with: wdk wallet default --name <name>'
       )
+    }
+    const keyService = new KeyService(new WalletKeyring())
+    if (!(await keyService.hasKey(resolved))) {
+      throw new WdkCliError(`Wallet '${resolved}' not found.`, ErrorCode.KEY_NOT_FOUND)
     }
     if (!(await this.isWalletUnlocked(resolved))) {
       throw new WdkCliError(

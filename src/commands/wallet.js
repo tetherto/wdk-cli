@@ -457,6 +457,11 @@ export function registerWalletCommand (program) {
         return
       }
 
+      const keyService = createKeyService()
+      if (!(await keyService.hasKey(name))) {
+        throw new WdkCliError(`Wallet '${name}' not found.`, ErrorCode.KEY_NOT_FOUND)
+      }
+
       if (!(await daemonClient.isRunning())) {
         if (isJson()) {
           console.log(JSON.stringify({ wallet: name, locked: true, alreadyLocked: true }))
