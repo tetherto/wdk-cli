@@ -34,6 +34,7 @@ import {
   DAEMON_SPAWN_TIMEOUT_MS
 } from '../config/constants.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
+/** @typedef {import('../errors/index.js').ErrorCodeType} ErrorCodeType */
 import { configService } from '../services/config-service.js'
 
 /**
@@ -210,7 +211,12 @@ export class DaemonClient {
    * @returns {void}
    */
   #assertOk (resp, fallbackMsg) {
-    if (!resp.ok) throw new Error(resp.error || fallbackMsg)
+    if (resp.ok) return
+    throw new WdkCliError(
+      resp.error || fallbackMsg,
+      /** @type {ErrorCodeType} */ (resp.code || ErrorCode.UNKNOWN_ERROR),
+      resp.suggestion
+    )
   }
 
   /**

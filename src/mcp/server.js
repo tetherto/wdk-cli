@@ -245,12 +245,14 @@ export async function startMcpServer () {
         wallet
       })
       const action = direction === 'buy' ? 'Buy' : 'Sell'
-      return {
+      /** @type {ToolResult} */
+      const toolResult = {
         content: [
           { type: 'text', text: JSON.stringify(result, null, 2) },
           { type: 'text', text: `[Open ${action} ${result.token.toUpperCase()} on provider](${result.url})` }
         ]
       }
+      return toolResult
     } catch (e) {
       return errorResult(e)
     }

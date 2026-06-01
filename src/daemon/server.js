@@ -44,6 +44,25 @@ import { formatAmount } from '../ui/formatters.js'
  * @property {number} expiresAt - The Unix timestamp (ms) when the session expires (0 = no expiry).
  */
 
+/**
+ * Builds a failure DaemonResponse that preserves the error code across IPC.
+ * Picks up `code` and `suggestion` from WdkCliError, plus `code` from
+ * third-party errors (blockchain rpc, Node syscalls) that carry a string code.
+ *
+ * @param {unknown} e - The thrown value to serialize.
+ * @returns {DaemonResponse} A failure response with as much error context preserved as possible.
+ */
+function errorResponse (e) {
+  if (!(e instanceof Error)) return { ok: false, error: String(e) }
+  const err = /** @type {Error & { code?: unknown, suggestion?: unknown }} */ (e)
+  return {
+    ok: false,
+    error: err.message,
+    ...(typeof err.code === 'string' ? { code: err.code } : {}),
+    ...(typeof err.suggestion === 'string' ? { suggestion: err.suggestion } : {})
+  }
+}
+
 export class WalletDaemon {
   /** @type {Map<string, WalletState>} */
   #wallets = new Map()
@@ -279,7 +298,7 @@ export class WalletDaemon {
           this.#unlockWalletSync(wallet, req.passphrase, ttl)
           return { ok: true, data: { message: `Wallet '${wallet}' unlocked`, wallet } }
         } catch (e) {
-          return { ok: false, error: e instanceof Error ? e.message : String(e) }
+          return errorResponse(e)
         }
       }
 
@@ -304,7 +323,7 @@ export class WalletDaemon {
           const address = await account.getAddress()
           return { ok: true, data: { address } }
         } catch (e) {
-          return { ok: false, error: e instanceof Error ? e.message : String(e) }
+          return errorResponse(e)
         }
       }
 
@@ -340,7 +359,7 @@ export class WalletDaemon {
             }
           }
         } catch (e) {
-          return { ok: false, error: e instanceof Error ? e.message : String(e) }
+          return errorResponse(e)
         }
       }
 
@@ -373,7 +392,7 @@ export class WalletDaemon {
 
           return { ok: true, data: { fee: fee.toString(), feeFormatted } }
         } catch (e) {
-          return { ok: false, error: e instanceof Error ? e.message : String(e) }
+          return errorResponse(e)
         }
       }
 
@@ -421,7 +440,7 @@ export class WalletDaemon {
             }
           }
         } catch (e) {
-          return { ok: false, error: e instanceof Error ? e.message : String(e) }
+          return errorResponse(e)
         }
       }
 

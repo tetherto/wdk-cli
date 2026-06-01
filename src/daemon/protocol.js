@@ -34,6 +34,8 @@
  * @property {boolean} ok - True when the request succeeded.
  * @property {unknown} [data] - The action-specific result payload.
  * @property {string} [error] - The error message when ok is false.
+ * @property {string} [code] - Stable error code preserved across IPC (e.g. WRONG_PASSPHRASE, INSUFFICIENT_FUNDS).
+ * @property {string} [suggestion] - Optional user-facing hint when ok is false.
  */
 
 /** @typedef {{ address: string }} GetAddressResult */

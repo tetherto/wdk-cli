@@ -16,6 +16,7 @@ import { join } from 'node:path'
 import { homedir } from 'node:os'
 import { createRequire } from 'node:module'
 import { walletsFile } from './wdk-config.js'
+import { WdkCliError, ErrorCode } from '../errors/index.js'
 
 const pkg = createRequire(import.meta.url)('../../package.json')
 
@@ -93,8 +94,10 @@ export function getWalletsDir () {
 export function validateWalletName (name) {
   const sanitized = name.replace(/[^a-zA-Z0-9_-]/g, '')
   if (!sanitized || sanitized !== name) {
-    throw new Error(
-      `Invalid wallet name: '${name}'. Use only letters, numbers, hyphens, and underscores.`
+    throw new WdkCliError(
+      `Invalid wallet name: '${name}'.`,
+      ErrorCode.INVALID_ARGUMENT,
+      'Use only letters, numbers, hyphens, and underscores.'
     )
   }
   return sanitized
