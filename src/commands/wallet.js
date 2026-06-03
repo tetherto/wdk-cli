@@ -89,21 +89,19 @@ export function registerWalletCommand (program) {
       }
 
       const passphrase = await promptPassphrase('Passphrase (empty for none):')
+      if (passphrase === '' && !isJson()) {
+        console.log()
+        console.log(
+          chalk.bold.yellow(
+            'WARNING: Empty passphrase. Seed phrase will be stored unencrypted, anyone with access to this machine can read it.'
+          )
+        )
+        console.log()
+      }
       const confirmPw = await promptPassphrase('Confirm passphrase:')
       if (passphrase !== confirmPw) {
         throw new WdkCliError('Passphrases do not match.', ErrorCode.PASSPHRASE_MISMATCH)
       }
-      if (passphrase === '' && !isJson()) {
-        console.log()
-        console.log(
-          chalk.bold.yellow('WARNING: Empty passphrase.') +
-            chalk.yellow(
-              ' Anyone with access to this machine can decrypt and read the seed phrase.'
-            )
-        )
-        console.log()
-      }
-
       const spinner = isJson() ? null : ora('Encrypting and storing seed phrase...').start()
       await keyService.store(seedPhrase, passphrase, name)
       spinner?.succeed(`Seed phrase encrypted and stored as '${name}'.`)
@@ -171,19 +169,18 @@ export function registerWalletCommand (program) {
       }
 
       const passphrase = await promptPassphrase('Passphrase (empty for none):')
-      const confirmPw = await promptPassphrase('Confirm passphrase:')
-      if (passphrase !== confirmPw) {
-        throw new WdkCliError('Passphrases do not match.', ErrorCode.PASSPHRASE_MISMATCH)
-      }
       if (passphrase === '' && !isJson()) {
         console.log()
         console.log(
-          chalk.bold.yellow('WARNING: Empty passphrase.') +
-            chalk.yellow(
-              ' Anyone with access to this machine can decrypt and read the seed phrase.'
-            )
+          chalk.bold.yellow(
+            'WARNING: Empty passphrase. Seed phrase will be stored unencrypted, anyone with access to this machine can read it.'
+          )
         )
         console.log()
+      }
+      const confirmPw = await promptPassphrase('Confirm passphrase:')
+      if (passphrase !== confirmPw) {
+        throw new WdkCliError('Passphrases do not match.', ErrorCode.PASSPHRASE_MISMATCH)
       }
 
       const spinner = isJson() ? null : ora('Encrypting and storing seed phrase...').start()
