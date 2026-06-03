@@ -18,6 +18,7 @@ import { WdkCliError, ErrorCode } from '../errors/index.js'
 import { validateModule } from '../config/ramp.js'
 import { getRampProvider } from '../services/ramp/index.js'
 import { formatAmount } from '../ui/formatters.js'
+import { humanToBaseUnits } from '../ui/parsers.js'
 
 /**
  * @typedef {Object} CreateRampUrlInput
@@ -46,33 +47,6 @@ import { formatAmount } from '../ui/formatters.js'
  * @property {string} [rate] - Exchange rate string (when quote available).
  * @property {string} url - The provider URL to open in a browser.
  */
-
-/**
- * Converts a human-readable decimal amount string to base units as a bigint.
- *
- * @param {string} humanAmount - The decimal amount string (e.g. "100" or "0.05").
- * @param {number} decimals - Number of decimal places for the asset.
- * @param {string} label - Field label used in error messages.
- * @returns {bigint} The amount in base units.
- */
-function toBaseUnits (humanAmount, decimals, label) {
-  const match = humanAmount.match(/^(\d+)(?:\.(\d+))?$/)
-  if (!match) {
-    throw new WdkCliError(
-      `Invalid ${label} '${humanAmount}'. Must be a non-negative number.`,
-      ErrorCode.INVALID_AMOUNT
-    )
-  }
-  const fracPart = match[2] ?? ''
-  if (fracPart.length > decimals) {
-    throw new WdkCliError(
-      `${label} '${humanAmount}' has more decimals (${fracPart.length}) than allowed (${decimals}).`,
-      ErrorCode.INVALID_AMOUNT
-    )
-  }
-  const combined = match[1] + fracPart.padEnd(decimals, '0')
-  return BigInt(combined.replace(/^0+(?=\d)/, '') || '0')
-}
 
 /**
  * Builds a fiat on-ramp or off-ramp URL for the given network and token.
@@ -105,10 +79,10 @@ export async function createRampUrl (input) {
   const assets = await provider.resolveAssets(input.network, input.token, fiatCurrency)
 
   const fiatAmount = input.fiatAmount
-    ? toBaseUnits(input.fiatAmount, assets.fiatDecimals, 'fiatAmount')
+    ? BigInt(humanToBaseUnits(input.fiatAmount, assets.fiatDecimals, 'fiatAmount'))
     : undefined
   const cryptoAmount = input.cryptoAmount
-    ? toBaseUnits(input.cryptoAmount, assets.cryptoDecimals, 'cryptoAmount')
+    ? BigInt(humanToBaseUnits(input.cryptoAmount, assets.cryptoDecimals, 'cryptoAmount'))
     : undefined
 
   const rampInput = {

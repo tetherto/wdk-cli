@@ -15,12 +15,12 @@
 import chalk from 'chalk'
 import ora from 'ora'
 import { resolveIndex } from '../services/config-service.js'
-import { handleError } from '../errors/index.js'
+import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
 import { formatAddress, formatNetworkLabel } from '../ui/formatters.js'
 import { configureHelp } from '../ui/help.js'
 import { nonNegativeInt } from '../ui/parsers.js'
 import { previewSend, executeSend } from '../actions/send.js'
-import { resolveTokenIdentifier } from '../services/token-service.js'
+import { resolveTokenIdentifier, toBaseUnits } from '../services/token-service.js'
 
 /** @typedef {import('commander').Command} Command */
 
@@ -38,7 +38,8 @@ export function registerSendCommand (program) {
     .requiredOption('--network <network>', 'Blockchain network')
     .option('--index <n>', 'Account index', nonNegativeInt)
     .requiredOption('--to <address>', 'Recipient address')
-    .requiredOption('--amount <value>', 'Amount in base units (wei/satoshis/lamports)')
+    .requiredOption('--amount <value>', 'Amount (decimal by default, e.g. 1.5)')
+    .option('--base-units', 'Treat --amount as base units (wei/satoshi/lamport)')
     .option('--token <token>', 'Registered token (e.g. usdt); omit for native. See `wdk token list`')
     .option('--dry-run', 'Estimate fees and show summary without sending')
 
@@ -48,7 +49,7 @@ export function registerSendCommand (program) {
       { flags: '--to <address>', description: 'Recipient address', required: true },
       {
         flags: '--amount <value>',
-        description: 'Amount in base units (wei/satoshis/lamports)',
+        description: 'Amount (decimal by default, e.g. 1.5)',
         required: true
       },
       {
@@ -60,6 +61,10 @@ export function registerSendCommand (program) {
     options: [
       { flags: '--wallet <name>', description: 'Wallet name (default: default wallet)' },
       { flags: '--index <n>', description: 'Account index (default: 0)' },
+      {
+        flags: '--base-units',
+        description: 'Treat --amount as base units (wei/satoshi/lamport)'
+      },
       { flags: '--dry-run', description: 'Estimate fees and show summary without sending' }
     ]
   })
@@ -74,11 +79,25 @@ export function registerSendCommand (program) {
         const resolved = resolveTokenIdentifier(network, options.token)
         tokenArg = resolved.isNative ? undefined : resolved.address
       }
+
+      let amount
+      if (options.baseUnits) {
+        if (!/^[0-9]+$/.test(options.amount)) {
+          throw new WdkCliError(
+            `Amount '${options.amount}' must be a non-negative integer when --base-units is set.`,
+            ErrorCode.INVALID_AMOUNT
+          )
+        }
+        amount = options.amount
+      } else {
+        amount = toBaseUnits(network, options.token, options.amount)
+      }
+
       const sendInput = {
         network,
         index,
         to: options.to,
-        amount: options.amount,
+        amount,
         token: tokenArg,
         wallet: options.wallet
       }

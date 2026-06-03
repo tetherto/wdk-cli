@@ -15,6 +15,7 @@
 import { tokensFile } from '../config/wdk-tokens.js'
 import { configService } from './config-service.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
+import { humanToBaseUnits } from '../ui/parsers.js'
 
 /** @typedef {import('../config/wdk-tokens.js').TokenEntry} TokenEntry */
 /** @typedef {import('../config/wdk-tokens.js').TokenMetadata} TokenMetadata */
@@ -227,7 +228,7 @@ export function resolveTokenIdentifier (network, token) {
     throw new WdkCliError(
       `Token '${token}' is not registered on '${network}'.`,
       ErrorCode.TOKEN_NOT_SUPPORTED,
-      `Run \`wdk token add --network ${network} --token <token> --data '<entry>'\` to register it.`
+      `Run \`wdk token list --network ${network}\` to see the available tokens.`
     )
   }
   if (!hit.isNative && !hit.address) {
@@ -264,4 +265,36 @@ export function deleteCustomToken (network, token) {
   if (configService.get(key) === undefined) return false
   configService.delete(key)
   return true
+}
+
+/**
+ * Converts a human-readable decimal amount to base units, using the registered
+ * decimals of the given token (or the native token when `token` is omitted).
+ *
+ * @param {string} network
+ * @param {string | undefined} token - Token name; omit for native.
+ * @param {string} decimalAmount - Decimal string (e.g. "1.5").
+ * @returns {string} The base-unit amount as a string (suitable for BigInt).
+ * @throws {WdkCliError} When the token has no registered decimals, when the
+ *   decimal value is malformed, or when it has more precision than the token allows.
+ */
+export function toBaseUnits (network, token, decimalAmount) {
+  let decimals
+  let label
+  if (token) {
+    const entry = getTokenByName(network, token)
+    decimals = entry?.decimals
+    label = token
+  } else {
+    const native = getNativeToken(network)
+    decimals = native?.decimals
+    label = native?.symbol ?? 'native'
+  }
+  if (typeof decimals !== 'number') {
+    throw new WdkCliError(
+      `Cannot determine decimals for '${label}' on '${network}'.`,
+      ErrorCode.TOKEN_NOT_SUPPORTED
+    )
+  }
+  return humanToBaseUnits(decimalAmount, decimals, label)
 }

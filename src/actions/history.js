@@ -22,7 +22,36 @@ import {
   getTokenTransfers,
   getTokenTransfersBatch
 } from '../services/indexer-service.js'
+import { getTokenByName } from '../services/token-service.js'
+import { formatAmount } from '../ui/formatters.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
+
+/**
+ * Enriches a raw indexer transfer with `decimals` and a human-readable
+ * `formatted` amount, looked up via the token registry. Falls back to the
+ * raw amount when the token isn't registered on the network.
+ *
+ * @param {string} network
+ * @param {{ timestamp: number, from?: string, to?: string, amount: string, transactionHash: string, token: string }} t
+ * @returns {{ timestamp: number, from: string, to: string, amount: string, formatted: string, decimals?: number, transactionHash: string, token: string }}
+ */
+function enrichTransfer (network, t) {
+  const entry = getTokenByName(network, t.token)
+  const decimals = entry?.decimals
+  const formatted = typeof decimals === 'number'
+    ? formatAmount(BigInt(t.amount), decimals, t.token.toUpperCase())
+    : `${t.amount} ${t.token.toUpperCase()}`
+  return {
+    timestamp: t.timestamp,
+    from: t.from ?? '',
+    to: t.to ?? '',
+    amount: t.amount,
+    formatted,
+    ...(typeof decimals === 'number' ? { decimals } : {}),
+    transactionHash: t.transactionHash,
+    token: t.token
+  }
+}
 
 /**
  * @typedef {Object} GetHistoryInput
@@ -41,6 +70,8 @@ import { WdkCliError, ErrorCode } from '../errors/index.js'
  * @property {string} from - Sender address.
  * @property {string} to - Recipient address.
  * @property {string} amount - Transfer amount in base units.
+ * @property {string} formatted - Human-readable amount string (e.g. "1.5 USDT").
+ * @property {number} [decimals] - Token decimals from the registry (omitted for unknown tokens).
  * @property {string} transactionHash - On-chain transaction hash.
  * @property {string} token - Token symbol or identifier.
  */
@@ -95,14 +126,7 @@ export async function getHistory (input) {
       index: input.index,
       address,
       token: input.token,
-      transfers: transfers.map((t) => ({
-        timestamp: t.timestamp,
-        from: t.from ?? '',
-        to: t.to ?? '',
-        amount: t.amount,
-        transactionHash: t.transactionHash,
-        token: t.token
-      })),
+      transfers: transfers.map((t) => enrichTransfer(input.network, t)),
       count: transfers.length
     }
   }
@@ -128,14 +152,7 @@ export async function getHistory (input) {
   for (const r of results) {
     if ('transfers' in r) {
       for (const t of r.transfers) {
-        merged.push({
-          timestamp: t.timestamp,
-          from: t.from ?? '',
-          to: t.to ?? '',
-          amount: t.amount,
-          transactionHash: t.transactionHash,
-          token: t.token
-        })
+        merged.push(enrichTransfer(input.network, t))
       }
     }
   }

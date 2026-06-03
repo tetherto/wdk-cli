@@ -16,7 +16,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
 import { APP_VERSION } from '../config/constants.js'
-import { WdkCliError } from '../errors/index.js'
+import { WdkCliError, ErrorCode } from '../errors/index.js'
 import { listNetworks } from '../actions/networks.js'
 import { getBalance, getAllBalances } from '../actions/balance.js'
 import { getAddress, getAllAddresses } from '../actions/address.js'
@@ -24,7 +24,7 @@ import { getHistory } from '../actions/history.js'
 import { previewSend, executeSend } from '../actions/send.js'
 import { createRampUrl } from '../actions/ramp.js'
 import { listTokens, getToken } from '../actions/token.js'
-import { resolveTokenIdentifier } from '../services/token-service.js'
+import { resolveTokenIdentifier, toBaseUnits } from '../services/token-service.js'
 
 /** @typedef {{ content: Array<{ type: 'text', text: string }>, isError?: boolean }} ToolResult */
 
@@ -223,7 +223,11 @@ export async function startMcpServer () {
         'Send native tokens or ERC-20/SPL tokens. IMPORTANT: Always call with dryRun=true first to preview fees and amounts, show the preview to the user, and only call again with dryRun=false after user confirms.',
       inputSchema: {
         to: z.string().describe('Recipient address'),
-        amount: z.string().describe('Amount in base units (wei, satoshis, lamports)'),
+        amount: z.string().describe('Amount value (decimal by default, e.g. "1.5")'),
+        baseUnits: z
+          .boolean()
+          .optional()
+          .describe('Treat amount as base units (wei/satoshi/lamport). Default: false.'),
         network: z.string().describe('Network name (e.g. ethereum, bitcoin)'),
         token: z
           .string()
@@ -238,14 +242,27 @@ export async function startMcpServer () {
         wallet: z.string().optional().describe('Wallet name (uses default wallet if omitted)')
       }
     },
-    async ({ to, amount, network, token, index, dryRun, wallet }) => {
+    async ({ to, amount, baseUnits, network, token, index, dryRun, wallet }) => {
       try {
         let tokenArg
         if (token) {
           const resolved = resolveTokenIdentifier(network, token)
           tokenArg = resolved.isNative ? undefined : resolved.address
         }
-        const sendInput = { network, index, to, amount, token: tokenArg, wallet }
+
+        let resolvedAmount
+        if (baseUnits) {
+          if (!/^[0-9]+$/.test(amount)) {
+            throw new WdkCliError(
+              `Amount '${amount}' must be a non-negative integer when baseUnits is true.`,
+              ErrorCode.INVALID_AMOUNT
+            )
+          }
+          resolvedAmount = amount
+        } else {
+          resolvedAmount = toBaseUnits(network, token, amount)
+        }
+        const sendInput = { network, index, to, amount: resolvedAmount, token: tokenArg, wallet }
         if (dryRun) {
           const preview = await previewSend(sendInput)
           return jsonResult({

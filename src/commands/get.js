@@ -323,7 +323,7 @@ export function registerGetCommand (program) {
         const row = [
           date,
           direction,
-          tx.amount,
+          tx.formatted ?? tx.amount,
           formatAddress(counterparty, true),
           formatTxHash(tx.transactionHash)
         ]
