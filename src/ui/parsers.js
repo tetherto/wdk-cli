@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import { InvalidArgumentError } from 'commander'
+import { WdkCliError, ErrorCode } from '../errors/index.js'
 
 /**
  * Commander argParser for a positive integer (> 0).
@@ -40,4 +41,22 @@ export function nonNegativeInt (value) {
     throw new InvalidArgumentError('Must be a non-negative integer.')
   }
   return n
+}
+
+/**
+ * Parses a JSON string from a CLI flag, throwing a structured `WdkCliError`
+ * with a flag-specific message when the value isn't valid JSON. Used after
+ * commander argument parsing — inside action handlers, not as an argParser.
+ *
+ * @param {string} raw - The raw value as passed by the user.
+ * @param {string} flag - The flag name to reference in the error (e.g. `--data`).
+ * @returns {unknown} The parsed JSON value.
+ * @throws {WdkCliError} INVALID_ARGUMENT when the value isn't valid JSON.
+ */
+export function parseJsonArg (raw, flag) {
+  try {
+    return JSON.parse(raw)
+  } catch {
+    throw new WdkCliError(`Invalid JSON in ${flag}`, ErrorCode.INVALID_ARGUMENT)
+  }
 }

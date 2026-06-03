@@ -19,6 +19,7 @@ import { registerWalletCommand } from './commands/wallet.js'
 import { registerGetCommand } from './commands/get.js'
 import { registerSendCommand } from './commands/send.js'
 import { registerNetworkCommand } from './commands/network.js'
+import { registerTokenCommand } from './commands/token.js'
 import { registerMcpCommand } from './commands/mcp.js'
 import { registerRampCommands } from './commands/ramp.js'
 
@@ -43,6 +44,7 @@ export function createProgram () {
   registerRampCommands(program)
   registerConfigCommand(program)
   registerNetworkCommand(program)
+  registerTokenCommand(program)
   registerMcpCommand(program)
 
   return program

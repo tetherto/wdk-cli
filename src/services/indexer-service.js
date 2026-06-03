@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/** @typedef {import('../config/wdk-config.js').IndexerEntry} IndexerEntry */
-
 import { configService } from './config-service.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 import { walletsFile } from '../config/wdk-config.js'
+import { getAllTokens, getIndexerCode, getTokensSupportedBy } from './token-service.js'
 
 /**
  * @typedef {Object} TokenTransfer
@@ -55,59 +54,69 @@ import { walletsFile } from '../config/wdk-config.js'
  * @typedef {{ transfers: TokenTransfer[] } | { error: string, message: string, status: number }} BatchTransferResultItem
  */
 
-/** @type {Record<string, IndexerEntry>} */
-const INDEXER_MAP = {}
+/** @type {Record<string, string>} */
+const BUILTIN_INDEXER_BLOCKCHAINS = {}
 for (const [name, entry] of Object.entries(walletsFile.networks)) {
-  if (entry.indexer) {
-    INDEXER_MAP[name] = entry.indexer
+  if (entry.indexer?.blockchain) {
+    BUILTIN_INDEXER_BLOCKCHAINS[name] = entry.indexer.blockchain
   }
 }
 
-export const INDEXER_TOKENS = Object.freeze(['usdt', 'usat', 'xaut', 'btc'])
-
 /**
- * Looks up the indexer entry for a network.
+ * The universe of indexer token codes known to any registered token.
+ * Derived from `metadata.indexer` across the whole token registry.
  *
- * @param {string} network - The network name.
- * @returns {IndexerEntry | undefined} The indexer entry, or undefined if not found.
+ * @type {readonly string[]}
  */
-function getIndexerEntry (network) {
-  if (INDEXER_MAP[network]) return INDEXER_MAP[network]
-  return /** @type {IndexerEntry | undefined} */ (
-    configService.get(`customNetworks.${network}.indexer`)
+export const INDEXER_TOKENS = Object.freeze([
+  ...new Set(
+    Object.values(getAllTokens()).flatMap((tokens) =>
+      Object.values(tokens)
+        .map((t) => t.metadata?.indexer)
+        .filter((c) => typeof c === 'string' && c.length > 0)
+    )
   )
-}
+])
 
 /**
- * Returns the indexer blockchain identifier for a network.
+ * Returns the indexer blockchain identifier for a network. Comes from
+ * `walletsFile.networks[name].indexer.blockchain` for built-ins, or
+ * `customNetworks.<name>.indexer.blockchain` for user-added networks.
  *
  * @param {string} network - The network name.
  * @returns {string | undefined} The blockchain identifier, or undefined if not supported.
  */
 export function getIndexerBlockchain (network) {
-  return getIndexerEntry(network)?.blockchain
+  if (BUILTIN_INDEXER_BLOCKCHAINS[network]) return BUILTIN_INDEXER_BLOCKCHAINS[network]
+  return /** @type {string | undefined} */ (
+    configService.get(`customNetworks.${network}.indexer.blockchain`)
+  )
 }
 
 /**
- * Returns the supported indexer tokens for a network.
+ * Returns the indexer codes supported for a network, collected from the token
+ * registry's `metadata.indexer` field on each entry.
  *
  * @param {string} network - The network name.
- * @returns {string[]} Array of supported token symbols.
+ * @returns {string[]} Array of indexer token codes (e.g. ["usdt", "btc"]).
  */
 export function getIndexerTokens (network) {
-  const entry = getIndexerEntry(network)
-  if (!entry) return []
-  return entry.tokens.filter((t) => INDEXER_TOKENS.includes(t))
+  const codes = new Set()
+  for (const token of getTokensSupportedBy(network, 'indexer')) {
+    const code = getIndexerCode(network, token)
+    if (code) codes.add(code)
+  }
+  return [...codes]
 }
 
 /**
  * Returns whether the indexer API is supported for a network.
  *
  * @param {string} network - The network name.
- * @returns {boolean} True if the network has an indexer entry.
+ * @returns {boolean} True if the network has an indexer blockchain identifier.
  */
 export function isIndexerSupported (network) {
-  return !!getIndexerEntry(network)
+  return !!getIndexerBlockchain(network)
 }
 
 /**

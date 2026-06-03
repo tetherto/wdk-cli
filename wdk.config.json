@@ -21,19 +21,8 @@
     "bitcoin": {
       "module": "@tetherto/wdk-wallet-btc@1.0.0-beta.8",
       "displayName": "Bitcoin",
-      "nativeSymbol": "BTC",
-      "decimals": 8,
       "indexer": {
-        "blockchain": "bitcoin",
-        "tokens": [
-          "usdt",
-          "btc"
-        ]
-      },
-      "ramp": {
-        "moonpay": {
-          "btc": "btc"
-        }
+        "blockchain": "bitcoin"
       },
       "config": {
         "client": {
@@ -51,14 +40,7 @@
     "bitcoin-testnet3": {
       "module": "@tetherto/wdk-wallet-btc@1.0.0-beta.8",
       "displayName": "Bitcoin Testnet3",
-      "nativeSymbol": "tBTC",
-      "decimals": 8,
       "testnet": true,
-      "ramp": {
-        "moonpay": {
-          "btc": "btc"
-        }
-      },
       "config": {
         "client": {
           "type": "electrum",
@@ -75,21 +57,8 @@
     "ethereum": {
       "module": "@tetherto/wdk-wallet-evm@1.0.0-beta.11",
       "displayName": "Ethereum",
-      "nativeSymbol": "ETH",
-      "decimals": 18,
       "indexer": {
-        "blockchain": "ethereum",
-        "tokens": [
-          "usdt",
-          "xaut",
-          "usat"
-        ]
-      },
-      "ramp": {
-        "moonpay": {
-          "usdt": "usdt",
-          "eth": "eth"
-        }
+        "blockchain": "ethereum"
       },
       "config": {
         "chainId": 1,
@@ -100,19 +69,9 @@
     "sepolia": {
       "module": "@tetherto/wdk-wallet-evm@1.0.0-beta.11",
       "displayName": "Sepolia Testnet",
-      "nativeSymbol": "ETH",
-      "decimals": 18,
       "testnet": true,
-      "ramp": {
-        "moonpay": {
-          "eth": "eth"
-        }
-      },
       "indexer": {
-        "blockchain": "sepolia",
-        "tokens": [
-          "usdt"
-        ]
+        "blockchain": "sepolia"
       },
       "config": {
         "chainId": 11155111,
@@ -123,19 +82,8 @@
     "polygon": {
       "module": "@tetherto/wdk-wallet-evm@1.0.0-beta.11",
       "displayName": "Polygon",
-      "nativeSymbol": "POL",
-      "decimals": 18,
       "indexer": {
-        "blockchain": "polygon",
-        "tokens": [
-          "usdt"
-        ]
-      },
-      "ramp": {
-        "moonpay": {
-          "usdt": "usdt_polygon",
-          "pol": "pol_polygon"
-        }
+        "blockchain": "polygon"
       },
       "config": {
         "chainId": 137,
@@ -146,19 +94,8 @@
     "arbitrum": {
       "module": "@tetherto/wdk-wallet-evm@1.0.0-beta.11",
       "displayName": "Arbitrum One",
-      "nativeSymbol": "ETH",
-      "decimals": 18,
       "indexer": {
-        "blockchain": "arbitrum",
-        "tokens": [
-          "usdt"
-        ]
-      },
-      "ramp": {
-        "moonpay": {
-          "usdt": "usdt_arbitrum",
-          "eth": "eth_arbitrum"
-        }
+        "blockchain": "arbitrum"
       },
       "config": {
         "chainId": 42161,
@@ -169,13 +106,6 @@
     "base": {
       "module": "@tetherto/wdk-wallet-evm@1.0.0-beta.11",
       "displayName": "Base",
-      "nativeSymbol": "ETH",
-      "decimals": 18,
-      "ramp": {
-        "moonpay": {
-          "eth": "eth_base"
-        }
-      },
       "config": {
         "chainId": 8453,
         "provider": "https://mainnet.base.org",
@@ -185,14 +115,6 @@
     "bsc": {
       "module": "@tetherto/wdk-wallet-evm@1.0.0-beta.11",
       "displayName": "BNB Smart Chain",
-      "nativeSymbol": "BNB",
-      "decimals": 18,
-      "ramp": {
-        "moonpay": {
-          "usdt": "usdt_bsc",
-          "bnb": "bnb_bsc"
-        }
-      },
       "config": {
         "chainId": 56,
         "provider": "https://bsc-dataseed.binance.org",
@@ -202,13 +124,6 @@
     "avalanche": {
       "module": "@tetherto/wdk-wallet-evm@1.0.0-beta.11",
       "displayName": "Avalanche C-Chain",
-      "nativeSymbol": "AVAX",
-      "decimals": 18,
-      "ramp": {
-        "moonpay": {
-          "avax": "avax_cchain"
-        }
-      },
       "config": {
         "chainId": 43114,
         "provider": "https://api.avax.network/ext/bc/C/rpc",
@@ -218,14 +133,6 @@
     "solana": {
       "module": "@tetherto/wdk-wallet-solana@1.0.0-beta.7",
       "displayName": "Solana",
-      "nativeSymbol": "SOL",
-      "decimals": 9,
-      "ramp": {
-        "moonpay": {
-          "usdt": "usdt_sol",
-          "sol": "sol"
-        }
-      },
       "config": {
         "rpcUrl": "https://api.mainnet-beta.solana.com"
       }
@@ -233,14 +140,7 @@
     "solana-testnet": {
       "module": "@tetherto/wdk-wallet-solana@1.0.0-beta.7",
       "displayName": "Solana Testnet",
-      "nativeSymbol": "SOL",
-      "decimals": 9,
       "testnet": true,
-      "ramp": {
-        "moonpay": {
-          "sol": "sol"
-        }
-      },
       "config": {
         "rpcUrl": "https://api.testnet.solana.com"
       }
@@ -248,8 +148,6 @@
     "solana-devnet": {
       "module": "@tetherto/wdk-wallet-solana@1.0.0-beta.7",
       "displayName": "Solana Devnet",
-      "nativeSymbol": "SOL",
-      "decimals": 9,
       "testnet": true,
       "config": {
         "rpcUrl": "https://api.devnet.solana.com"
@@ -258,14 +156,8 @@
     "spark": {
       "module": "@tetherto/wdk-wallet-spark@1.0.0-beta.17",
       "displayName": "Spark",
-      "nativeSymbol": "BTC",
-      "decimals": 8,
       "indexer": {
-        "blockchain": "spark",
-        "tokens": [
-          "usdt",
-          "btc"
-        ]
+        "blockchain": "spark"
       },
       "config": {
         "network": "MAINNET"
@@ -274,8 +166,6 @@
     "spark-regtest": {
       "module": "@tetherto/wdk-wallet-spark@1.0.0-beta.17",
       "displayName": "Spark Regtest",
-      "nativeSymbol": "BTC",
-      "decimals": 8,
       "testnet": true,
       "config": {
         "network": "REGTEST"
@@ -284,19 +174,8 @@
     "tron": {
       "module": "@tetherto/wdk-wallet-tron@1.0.0-beta.4",
       "displayName": "Tron",
-      "nativeSymbol": "TRX",
-      "decimals": 6,
       "indexer": {
-        "blockchain": "tron",
-        "tokens": [
-          "usdt"
-        ]
-      },
-      "ramp": {
-        "moonpay": {
-          "trx": "trx",
-          "usdt": "usdt_trx"
-        }
+        "blockchain": "tron"
       },
       "config": {
         "provider": "https://api.trongrid.io",
@@ -306,8 +185,6 @@
     "tron-testnet": {
       "module": "@tetherto/wdk-wallet-tron@1.0.0-beta.4",
       "displayName": "Tron Testnet (Shasta)",
-      "nativeSymbol": "TRX",
-      "decimals": 6,
       "testnet": true,
       "config": {
         "provider": "https://api.shasta.trongrid.io",
@@ -317,21 +194,8 @@
     "smart-account-ethereum": {
       "module": "@tetherto/wdk-wallet-evm-erc-4337@1.0.0-beta.6",
       "displayName": "Smart Account Ethereum",
-      "nativeSymbol": "ETH",
-      "decimals": 18,
       "indexer": {
-        "blockchain": "ethereum",
-        "tokens": [
-          "usdt",
-          "xaut",
-          "usat"
-        ]
-      },
-      "ramp": {
-        "moonpay": {
-          "usdt": "usdt",
-          "eth": "eth"
-        }
+        "blockchain": "ethereum"
       },
       "config": {
         "chainId": 1,
@@ -351,19 +215,9 @@
     "smart-account-sepolia": {
       "module": "@tetherto/wdk-wallet-evm-erc-4337@1.0.0-beta.6",
       "displayName": "Smart Account Sepolia",
-      "nativeSymbol": "ETH",
-      "decimals": 18,
       "testnet": true,
       "indexer": {
-        "blockchain": "sepolia",
-        "tokens": [
-          "usdt"
-        ]
-      },
-      "ramp": {
-        "moonpay": {
-          "eth": "eth"
-        }
+        "blockchain": "sepolia"
       },
       "config": {
         "chainId": 11155111,
@@ -383,19 +237,8 @@
     "smart-account-polygon": {
       "module": "@tetherto/wdk-wallet-evm-erc-4337@1.0.0-beta.6",
       "displayName": "Smart Account Polygon",
-      "nativeSymbol": "POL",
-      "decimals": 18,
       "indexer": {
-        "blockchain": "polygon",
-        "tokens": [
-          "usdt"
-        ]
-      },
-      "ramp": {
-        "moonpay": {
-          "usdt": "usdt_polygon",
-          "pol": "pol_polygon"
-        }
+        "blockchain": "polygon"
       },
       "config": {
         "chainId": 137,
@@ -415,19 +258,8 @@
     "smart-account-arbitrum": {
       "module": "@tetherto/wdk-wallet-evm-erc-4337@1.0.0-beta.6",
       "displayName": "Smart Account Arbitrum",
-      "nativeSymbol": "ETH",
-      "decimals": 18,
       "indexer": {
-        "blockchain": "arbitrum",
-        "tokens": [
-          "usdt"
-        ]
-      },
-      "ramp": {
-        "moonpay": {
-          "usdt": "usdt_arbitrum",
-          "eth": "eth_arbitrum"
-        }
+        "blockchain": "arbitrum"
       },
       "config": {
         "chainId": 42161,
@@ -447,13 +279,6 @@
     "smart-account-base": {
       "module": "@tetherto/wdk-wallet-evm-erc-4337@1.0.0-beta.6",
       "displayName": "Smart Account Base",
-      "nativeSymbol": "ETH",
-      "decimals": 18,
-      "ramp": {
-        "moonpay": {
-          "eth": "eth_base"
-        }
-      },
       "config": {
         "chainId": 8453,
         "blockchain": "base",
@@ -472,8 +297,6 @@
     "smart-account-plasma": {
       "module": "@tetherto/wdk-wallet-evm-erc-4337@1.0.0-beta.6",
       "displayName": "Smart Account Plasma",
-      "nativeSymbol": "ETH",
-      "decimals": 18,
       "config": {
         "chainId": 9745,
         "blockchain": "plasma",

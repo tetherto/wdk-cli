@@ -1,30 +1,417 @@
 {
-  "ethereum": [
-    { "address": "0xdAC17F958D2ee523a2206206994597C13D831ec7", "symbol": "USDT", "decimals": 6 },
-    { "address": "0x68749665FF8D2d112Fa859AA293F07A622782F38", "symbol": "XAUT", "decimals": 6 }
-  ],
-  "sepolia": [
-    { "address": "0xd077A400968890Eacc75cdc901F0356c943e4fDb", "symbol": "USDT", "decimals": 6 }
-  ],
-  "polygon": [
-    { "address": "0xc2132D05D31c914a87C6611C10748AEb04B58e8F", "symbol": "USDT", "decimals": 6 }
-  ],
-  "arbitrum": [
-    { "address": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9", "symbol": "USDT", "decimals": 6 }
-  ],
-  "base": [
-    { "address": "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2", "symbol": "USDT", "decimals": 6 }
-  ],
-  "bsc": [
-    { "address": "0x55d398326f99059fF775485246999027B3197955", "symbol": "USDT", "decimals": 18 }
-  ],
-  "avalanche": [
-    { "address": "0x9702230A8Ea53601f5cD2dc00fDBc13d4dF4A8c7", "symbol": "USDT", "decimals": 6 }
-  ],
-  "solana": [
-    { "address": "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB", "symbol": "USDT", "decimals": 6 }
-  ],
-  "tron": [
-    { "address": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t", "symbol": "USDT", "decimals": 6 }
-  ]
+  "version": 1,
+  "tokens": {
+    "bitcoin": {
+      "btc": {
+        "symbol": "BTC",
+        "decimals": 8,
+        "isNative": true,
+        "metadata": {
+          "indexer": "btc",
+          "moonpay": "btc",
+          "bitfinex": "tBTCUSD"
+        }
+      }
+    },
+    "bitcoin-testnet3": {
+      "btc": {
+        "symbol": "tBTC",
+        "decimals": 8,
+        "isNative": true,
+        "metadata": {
+          "moonpay": "btc",
+          "bitfinex": "tBTCUSD"
+        }
+      }
+    },
+    "ethereum": {
+      "eth": {
+        "symbol": "ETH",
+        "decimals": 18,
+        "isNative": true,
+        "metadata": {
+          "moonpay": "eth",
+          "bitfinex": "tETHUSD"
+        }
+      },
+      "usdt": {
+        "symbol": "USDT",
+        "decimals": 6,
+        "isNative": false,
+        "address": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+        "metadata": {
+          "indexer": "usdt",
+          "moonpay": "usdt",
+          "bitfinex": "tUSTUSD"
+        }
+      },
+      "xaut": {
+        "symbol": "XAUT",
+        "decimals": 6,
+        "isNative": false,
+        "address": "0x68749665FF8D2d112Fa859AA293F07A622782F38",
+        "metadata": {
+          "indexer": "xaut",
+          "bitfinex": "tXAUTUSD"
+        }
+      }
+    },
+    "sepolia": {
+      "eth": {
+        "symbol": "ETH",
+        "decimals": 18,
+        "isNative": true,
+        "metadata": {
+          "moonpay": "eth",
+          "bitfinex": "tETHUSD"
+        }
+      },
+      "usdt": {
+        "symbol": "USDT",
+        "decimals": 6,
+        "isNative": false,
+        "address": "0xd077A400968890Eacc75cdc901F0356c943e4fDb",
+        "metadata": {
+          "indexer": "usdt",
+          "bitfinex": "tUSTUSD"
+        }
+      }
+    },
+    "polygon": {
+      "pol": {
+        "symbol": "POL",
+        "decimals": 18,
+        "isNative": true,
+        "metadata": {
+          "moonpay": "pol_polygon",
+          "bitfinex": "tMATICUSD"
+        }
+      },
+      "usdt": {
+        "symbol": "USDT",
+        "decimals": 6,
+        "isNative": false,
+        "address": "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
+        "metadata": {
+          "indexer": "usdt",
+          "moonpay": "usdt_polygon",
+          "bitfinex": "tUSTUSD"
+        }
+      }
+    },
+    "arbitrum": {
+      "eth": {
+        "symbol": "ETH",
+        "decimals": 18,
+        "isNative": true,
+        "metadata": {
+          "moonpay": "eth_arbitrum",
+          "bitfinex": "tETHUSD"
+        }
+      },
+      "usdt": {
+        "symbol": "USDT",
+        "decimals": 6,
+        "isNative": false,
+        "address": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+        "metadata": {
+          "indexer": "usdt",
+          "moonpay": "usdt_arbitrum",
+          "bitfinex": "tUSTUSD"
+        }
+      }
+    },
+    "base": {
+      "eth": {
+        "symbol": "ETH",
+        "decimals": 18,
+        "isNative": true,
+        "metadata": {
+          "moonpay": "eth_base",
+          "bitfinex": "tETHUSD"
+        }
+      },
+      "usdt": {
+        "symbol": "USDT",
+        "decimals": 6,
+        "isNative": false,
+        "address": "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2",
+        "metadata": {
+          "bitfinex": "tUSTUSD"
+        }
+      }
+    },
+    "bsc": {
+      "bnb": {
+        "symbol": "BNB",
+        "decimals": 18,
+        "isNative": true,
+        "metadata": {
+          "moonpay": "bnb_bsc",
+          "bitfinex": "tBNBUSD"
+        }
+      },
+      "usdt": {
+        "symbol": "USDT",
+        "decimals": 18,
+        "isNative": false,
+        "address": "0x55d398326f99059fF775485246999027B3197955",
+        "metadata": {
+          "moonpay": "usdt_bsc",
+          "bitfinex": "tUSTUSD"
+        }
+      }
+    },
+    "avalanche": {
+      "avax": {
+        "symbol": "AVAX",
+        "decimals": 18,
+        "isNative": true,
+        "metadata": {
+          "moonpay": "avax_cchain",
+          "bitfinex": "tAVAXUSD"
+        }
+      },
+      "usdt": {
+        "symbol": "USDT",
+        "decimals": 6,
+        "isNative": false,
+        "address": "0x9702230A8Ea53601f5cD2dc00fDBc13d4dF4A8c7",
+        "metadata": {
+          "bitfinex": "tUSTUSD"
+        }
+      }
+    },
+    "solana": {
+      "sol": {
+        "symbol": "SOL",
+        "decimals": 9,
+        "isNative": true,
+        "metadata": {
+          "moonpay": "sol",
+          "bitfinex": "tSOLUSD"
+        }
+      },
+      "usdt": {
+        "symbol": "USDT",
+        "decimals": 6,
+        "isNative": false,
+        "address": "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
+        "metadata": {
+          "moonpay": "usdt_sol",
+          "bitfinex": "tUSTUSD"
+        }
+      }
+    },
+    "solana-testnet": {
+      "sol": {
+        "symbol": "SOL",
+        "decimals": 9,
+        "isNative": true,
+        "metadata": {
+          "moonpay": "sol",
+          "bitfinex": "tSOLUSD"
+        }
+      }
+    },
+    "solana-devnet": {
+      "sol": {
+        "symbol": "SOL",
+        "decimals": 9,
+        "isNative": true,
+        "metadata": {
+          "bitfinex": "tSOLUSD"
+        }
+      }
+    },
+    "spark": {
+      "btc": {
+        "symbol": "BTC",
+        "decimals": 8,
+        "isNative": true,
+        "metadata": {
+          "indexer": "btc",
+          "bitfinex": "tBTCUSD"
+        }
+      }
+    },
+    "spark-regtest": {
+      "btc": {
+        "symbol": "BTC",
+        "decimals": 8,
+        "isNative": true,
+        "metadata": {
+          "bitfinex": "tBTCUSD"
+        }
+      }
+    },
+    "tron": {
+      "trx": {
+        "symbol": "TRX",
+        "decimals": 6,
+        "isNative": true,
+        "metadata": {
+          "moonpay": "trx",
+          "bitfinex": "tTRXUSD"
+        }
+      },
+      "usdt": {
+        "symbol": "USDT",
+        "decimals": 6,
+        "isNative": false,
+        "address": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+        "metadata": {
+          "indexer": "usdt",
+          "moonpay": "usdt_trx",
+          "bitfinex": "tUSTUSD"
+        }
+      }
+    },
+    "tron-testnet": {
+      "trx": {
+        "symbol": "TRX",
+        "decimals": 6,
+        "isNative": true,
+        "metadata": {
+          "bitfinex": "tTRXUSD"
+        }
+      }
+    },
+    "smart-account-ethereum": {
+      "eth": {
+        "symbol": "ETH",
+        "decimals": 18,
+        "isNative": true,
+        "metadata": {
+          "moonpay": "eth",
+          "bitfinex": "tETHUSD"
+        }
+      },
+      "usdt": {
+        "symbol": "USDT",
+        "decimals": 6,
+        "isNative": false,
+        "address": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+        "metadata": {
+          "indexer": "usdt",
+          "moonpay": "usdt",
+          "bitfinex": "tUSTUSD"
+        }
+      },
+      "xaut": {
+        "symbol": "XAUT",
+        "decimals": 6,
+        "isNative": false,
+        "address": "0x68749665FF8D2d112Fa859AA293F07A622782F38",
+        "metadata": {
+          "indexer": "xaut",
+          "bitfinex": "tXAUTUSD"
+        }
+      }
+    },
+    "smart-account-sepolia": {
+      "eth": {
+        "symbol": "ETH",
+        "decimals": 18,
+        "isNative": true,
+        "metadata": {
+          "moonpay": "eth",
+          "bitfinex": "tETHUSD"
+        }
+      },
+      "usdt": {
+        "symbol": "USDT",
+        "decimals": 6,
+        "isNative": false,
+        "address": "0xd077A400968890Eacc75cdc901F0356c943e4fDb",
+        "metadata": {
+          "indexer": "usdt",
+          "bitfinex": "tUSTUSD"
+        }
+      }
+    },
+    "smart-account-polygon": {
+      "pol": {
+        "symbol": "POL",
+        "decimals": 18,
+        "isNative": true,
+        "metadata": {
+          "moonpay": "pol_polygon",
+          "bitfinex": "tMATICUSD"
+        }
+      },
+      "usdt": {
+        "symbol": "USDT",
+        "decimals": 6,
+        "isNative": false,
+        "address": "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
+        "metadata": {
+          "indexer": "usdt",
+          "moonpay": "usdt_polygon",
+          "bitfinex": "tUSTUSD"
+        }
+      }
+    },
+    "smart-account-arbitrum": {
+      "eth": {
+        "symbol": "ETH",
+        "decimals": 18,
+        "isNative": true,
+        "metadata": {
+          "moonpay": "eth_arbitrum",
+          "bitfinex": "tETHUSD"
+        }
+      },
+      "usdt": {
+        "symbol": "USDT",
+        "decimals": 6,
+        "isNative": false,
+        "address": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+        "metadata": {
+          "indexer": "usdt",
+          "moonpay": "usdt_arbitrum",
+          "bitfinex": "tUSTUSD"
+        }
+      }
+    },
+    "smart-account-base": {
+      "eth": {
+        "symbol": "ETH",
+        "decimals": 18,
+        "isNative": true,
+        "metadata": {
+          "moonpay": "eth_base",
+          "bitfinex": "tETHUSD"
+        }
+      },
+      "usdt": {
+        "symbol": "USDT",
+        "decimals": 6,
+        "isNative": false,
+        "address": "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2",
+        "metadata": {
+          "bitfinex": "tUSTUSD"
+        }
+      }
+    },
+    "smart-account-plasma": {
+      "eth": {
+        "symbol": "ETH",
+        "decimals": 18,
+        "isNative": true,
+        "metadata": {
+          "bitfinex": "tETHUSD"
+        }
+      },
+      "usdt": {
+        "symbol": "USDT",
+        "decimals": 6,
+        "isNative": false,
+        "address": "0xB8CE59FC3717ada4C02eaDF9682A9e934F625ebb",
+        "metadata": {
+          "bitfinex": "tUSTUSD"
+        }
+      }
+    }
+  }
 }

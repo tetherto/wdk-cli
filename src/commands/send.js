@@ -20,6 +20,7 @@ import { formatAddress, formatNetworkLabel } from '../ui/formatters.js'
 import { configureHelp } from '../ui/help.js'
 import { nonNegativeInt } from '../ui/parsers.js'
 import { previewSend, executeSend } from '../actions/send.js'
+import { resolveTokenIdentifier } from '../services/token-service.js'
 
 /** @typedef {import('commander').Command} Command */
 
@@ -38,7 +39,7 @@ export function registerSendCommand (program) {
     .option('--index <n>', 'Account index', nonNegativeInt)
     .requiredOption('--to <address>', 'Recipient address')
     .requiredOption('--amount <value>', 'Amount in base units (wei/satoshis/lamports)')
-    .option('--token <address>', 'Token contract address (ERC-20, SPL, TRC-20)')
+    .option('--token <token>', 'Registered token (e.g. usdt); omit for native. See `wdk token list`')
     .option('--dry-run', 'Estimate fees and show summary without sending')
 
   configureHelp(send, {
@@ -50,7 +51,11 @@ export function registerSendCommand (program) {
         description: 'Amount in base units (wei/satoshis/lamports)',
         required: true
       },
-      { flags: '--token <address>', description: 'Token contract address (omit for native)' }
+      {
+        flags: '--token <token>',
+        description:
+          'Registered token (e.g. usdt); omit for native. See `wdk token list`.'
+      }
     ],
     options: [
       { flags: '--wallet <name>', description: 'Wallet name (default: default wallet)' },
@@ -64,12 +69,17 @@ export function registerSendCommand (program) {
       const network = options.network
       const index = resolveIndex(options.index)
 
+      let tokenArg
+      if (options.token) {
+        const resolved = resolveTokenIdentifier(network, options.token)
+        tokenArg = resolved.isNative ? undefined : resolved.address
+      }
       const sendInput = {
         network,
         index,
         to: options.to,
         amount: options.amount,
-        token: options.token,
+        token: tokenArg,
         wallet: options.wallet
       }
 

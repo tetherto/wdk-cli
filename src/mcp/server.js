@@ -23,6 +23,8 @@ import { getAddress, getAllAddresses } from '../actions/address.js'
 import { getHistory } from '../actions/history.js'
 import { previewSend, executeSend } from '../actions/send.js'
 import { createRampUrl } from '../actions/ramp.js'
+import { listTokens, getToken } from '../actions/token.js'
+import { resolveTokenIdentifier } from '../services/token-service.js'
 
 /** @typedef {{ content: Array<{ type: 'text', text: string }>, isError?: boolean }} ToolResult */
 
@@ -84,6 +86,42 @@ export async function startMcpServer () {
   )
 
   server.registerTool(
+    'list_tokens',
+    {
+      description:
+        'List registered tokens. Omit network to return every token across all networks.',
+      inputSchema: {
+        network: z.string().optional().describe('Filter to a single network')
+      }
+    },
+    async ({ network }) => {
+      try {
+        return jsonResult(listTokens({ network }))
+      } catch (e) {
+        return errorResult(e)
+      }
+    }
+  )
+
+  server.registerTool(
+    'get_token',
+    {
+      description: 'Get the full registry entry for a single token (network + token).',
+      inputSchema: {
+        network: z.string().describe('Network name (e.g. ethereum)'),
+        token: z.string().describe('Token (e.g. usdt)')
+      }
+    },
+    async ({ network, token }) => {
+      try {
+        return jsonResult(getToken({ network, token }))
+      } catch (e) {
+        return errorResult(e)
+      }
+    }
+  )
+
+  server.registerTool(
     'get_address',
     {
       description: 'Get wallet address. Omit network to get addresses for all networks.',
@@ -122,7 +160,10 @@ export async function startMcpServer () {
         'Get wallet balance. Omit network to get balances for all networks with USD values.',
       inputSchema: {
         network: z.string().optional().describe('Network name. Omit for all networks.'),
-        token: z.string().optional().describe('Token contract address for ERC-20/SPL balance'),
+        token: z
+          .string()
+          .optional()
+          .describe('Registered token (e.g. usdt), omit for native. Use the token tool to list available ones.'),
         index: z.number().optional().default(0).describe('Account index (default: 0)'),
         testnet: z
           .boolean()
@@ -135,7 +176,12 @@ export async function startMcpServer () {
     async ({ network, token, index, testnet, wallet }) => {
       try {
         if (network) {
-          const result = await getBalance({ network, index, token, wallet })
+          let tokenArg
+          if (token) {
+            const resolved = resolveTokenIdentifier(network, token)
+            tokenArg = resolved.isNative ? undefined : resolved.address
+          }
+          const result = await getBalance({ network, index, token: tokenArg, wallet })
           return jsonResult(result)
         }
         const result = await getAllBalances({ index, testnet, wallet })
@@ -179,7 +225,10 @@ export async function startMcpServer () {
         to: z.string().describe('Recipient address'),
         amount: z.string().describe('Amount in base units (wei, satoshis, lamports)'),
         network: z.string().describe('Network name (e.g. ethereum, bitcoin)'),
-        token: z.string().optional().describe('Token contract address (for ERC-20/SPL transfers)'),
+        token: z
+          .string()
+          .optional()
+          .describe('Registered token (e.g. usdt), omit for native. Use the token tool to list available ones.'),
         index: z.number().optional().default(0).describe('Account index (default: 0)'),
         dryRun: z
           .boolean()
@@ -191,7 +240,12 @@ export async function startMcpServer () {
     },
     async ({ to, amount, network, token, index, dryRun, wallet }) => {
       try {
-        const sendInput = { network, index, to, amount, token, wallet }
+        let tokenArg
+        if (token) {
+          const resolved = resolveTokenIdentifier(network, token)
+          tokenArg = resolved.isNative ? undefined : resolved.address
+        }
+        const sendInput = { network, index, to, amount, token: tokenArg, wallet }
         if (dryRun) {
           const preview = await previewSend(sendInput)
           return jsonResult({

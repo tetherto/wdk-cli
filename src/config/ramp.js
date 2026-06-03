@@ -12,26 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { walletsFile } from './wdk-config.js'
+import { getMoonpayCode, getTokensSupportedBy } from '../services/token-service.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 
-const SUPPORTED_MODULES = Object.freeze(['moonpay'])
+const SUPPORTED_MODULES = ['moonpay']
 
 /**
  * @typedef {Object} ResolvedAsset
  * @property {string} code - The provider-canonical asset code.
  * @property {string} token - The lowercase token alias.
  */
-
-// MoonPay encodes network in its asset code (e.g. usdt_arbitrum), so per-
-// network config is a flat token-alias → asset-code map.
-
-const moonpayConfigs = {}
-
-for (const [name, entry] of Object.entries(walletsFile.networks)) {
-  const ramp = entry.ramp
-  if (ramp?.moonpay) moonpayConfigs[name] = ramp.moonpay
-}
 
 /**
  * Validates that the given module name is a supported ramp provider.
@@ -62,22 +52,20 @@ export function validateModule (module) {
 export function resolveAsset (network, token, module) {
   const lower = token.toLowerCase()
   if (module === 'moonpay') {
-    const assets = moonpayConfigs[network]
-    if (!assets) {
+    const code = getMoonpayCode(network, lower)
+    if (code) return { code, token: lower }
+
+    const supported = getTokensSupportedBy(network, 'moonpay')
+    if (supported.length === 0) {
       throw new WdkCliError(
         `Network '${network}' does not support moonpay.`,
         ErrorCode.NETWORK_NOT_SUPPORTED
       )
     }
-    const code = assets[lower]
-    if (!code) {
-      const supported = Object.keys(assets).join(', ')
-      throw new WdkCliError(
-        `Token '${token}' on '${network}' is not supported by moonpay. Supported: ${supported}`,
-        ErrorCode.TOKEN_NOT_SUPPORTED
-      )
-    }
-    return { code, token: lower }
+    throw new WdkCliError(
+      `Token '${token}' on '${network}' is not supported by moonpay. Supported: ${supported.join(', ')}`,
+      ErrorCode.TOKEN_NOT_SUPPORTED
+    )
   }
   throw new WdkCliError(`Unsupported ramp module '${module}'.`, ErrorCode.UNSUPPORTED_MODULE)
 }

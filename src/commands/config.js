@@ -301,7 +301,19 @@ export function registerConfigCommand (program) {
       await requirePassphraseConfirmation()
 
       if (all) {
+        // Preserve user-identity data across the reset — these are user-chosen
+        // records, not configuration values: which wallet is the default,
+        // user-added networks, and user-added tokens.
+        const preservedDefaultWallet = configService.getDefaultWallet()
+        const preservedCustomNetworks = configService.get('customNetworks')
+        const preservedCustomTokens = configService.get('customTokens')
+
         configService.clear()
+
+        if (preservedDefaultWallet) configService.setDefaultWallet(preservedDefaultWallet)
+        if (preservedCustomNetworks) configService.set('customNetworks', preservedCustomNetworks)
+        if (preservedCustomTokens) configService.set('customTokens', preservedCustomTokens)
+
         await daemonClient.lock()
 
         if (isJson()) {

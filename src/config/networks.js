@@ -15,6 +15,7 @@
 import { configService } from '../services/config-service.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 import { walletsFile } from './wdk-config.js'
+import { getNativeToken } from '../services/token-service.js'
 
 /**
  * @typedef {Object} NetworkConfig
@@ -22,8 +23,9 @@ import { walletsFile } from './wdk-config.js'
  * @property {string} displayName - The human-readable network name.
  * @property {string} type - The wallet module type (e.g. "wdk-wallet-evm").
  * @property {string} module - The wallet module package name.
- * @property {string} nativeSymbol - The native currency symbol (e.g. "ETH").
- * @property {number} decimals - The number of decimals for the native currency.
+ * @property {string} [nativeSymbol] - The native currency symbol from the token registry,
+ *   if a native entry exists (e.g. "ETH"). May be undefined for networks without one.
+ * @property {number} [decimals] - The number of decimals for the native currency, if known.
  * @property {boolean} [custom] - True when the network was added by the user.
  * @property {boolean} [testnet] - True when the network is a testnet.
  */
@@ -44,13 +46,14 @@ export function parseModuleName (moduleSpec) {
 
 const NETWORKS = {}
 for (const [name, entry] of Object.entries(walletsFile.networks)) {
+  const native = getNativeToken(name)
   NETWORKS[name] = {
     name,
     displayName: entry.displayName,
     type: parseModuleName(entry.module).name,
     module: entry.module,
-    nativeSymbol: entry.nativeSymbol,
-    decimals: entry.decimals,
+    nativeSymbol: native?.symbol,
+    decimals: native?.decimals,
     testnet: entry.testnet ?? false
   }
 }

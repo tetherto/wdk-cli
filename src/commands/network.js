@@ -29,19 +29,26 @@ import { createTable } from '../ui/tables.js'
 import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
 import { configureHelp } from '../ui/help.js'
 import { requirePassphraseConfirmation } from '../ui/auth.js'
+import { parseJsonArg } from '../ui/parsers.js'
 import { walletsFile } from '../config/wdk-config.js'
+import { getNativeToken } from '../services/token-service.js'
 
 /** @typedef {import('commander').Command} Command */
 
 const VALID_WALLET_TYPES = [
   ...new Set(Object.values(walletsFile.networks).map((w) => parseModuleName(w.module).name))
 ]
+/**
+ * Default native decimals per wallet module, derived from any one built-in
+ * network's native token in the registry. Used to suggest a decimals value to
+ * users running `wdk network create` without providing one explicitly.
+ */
 const DEFAULT_DECIMALS = {}
-for (const entry of Object.values(walletsFile.networks)) {
+for (const [name, entry] of Object.entries(walletsFile.networks)) {
   const mod = parseModuleName(entry.module).name
-  if (!(mod in DEFAULT_DECIMALS)) {
-    DEFAULT_DECIMALS[mod] = entry.decimals
-  }
+  if (mod in DEFAULT_DECIMALS) continue
+  const native = getNativeToken(name)
+  if (native) DEFAULT_DECIMALS[mod] = native.decimals
 }
 
 /**
@@ -102,7 +109,7 @@ export function registerNetworkCommand (program) {
     .description('Create a custom network')
     .requiredOption('--name <name>', 'Network identifier (e.g. base, optimism)')
     .requiredOption(
-      '--network-data <json>',
+      '--data <json>',
       'JSON with network definition (displayName, module, nativeSymbol, decimals, testnet, indexer, tokens, config)'
     )
 
@@ -114,7 +121,7 @@ export function registerNetworkCommand (program) {
         required: true
       },
       {
-        flags: '--network-data <json>',
+        flags: '--data <json>',
         description: 'JSON with network definition',
         required: true
       }
@@ -123,15 +130,11 @@ export function registerNetworkCommand (program) {
 
   createCmd.action(async (options) => {
     try {
-      await requirePassphraseConfirmation()
       const name = options.name
 
-      let jsonData
-      try {
-        jsonData = JSON.parse(options.networkData)
-      } catch {
-        throw new WdkCliError('Invalid JSON in --network-data', ErrorCode.INVALID_ARGUMENT)
-      }
+      const jsonData = /** @type {Record<string, any>} */ (
+        parseJsonArg(options.data, '--data')
+      )
 
       const displayName = jsonData.displayName
       const walletType = jsonData.module
@@ -205,6 +208,8 @@ export function registerNetworkCommand (program) {
       if (tokens) config.tokens = tokens
       if (indexer) config.indexer = indexer
 
+      await requirePassphraseConfirmation()
+
       saveCustomNetwork(name, config)
       configService.set(`networks.${name}`, networkConfig)
 
@@ -248,7 +253,6 @@ export function registerNetworkCommand (program) {
 
   deleteCmd.action(async (options) => {
     try {
-      await requirePassphraseConfirmation()
       const name = options.name
 
       if (isBuiltinNetwork(name)) {
@@ -264,6 +268,8 @@ export function registerNetworkCommand (program) {
           ErrorCode.NETWORK_NOT_SUPPORTED
         )
       }
+
+      await requirePassphraseConfirmation()
 
       deleteCustomNetwork(name)
       configService.delete(`networks.${name}`)

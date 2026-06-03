@@ -502,7 +502,15 @@ export function registerWalletCommand (program) {
         throw new WdkCliError(`Wallet '${name}' not found.`, ErrorCode.KEY_NOT_FOUND)
       }
 
-      await requirePassphraseConfirmation()
+      if (configService.getDefaultWallet()) {
+        await requirePassphraseConfirmation()
+      } else {
+        // fallback case: No default yet — confirm with the target wallet's own passphrase
+        const passphrase = await promptPassphrase(
+          `Enter passphrase of '${name}' wallet to confirm:`
+        )
+        await keyService.unlock(passphrase, name)
+      }
 
       configService.setDefaultWallet(name)
       if (isJson()) {

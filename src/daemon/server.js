@@ -32,7 +32,7 @@ import { configService } from '../services/config-service.js'
 import { deriveKey, decryptWithKey } from '../security/encryption.js'
 import { WdkService } from '../services/wdk-service.js'
 import { isValidNetwork, getNetworkConfig } from '../config/networks.js'
-import { getTokenConfig } from '../config/tokens.js'
+import { getTokenByAddress } from '../services/token-service.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 import { formatAmount } from '../ui/formatters.js'
 
@@ -338,13 +338,13 @@ export class WalletDaemon {
 
           if (req.token) {
             const balance = await account.getTokenBalance(req.token)
-            const config = getTokenConfig(req.network, req.token)
+            const tokenInfo = getTokenByAddress(req.network, req.token)
             return {
               ok: true,
               data: {
                 balance: balance.toString(),
-                symbol: config?.symbol || 'tokens',
-                decimals: config?.decimals || 0
+                symbol: tokenInfo?.symbol || 'tokens',
+                decimals: tokenInfo?.decimals || 0
               }
             }
           }

@@ -18,20 +18,17 @@ const walletsFileRaw = createRequire(import.meta.url)('../../wdk.config.json')
 
 /**
  * @typedef {Object} IndexerEntry
- * @property {string} blockchain - The indexer blockchain identifier.
- * @property {string[]} tokens - The token symbols supported by the indexer for this network.
+ * @property {string} blockchain - The indexer's identifier for this network (e.g. "ethereum").
+ *   Per-token indexer codes live in `wdk.tokens.json` under `metadata.indexer`.
  */
 
 /**
  * @typedef {Object} WdkNetworkEntry
  * @property {string} module - The wallet module package name.
  * @property {string} displayName - The human-readable network name.
- * @property {string} nativeSymbol - The native currency symbol.
- * @property {number} decimals - The number of decimals for the native currency.
  * @property {boolean} [testnet] - True when the network is a testnet.
- * @property {IndexerEntry} [indexer] - The indexer configuration for this network.
- * @property {{ moonpay?: Record<string, string> }} [ramp] - The ramp provider configuration keyed by provider name.
- * @property {Record<string, unknown>} [config] - The per-network module configuration.
+ * @property {IndexerEntry} [indexer] - The indexer blockchain identifier for this network.
+ * @property {Record<string, unknown>} [config] - The per-network module configuration (RPC URL, chainId, etc.).
  */
 
 /**
