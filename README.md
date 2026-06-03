@@ -47,8 +47,9 @@ A multi-chain crypto wallet for AI agents, built on [Wallet Development Kit (WDK
 
 - **Wallet** — Multiple named wallets with per-wallet passphrases and BIP-39 seed phrases, encrypted at rest with AES-256-GCM. Background daemon holds keys in memory after unlock, with per-wallet TTL
 - **Network** — Bitcoin, Ethereum, Polygon, Arbitrum, Base, BSC, Avalanche, Solana, Tron, Spark, Smart Account (ERC-4337) + testnets. Add custom networks with `network create`
+- **Token** — Built-in registry of tokens per network (symbol, decimals, address, indexer/MoonPay/Bitfinex mappings). Add your own with `token add`
 - **Get** — Derive wallet addresses, check balances, and view transaction history across all networks
-- **Send** — Native and token transfers with fee estimation and dry-run preview
+- **Send** — Native and token transfers with fee estimation and dry-run preview. Decimal amounts by default
 - **Buy/Sell** — On/off ramp via MoonPay (buy crypto with fiat, sell crypto for fiat)
 - **Config** — Per-network configuration with env var overrides
 
@@ -97,11 +98,11 @@ wdk get balance
 # Check balance for a specific wallet
 wdk get balance --wallet savings
 
-# Send ETH (amount in wei)
-wdk send --to 0x000000000000000000000000000000000000dEaD --amount 1000000000000000000 --network ethereum
+# Send 1 ETH (decimal default; add --base-units to send in wei)
+wdk send --to 0x000000000000000000000000000000000000dEaD --amount 1 --network ethereum
 
-# Send from a specific wallet
-wdk send --to 0x... --amount 1000 --network ethereum --wallet trading
+# Send 100 USDT (registered token ticker — see `wdk token list`)
+wdk send --to 0x... --amount 100 --token usdt --network ethereum --wallet trading
 
 # Show network details and config
 wdk network info --network ethereum
@@ -153,18 +154,13 @@ wdk network delete --name <name>      # Delete a custom network (requires unlock
 
 #### Adding Custom Networks
 
-Use `wdk network create` with `--name` and `--network-data` (JSON). Requires an unlocked wallet:
+Use `wdk network create` with `--name` and `--data` (JSON). Requires an unlocked wallet:
 
 ```bash
-wdk network create --name optimism --network-data '{
+wdk network create --name optimism --data '{
   "displayName": "Optimism",
   "module": "@tetherto/wdk-wallet-evm",
-  "nativeSymbol": "ETH",
-  "decimals": 18,
   "testnet": false,
-  "tokens": [
-    { "address": "0x94b008aA00579c1307B0EF2c499aD98a8ce58e68", "symbol": "USDT", "decimals": 6 }
-  ],
   "config": {
     "provider": "https://mainnet.optimism.io",
     "transferMaxFee": 5000000000000000
@@ -172,20 +168,43 @@ wdk network create --name optimism --network-data '{
 }'
 ```
 
-**`--network-data` JSON fields:**
+**`--data` JSON fields:**
 
 | Field | Required | Description |
 |-------|----------|-------------|
 | `displayName` | Yes | Human-readable name (e.g. `Optimism`) |
 | `module` | Yes | Wallet type: `@tetherto/wdk-wallet-evm`, `@tetherto/wdk-wallet-btc`, `@tetherto/wdk-wallet-solana`, `@tetherto/wdk-wallet-spark`, `@tetherto/wdk-wallet-tron`, `@tetherto/wdk-wallet-evm-erc-4337` |
-| `nativeSymbol` | Yes | Native token symbol (e.g. `ETH`) |
-| `decimals` | No | Token decimals (default: based on module) |
 | `testnet` | No | Mark as testnet (default: false) |
-| `indexer` | No | Indexer API config for `get history`: `{ "blockchain": "<name>", "tokens": ["usdt", "xaut", ...] }`. Supported chains: `ethereum`, `sepolia`, `arbitrum`, `polygon`, `tron`, `ton`, `bitcoin`, `spark`. Supported tokens: `usdt`, `usat`, `xaut`, `btc`. |
-| `tokens` | No | Known tokens: `[{ address, symbol, decimals }]` |
+| `indexerSlug` | No | Override for the indexer chain slug (defaults to the network name). Set only when the network name differs from the chain queried by the indexer — e.g. `smart-account-ethereum` uses `indexerSlug: "ethereum"`. Indexer-supported tokens are derived from the token registry's `metadata.indexer` field. |
 | `config` | No | Network config passed to SDK (provider, chainId, etc.) |
 
-Custom networks are stored in config and work with all commands (`get balance`, `send`, `get address`, etc.). Network config can also be updated later with `wdk config set --key <key> --value <value> --network <name>`.
+After creating the network, register its native and any token assets via `wdk token add`. Custom networks are stored in config and work with all commands (`get balance`, `send`, `get address`, etc.). Network config can also be updated later with `wdk config set --key <key> --value <value> --network <name>`.
+
+### Tokens
+
+The CLI ships with a registry (`wdk.tokens.json`) of all known tokens per network — symbol, decimals, contract address, and provider mappings (indexer code, MoonPay asset code, Bitfinex pair). The `--token` flag on `get balance` / `send` / `get history` / `buy` / `sell` resolves against this registry.
+
+```bash
+wdk token list                                          # All tokens, grouped by network
+wdk token list --network ethereum                       # Filter to one network
+wdk token info --network ethereum --token usdt          # Show full entry
+wdk token add --network <n> --token <t> --data '<json>' # Add/override (requires unlocked wallet)
+wdk token delete --network <n> --token <t>              # Remove a custom entry
+```
+
+**`token add --data` JSON fields:**
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `symbol` | Yes | Display symbol (e.g. `USDT`) |
+| `decimals` | Yes | Integer 0–24 |
+| `isNative` | Yes | Boolean — `true` for the chain's native asset |
+| `address` | If `!isNative` | Contract / mint address |
+| `metadata.indexer` | No | Indexer code (enables `get history`) |
+| `metadata.moonpay` | No | MoonPay asset code (enables `buy`/`sell`) |
+| `metadata.bitfinex` | No | Bitfinex pair (enables USD price in `get balance`) |
+
+Custom entries (added via `token add`) live under `customTokens.<network>.<ticker>` and survive `wdk config reset --all`. Built-in entries can be **overridden** by adding a custom entry with the same ticker — a yellow warning is shown when this happens. `token delete` only removes custom entries; the built-in falls through after deletion.
 
 ### Get
 
@@ -194,15 +213,15 @@ wdk get address --network <network> [--index <n>]              # Derive wallet a
 wdk get address                                                 # All mainnet addresses
 wdk get address --testnet                                       # All testnet addresses
 wdk get balance --network ethereum                              # Native ETH balance
-wdk get balance --network ethereum --token 0xdAC17F...          # ERC-20 token balance
+wdk get balance --network ethereum --token usdt                 # ERC-20 by registered ticker
 wdk get balance                                                 # All mainnet balances with USD
 wdk get balance --testnet                                       # All testnet balances with USD
-wdk get history --network ethereum                                              # USDT transfer history
+wdk get history --network ethereum                                              # All supported tokens
 wdk get history --network ethereum --token xaut --limit 50                      # XAUT transfers, last 50
 wdk get history --network ethereum --from-date 2026-01-01 --to-date 2026-03-31  # Date range filter
 ```
 
-Known tokens (e.g. USDT) are automatically resolved with correct decimals and symbol. Unknown tokens fall back to raw base-unit amounts.
+`--token` accepts a registered token ticker (e.g. `usdt`, `eth`, `xaut`). See `wdk token list` for available tokens. Use `wdk token add` to register a new token.
 
 Wallets are derived deterministically from your seed phrase using HD paths (BIP-84 for BTC, BIP-44 for EVM/Solana) — no local state is stored. `get address` works without a provider configured (local derivation only), while `get balance` requires a provider connection.
 
@@ -211,13 +230,14 @@ Wallets are derived deterministically from your seed phrase using HD paths (BIP-
 ### Send
 
 ```bash
-wdk send --to <address> --amount <base-units> --network <network>
-wdk send --to <address> --amount <base-units> --network ethereum --token <contract>  # ERC-20 transfer
-wdk send --to <address> --amount <base-units> --network solana --token <mint>        # SPL transfer
-wdk send --to <address> --amount <base-units> --network ethereum --dry-run           # preview without sending
+wdk send --to <address> --amount <decimal> --network <network>                     # Native (decimal, e.g. 1.5)
+wdk send --to <address> --amount <decimal> --token <ticker> --network ethereum     # ERC-20 by registered ticker
+wdk send --to <address> --amount <decimal> --token <ticker> --network solana       # SPL by registered ticker
+wdk send --to <address> --amount <baseUnits> --base-units --network ethereum       # Opt-in: raw base units
+wdk send --to <address> --amount <decimal> --network ethereum --dry-run            # preview without sending
 ```
 
-Amounts are in base units (wei for EVM, satoshis for BTC, lamports for Solana). Fee estimation runs before confirmation. Use `--dry-run` to preview the transaction with fee and USD estimates without sending.
+`--amount` is decimal by default (e.g. `1.5` for 1.5 ETH, `0.001` for 0.001 BTC). The CLI converts using the token's registered decimals. Pass `--base-units` to interpret the value as raw base units (wei/satoshi/lamport) — useful for scripts that already have BigInt amounts. Fee estimation runs before confirmation; use `--dry-run` to preview the transaction with fee and USD estimates without sending.
 
 ### Buy / Sell (On/Off Ramp)
 
@@ -236,9 +256,9 @@ wdk sell --network polygon --token usdt --crypto-amount 50       # Sell 50 USDT 
 Uses MoonPay as the fiat provider. All three config values are required:
 
 ```bash
-wdk config set --key moonpay.apiKey --value <your-publishable-key>
-wdk config set --key moonpay.signUrl --value <your-sign-url>
-wdk config set --key moonpay.environment --value sandbox       # or production
+wdk config set --key ramp.moonpay.apiKey --value <your-publishable-key>
+wdk config set --key ramp.moonpay.signUrl --value <your-sign-url>
+wdk config set --key ramp.moonpay.environment --value sandbox    # or production
 ```
 
 **Options:**
@@ -252,9 +272,9 @@ wdk config set --key moonpay.environment --value sandbox       # or production
 | `--fiat-amount <value>` | Fiat amount (mutually exclusive with `--crypto-amount`) |
 | `--crypto-amount <value>` | Crypto amount (mutually exclusive with `--fiat-amount`) |
 
-Supported tokens per network are defined in [`wdk.config.json`](wdk.config.json) under each network's `moonpay` key. Environment validation prevents using production MoonPay with testnet networks (and vice versa).
+Supported tokens are derived from the registry — any token with `metadata.moonpay` set in `wdk.tokens.json` (or a custom token added via `wdk token add`). Environment validation prevents using production MoonPay with testnet networks (and vice versa).
 
-Configure via `wdk config set --key moonpay.apiKey --value <key>`, `moonpay.signUrl`, and `moonpay.environment`.
+Configure via `wdk config set --key ramp.moonpay.apiKey --value <key>`, `ramp.moonpay.signUrl`, and `ramp.moonpay.environment`.
 
 ### Configuration
 
@@ -262,19 +282,23 @@ Config read commands (`get`, `path`) work without a wallet. Write operations (`s
 
 ```bash
 # Get
-wdk config get                                                  # Show all config
-wdk config get --key moonpay.apiKey                             # Show a specific value
+wdk config get --all                                            # Show all config
+wdk config get --key ramp.moonpay.apiKey                        # Show a specific value
 wdk config get --network ethereum                               # Show Ethereum config
 wdk config get --key provider --network ethereum                # Show a network-specific value
 
 # Set
-wdk config set --key moonpay.apiKey --value pk_test_...         # Set a value
+wdk config set --key ramp.moonpay.apiKey --value pk_test_...    # Set a value
 wdk config set --key provider --value <rpc-url> --network ethereum              # Network-scoped value
-wdk config set --key moonpay --value '{"apiKey":"...","signUrl":"...","environment":"sandbox"}'  # JSON object
+wdk config set --key ramp.moonpay --value '{"apiKey":"...","signUrl":"...","environment":"sandbox"}'  # JSON object
 wdk config set --value '{"provider":"https://...","transferMaxFee":5000}' --network optimism    # Full network config
 
-# Reset / Path
-wdk config reset --key provider --network ethereum              # Reset to default
+# Reset
+wdk config reset --key provider --network ethereum              # Reset a key to default
+wdk config reset --all                                          # Reset everything to factory defaults
+                                                                # (preserves defaultWallet, customNetworks, customTokens)
+
+# Path
 wdk config path                                                 # Config file path
 ```
 
@@ -369,10 +393,12 @@ Setup auto-detects the Node.js path, validates the MCP server, and writes the co
 | Tool | Parameters | Description |
 |------|-----------|-------------|
 | `get_networks` | `testnet?`, `mainnet?` | List all supported blockchain networks |
+| `list_tokens` | `network?` | List registered tokens (omit network for every network) |
+| `get_token` | `network`, `token` | Get a single registered token entry (symbol, decimals, address, provider mappings) |
 | `get_address` | `network?`, `index?`, `testnet?`, `wallet?` | Get wallet address (omit network for all) |
-| `get_balance` | `network?`, `token?`, `index?`, `testnet?`, `wallet?` | Get balance with USD values (omit network for all) |
+| `get_balance` | `network?`, `token?`, `index?`, `testnet?`, `wallet?` | Get balance with USD values (omit network for all). `token` is a registered ticker. |
 | `get_history` | `network`, `token?`, `limit?`, `index?`, `fromDate?`, `toDate?`, `wallet?` | Transaction history (requires indexer API) |
-| `send_token` | `to`, `amount`, `network`, `token?`, `index?`, `dryRun?`, `wallet?` | Send tokens. Returns dry-run preview by default; set `dryRun=false` to execute |
+| `send_token` | `to`, `amount`, `baseUnits?`, `network`, `token?`, `index?`, `dryRun?`, `wallet?` | Send tokens. `amount` is decimal by default; set `baseUnits=true` to interpret as base units. Returns dry-run preview by default; set `dryRun=false` to execute |
 | `buy_crypto` | `network`, `token`, `fiatCurrency?`, `fiatAmount?`, `cryptoAmount?`, `index?`, `wallet?` | Buy crypto with fiat. Returns a signed MoonPay URL. |
 | `sell_crypto` | `network`, `token`, `fiatCurrency?`, `fiatAmount?`, `cryptoAmount?`, `index?`, `wallet?` | Sell crypto for fiat. Returns a signed MoonPay URL. |
 
@@ -391,8 +417,8 @@ For AI agents with full system access (Claude Code, OpenClaw, custom agents). Th
 
 ```bash
 wdk get balance --network ethereum --json
-wdk send --to 0xRECIPIENT --amount 1000000 --network ethereum --dry-run
-wdk send --to 0xRECIPIENT --amount 1000000 --network ethereum --json
+wdk send --to 0xRECIPIENT --amount 1 --network ethereum --dry-run --json     # 1 ETH (decimal)
+wdk send --to 0xRECIPIENT --amount 100 --token usdt --network ethereum --json # 100 USDT by ticker
 ```
 
 The `SKILL.md` file contains complete instructions for AI agents — commands, workflows, error handling, and amount conversions. Feed it as context to your agent.

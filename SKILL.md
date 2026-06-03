@@ -21,8 +21,9 @@ Operate a self-custody multi-chain wallet through the `wdk` CLI. For AI agents w
 
 1. Always append `--json` to get machine-parseable output (errors also return JSON: `{"error":"...","code":"...","suggestion":"..."}`)
 2. Before sending tokens, use `--dry-run` to preview, show summary to user, and wait for confirmation in chat
-3. Amounts are always in **base units** (wei, satoshis, lamports) — never decimals
-4. Never ask for or log seed phrases or passphrases
+3. `--amount` accepts **decimal by default** (e.g. `--amount 1.5`). Add `--base-units` to interpret as base units (wei, satoshi, lamport)
+4. `--token` is always a registered ticker (e.g. `usdt`, `eth`) — not a contract address. Run `wdk token list` to see available tokens; use `wdk token add` to register new ones
+5. Never ask for or log seed phrases or passphrases
 
 ## Prerequisites
 
@@ -72,12 +73,12 @@ wdk get address --testnet --json
 ### Check Balance
 
 ```bash
-# Single network
+# Native balance, single network
 wdk get balance --network ethereum --json
 # {"network":"ethereum","index":0,"balance":"1000000000000000000","symbol":"ETH","decimals":18,"formatted":"1.00 ETH","usd":2100.50}
 
-# Token balance (USDT)
-wdk get balance --network ethereum --token 0xdAC17F958D2ee523a2206206994597C13D831ec7 --json
+# Token balance — use registered ticker (see `wdk token list`)
+wdk get balance --network ethereum --token usdt --json
 
 # All mainnet balances with USD totals (omit --network)
 wdk get balance --json
@@ -89,19 +90,26 @@ wdk get balance --testnet --json
 
 ### Send
 
-Step 1: Preview the transaction with `--dry-run` to get accurate fee and USD values:
+Step 1: Preview the transaction with `--dry-run` to get accurate fee and USD values. `--amount` is decimal by default; add `--base-units` to interpret as base units.
 
 ```bash
-wdk send --to 0xRECIPIENT --amount 1000000000000000000 --network ethereum --dry-run --json
+# Decimal (default) — send 1 ETH
+wdk send --to 0xRECIPIENT --amount 1 --network ethereum --dry-run --json
 # {"network":"ethereum","networkName":"Ethereum","to":"0x...","amount":"1000000000000000000","amountFormatted":"1.00 ETH","amountUsd":2100.50,"estimatedFee":"21000","estimatedFeeFormatted":"0.00000002 ETH","estimatedFeeUsd":0.04}
+
+# ERC-20: --token is a registered ticker (see `wdk token list`)
+wdk send --to 0xRECIPIENT --amount 1.5 --token usdt --network ethereum --dry-run --json
+
+# Base units (opt-in): same value as `--amount 1`
+wdk send --to 0xRECIPIENT --amount 1000000000000000000 --base-units --network ethereum --dry-run --json
 ```
 
 Step 2: Show the summary to the user and wait for confirmation in chat.
 
-Step 3: Execute the transfer:
+Step 3: Execute the transfer (drop `--dry-run`):
 
 ```bash
-wdk send --to 0xRECIPIENT --amount 1000000000000000000 --network ethereum --json
+wdk send --to 0xRECIPIENT --amount 1 --network ethereum --json
 ```
 
 ### Transaction History
@@ -127,11 +135,38 @@ wdk sell --network ethereum --token eth --json
 wdk sell --network polygon --token usdt --crypto-amount 50 --json
 ```
 
-`--token` is required. `--fiat-amount` and `--crypto-amount` are mutually exclusive and optional. Supported tokens per network are in `wdk.config.json` under each network's `moonpay` key. Requires `moonpay.apiKey` to be configured.
+`--token` is required (registered ticker). `--fiat-amount` and `--crypto-amount` are mutually exclusive — both accept decimal values. Supported tokens per network are derived from the token registry's `metadata.moonpay` field (see `wdk token list`). Requires `ramp.moonpay.apiKey` / `ramp.moonpay.signUrl` / `ramp.moonpay.environment` to be configured.
+
+### Token Registry
+
+The CLI ships with a registry (`wdk.tokens.json`) of all known tokens — symbol, decimals, contract address, and provider mappings (indexer, MoonPay, Bitfinex). The `--token` flag on any command (`get balance`, `send`, `get history`, `buy`, `sell`) resolves against this registry.
+
+```bash
+# Browse the registry
+wdk token list --json                                       # all networks, all tokens
+wdk token list --network ethereum --json                    # one network
+wdk token info --network ethereum --token usdt --json       # single entry
+
+# Add a custom token (or override a built-in entry)
+wdk token add --network polygon --token dai --data '{
+  "symbol": "DAI",
+  "decimals": 18,
+  "isNative": false,
+  "address": "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",
+  "metadata": { "bitfinex": "tDAIUSD" }
+}'
+
+# Remove a custom token (built-ins cannot be deleted; use `add` to override)
+wdk token delete --network polygon --token dai
+```
+
+Custom tokens live under `customTokens.<network>.<ticker>` in the user config and survive `wdk config reset --all`.
 
 ## Amount Conversion
 
-Amounts are in base units. Common conversions:
+`--amount` is decimal by default — pass `1.5` for 1.5 ETH, `0.001` for 0.001 BTC. The CLI converts using the token's registered decimals (`wdk token info --network <n> --token <t>` to inspect).
+
+If you need to pass raw base units (e.g. you already have a `bigint` value), add `--base-units`. Reference table for the common base-unit multipliers:
 
 | Token | 1 Unit | Base Units |
 |-------|--------|------------|
@@ -144,16 +179,20 @@ Amounts are in base units. Common conversions:
 
 ## Error Handling
 
-| Error | Action |
-|-------|--------|
-| "No wallet found" | Ask user to run `wdk wallet create --name <name>` |
-| "Wallet is locked" | Ask user to run `wdk wallet unlock --name <name>` |
-| "Insufficient balance" | Inform user, show current balance |
-| "403 Forbidden" (indexer) | Ask user to set API key: `wdk config set --key indexer.apiKey --value <key>` |
-| "Unknown token" | Token not in known registry, provide contract address |
-| "MoonPay API key not configured" | Ask user to run `wdk config set --key moonpay.apiKey --value <key>` |
-| "Cannot use production MoonPay with testnet" | Ask user to run `wdk config set --key moonpay.environment --value sandbox` |
-| "Cannot use sandbox MoonPay with mainnet" | Ask user to run `wdk config set --key moonpay.environment --value production` |
+Errors are returned as structured JSON: `{"error": "...", "code": "...", "suggestion": "..."}` when `--json` is set. Branch on `code`:
+
+| Code | Cause | Action |
+|------|-------|--------|
+| `KEY_NOT_FOUND` | Wallet not found | Ask user to run `wdk wallet create --name <name>` |
+| `WALLET_LOCKED` / `WALLET_NOT_UNLOCKED` | Wallet locked or no session | Ask user to run `wdk wallet unlock --name <name>` |
+| `INSUFFICIENT_FUNDS` | Not enough balance | Inform user, show current balance |
+| `INVALID_AMOUNT` | Malformed / negative / over-precision amount | Re-prompt user; respect token decimals (see `wdk token info`) |
+| `INVALID_ARGUMENT` | Bad/missing CLI flag | Read the message; common cases: missing `--key`, mutually exclusive flags |
+| `TOKEN_NOT_SUPPORTED` | Unregistered `--token` | Ask user to register: `wdk token add --network <n> --token <t> --data '{...}'` |
+| `NETWORK_NOT_SUPPORTED` | Unknown network name | Ask user to list available: `wdk network list` |
+| `NETWORK_ERROR` (403 from indexer) | Missing/invalid API key | Ask user: `wdk config set --key indexer.apiKey --value <key>` |
+| `MISSING_CONFIG` (moonpay) | Ramp not configured | Ask user: `wdk config set --key ramp.moonpay.apiKey --value <key>` (also `signUrl`, `environment`) |
+| `ENVIRONMENT_MISMATCH` | sandbox key on mainnet (or vice versa) | Ask user: `wdk config set --key ramp.moonpay.environment --value <sandbox\|production>` |
 
 ## Restricted Actions (NEVER do these)
 
