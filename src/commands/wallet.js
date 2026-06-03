@@ -93,6 +93,16 @@ export function registerWalletCommand (program) {
       if (passphrase !== confirmPw) {
         throw new WdkCliError('Passphrases do not match.', ErrorCode.PASSPHRASE_MISMATCH)
       }
+      if (passphrase === '' && !isJson()) {
+        console.log()
+        console.log(
+          chalk.bold.yellow('WARNING: Empty passphrase.') +
+            chalk.yellow(
+              ' Anyone with access to this machine can decrypt and read the seed phrase.'
+            )
+        )
+        console.log()
+      }
 
       const spinner = isJson() ? null : ora('Encrypting and storing seed phrase...').start()
       await keyService.store(seedPhrase, passphrase, name)
@@ -164,6 +174,16 @@ export function registerWalletCommand (program) {
       const confirmPw = await promptPassphrase('Confirm passphrase:')
       if (passphrase !== confirmPw) {
         throw new WdkCliError('Passphrases do not match.', ErrorCode.PASSPHRASE_MISMATCH)
+      }
+      if (passphrase === '' && !isJson()) {
+        console.log()
+        console.log(
+          chalk.bold.yellow('WARNING: Empty passphrase.') +
+            chalk.yellow(
+              ' Anyone with access to this machine can decrypt and read the seed phrase.'
+            )
+        )
+        console.log()
       }
 
       const spinner = isJson() ? null : ora('Encrypting and storing seed phrase...').start()
