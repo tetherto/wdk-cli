@@ -55,11 +55,9 @@ import { getAllTokens, getIndexerCode, getTokensSupportedBy } from './token-serv
  */
 
 /** @type {Record<string, string>} */
-const BUILTIN_INDEXER_BLOCKCHAINS = {}
+const BUILTIN_INDEXER_SLUGS = {}
 for (const [name, entry] of Object.entries(walletsFile.networks)) {
-  if (entry.indexer?.blockchain) {
-    BUILTIN_INDEXER_BLOCKCHAINS[name] = entry.indexer.blockchain
-  }
+  if (entry.indexerSlug) BUILTIN_INDEXER_SLUGS[name] = entry.indexerSlug
 }
 
 /**
@@ -79,18 +77,19 @@ export const INDEXER_TOKENS = Object.freeze([
 ])
 
 /**
- * Returns the indexer blockchain identifier for a network. Comes from
- * `walletsFile.networks[name].indexer.blockchain` for built-ins, or
- * `customNetworks.<name>.indexer.blockchain` for user-added networks.
+ * Returns the indexer chain slug for a network. Defaults to the network name;
+ * built-ins may override via `indexerSlug` in `wdk.config.json`, and custom
+ * networks via `customNetworks.<name>.indexerSlug`.
  *
  * @param {string} network - The network name.
- * @returns {string | undefined} The blockchain identifier, or undefined if not supported.
+ * @returns {string} The chain slug used in indexer URLs.
  */
-export function getIndexerBlockchain (network) {
-  if (BUILTIN_INDEXER_BLOCKCHAINS[network]) return BUILTIN_INDEXER_BLOCKCHAINS[network]
-  return /** @type {string | undefined} */ (
-    configService.get(`customNetworks.${network}.indexer.blockchain`)
+export function getIndexerSlug (network) {
+  if (BUILTIN_INDEXER_SLUGS[network]) return BUILTIN_INDEXER_SLUGS[network]
+  const custom = /** @type {string | undefined} */ (
+    configService.get(`customNetworks.${network}.indexerSlug`)
   )
+  return custom ?? network
 }
 
 /**
@@ -110,13 +109,15 @@ export function getIndexerTokens (network) {
 }
 
 /**
- * Returns whether the indexer API is supported for a network.
+ * Returns whether the indexer API is supported for a network. A network is
+ * supported when at least one token in the registry exposes a `metadata.indexer`
+ * code.
  *
  * @param {string} network - The network name.
- * @returns {boolean} True if the network has an indexer blockchain identifier.
+ * @returns {boolean} True if any token for the network has a `metadata.indexer` code.
  */
 export function isIndexerSupported (network) {
-  return !!getIndexerBlockchain(network)
+  return getTokensSupportedBy(network, 'indexer').length > 0
 }
 
 /**
@@ -129,13 +130,13 @@ export function isIndexerSupported (network) {
  * @returns {Promise<TokenTransfer[]>} Array of token transfers.
  */
 export async function getTokenTransfers (network, token, address, options = {}) {
-  const blockchain = getIndexerBlockchain(network)
-  if (!blockchain) {
+  if (!isIndexerSupported(network)) {
     throw new WdkCliError(
       `Network '${network}' is not supported by the indexer API.`,
       ErrorCode.NETWORK_NOT_SUPPORTED
     )
   }
+  const blockchain = getIndexerSlug(network)
 
   const baseUrl = /** @type {string | undefined} */ (configService.get('indexer.baseUrl'))
   const apiKey = /** @type {string | undefined} */ (configService.get('indexer.apiKey'))

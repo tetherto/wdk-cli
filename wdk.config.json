@@ -21,9 +21,6 @@
     "bitcoin": {
       "module": "@tetherto/wdk-wallet-btc@1.0.0-beta.8",
       "displayName": "Bitcoin",
-      "indexer": {
-        "blockchain": "bitcoin"
-      },
       "config": {
         "client": {
           "type": "electrum",
@@ -57,9 +54,6 @@
     "ethereum": {
       "module": "@tetherto/wdk-wallet-evm@1.0.0-beta.11",
       "displayName": "Ethereum",
-      "indexer": {
-        "blockchain": "ethereum"
-      },
       "config": {
         "chainId": 1,
         "provider": "https://ethereum-rpc.publicnode.com",
@@ -70,9 +64,6 @@
       "module": "@tetherto/wdk-wallet-evm@1.0.0-beta.11",
       "displayName": "Sepolia Testnet",
       "testnet": true,
-      "indexer": {
-        "blockchain": "sepolia"
-      },
       "config": {
         "chainId": 11155111,
         "provider": "https://ethereum-sepolia-rpc.publicnode.com",
@@ -82,9 +73,6 @@
     "polygon": {
       "module": "@tetherto/wdk-wallet-evm@1.0.0-beta.11",
       "displayName": "Polygon",
-      "indexer": {
-        "blockchain": "polygon"
-      },
       "config": {
         "chainId": 137,
         "provider": "https://polygon.drpc.org",
@@ -94,9 +82,6 @@
     "arbitrum": {
       "module": "@tetherto/wdk-wallet-evm@1.0.0-beta.11",
       "displayName": "Arbitrum One",
-      "indexer": {
-        "blockchain": "arbitrum"
-      },
       "config": {
         "chainId": 42161,
         "provider": "https://arb1.arbitrum.io/rpc",
@@ -156,9 +141,6 @@
     "spark": {
       "module": "@tetherto/wdk-wallet-spark@1.0.0-beta.17",
       "displayName": "Spark",
-      "indexer": {
-        "blockchain": "spark"
-      },
       "config": {
         "network": "MAINNET"
       }
@@ -174,9 +156,6 @@
     "tron": {
       "module": "@tetherto/wdk-wallet-tron@1.0.0-beta.4",
       "displayName": "Tron",
-      "indexer": {
-        "blockchain": "tron"
-      },
       "config": {
         "provider": "https://api.trongrid.io",
         "transferMaxFee": 30000000
@@ -194,9 +173,7 @@
     "smart-account-ethereum": {
       "module": "@tetherto/wdk-wallet-evm-erc-4337@1.0.0-beta.6",
       "displayName": "Smart Account Ethereum",
-      "indexer": {
-        "blockchain": "ethereum"
-      },
+      "indexerSlug": "ethereum",
       "config": {
         "chainId": 1,
         "blockchain": "ethereum",
@@ -216,9 +193,7 @@
       "module": "@tetherto/wdk-wallet-evm-erc-4337@1.0.0-beta.6",
       "displayName": "Smart Account Sepolia",
       "testnet": true,
-      "indexer": {
-        "blockchain": "sepolia"
-      },
+      "indexerSlug": "sepolia",
       "config": {
         "chainId": 11155111,
         "blockchain": "sepolia",
@@ -237,9 +212,7 @@
     "smart-account-polygon": {
       "module": "@tetherto/wdk-wallet-evm-erc-4337@1.0.0-beta.6",
       "displayName": "Smart Account Polygon",
-      "indexer": {
-        "blockchain": "polygon"
-      },
+      "indexerSlug": "polygon",
       "config": {
         "chainId": 137,
         "blockchain": "polygon",
@@ -258,9 +231,7 @@
     "smart-account-arbitrum": {
       "module": "@tetherto/wdk-wallet-evm-erc-4337@1.0.0-beta.6",
       "displayName": "Smart Account Arbitrum",
-      "indexer": {
-        "blockchain": "arbitrum"
-      },
+      "indexerSlug": "arbitrum",
       "config": {
         "chainId": 42161,
         "blockchain": "arbitrum",

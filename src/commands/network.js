@@ -110,7 +110,7 @@ export function registerNetworkCommand (program) {
     .requiredOption('--name <name>', 'Network identifier (e.g. base, optimism)')
     .requiredOption(
       '--data <json>',
-      'JSON with network definition (displayName, module, nativeSymbol, decimals, testnet, indexer, tokens, config)'
+      'JSON with network definition (displayName, module, nativeSymbol, decimals, testnet, indexerSlug, tokens, config)'
     )
 
   configureHelp(createCmd, {
@@ -141,20 +141,12 @@ export function registerNetworkCommand (program) {
       const symbol = jsonData.nativeSymbol
       const decimals = jsonData.decimals ?? DEFAULT_DECIMALS[walletType] ?? 18
       const testnet = jsonData.testnet ?? false
-      const indexerRaw = jsonData.indexer
-      let indexer
-      if (indexerRaw && typeof indexerRaw === 'object') {
-        const blockchain = indexerRaw.blockchain
-        const indexerTokens = Array.isArray(indexerRaw.tokens)
-          ? indexerRaw.tokens.filter((t) => typeof t === 'string')
-          : undefined
-        if (!blockchain || !indexerTokens) {
-          throw new WdkCliError(
-            'indexer must be { blockchain: string, tokens: string[] }',
-            ErrorCode.INVALID_ARGUMENT
-          )
-        }
-        indexer = { blockchain, tokens: indexerTokens }
+      const indexerSlug = jsonData.indexerSlug
+      if (indexerSlug !== undefined && (typeof indexerSlug !== 'string' || !indexerSlug)) {
+        throw new WdkCliError(
+          'indexerSlug must be a non-empty string (the indexer chain slug, e.g. "ethereum").',
+          ErrorCode.INVALID_ARGUMENT
+        )
       }
       const tokens = Array.isArray(jsonData.tokens) ? jsonData.tokens : undefined
       let networkConfig = {}
@@ -206,7 +198,7 @@ export function registerNetworkCommand (program) {
         testnet
       }
       if (tokens) config.tokens = tokens
-      if (indexer) config.indexer = indexer
+      if (indexerSlug) config.indexerSlug = indexerSlug
 
       await requirePassphraseConfirmation()
 
@@ -226,7 +218,7 @@ export function registerNetworkCommand (program) {
       console.log(`  Symbol:     ${symbol}`)
       console.log(`  Decimals:   ${decimals}`)
       console.log(`  Testnet:    ${testnet ? 'yes' : 'no'}`)
-      if (indexer) console.log(`  Indexer:    ${indexer.blockchain} [${indexer.tokens.join(', ')}]`)
+      if (indexerSlug) console.log(`  Indexer:    ${indexerSlug}`)
       if (tokens) console.log(`  Tokens:     ${tokens.length} configured`)
       if (Object.keys(networkConfig).length > 0) { console.log(`  Config:     ${Object.keys(networkConfig).length} keys`) }
       console.log()

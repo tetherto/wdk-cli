@@ -16,7 +16,7 @@ import { daemonClient } from '../daemon/client.js'
 import { validateNetwork } from '../config/networks.js'
 import {
   isIndexerSupported,
-  getIndexerBlockchain,
+  getIndexerSlug,
   getIndexerTokens,
   INDEXER_TOKENS,
   getTokenTransfers,
@@ -131,7 +131,7 @@ export async function getHistory (input) {
     }
   }
 
-  const blockchain = getIndexerBlockchain(input.network)
+  const blockchain = getIndexerSlug(input.network)
   const supportedTokens = getIndexerTokens(input.network)
   if (supportedTokens.length === 0) {
     throw new WdkCliError(
