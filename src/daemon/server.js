@@ -63,6 +63,10 @@ function errorResponse (e) {
   }
 }
 
+/**
+ * Long-lived wallet daemon. Holds unlocked WDK instances in memory and serves
+ * CLI/MCP requests over a Unix socket.
+ */
 export class WalletDaemon {
   /** @type {Map<string, WalletState>} */
   #wallets = new Map()

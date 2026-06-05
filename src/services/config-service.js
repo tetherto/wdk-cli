@@ -20,6 +20,10 @@ const ENV_MAP = {
   'indexer.apiKey': 'WDK_INDEXER_API_KEY'
 }
 
+/**
+ * Persistent user-config store backed by `Conf`. Env vars in `ENV_MAP` take
+ * precedence over stored values on read.
+ */
 class ConfigService {
   constructor () {
     this.conf = new Conf({

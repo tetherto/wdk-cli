@@ -19,6 +19,8 @@ import { WdkCliError, ErrorCode } from '../errors/index.js'
 
 export class KeyService {
   /**
+   * Creates a KeyService that delegates seed-phrase storage to the given keyring.
+   *
    * @param {WalletKeyring} walletKeyring - The keyring backend.
    */
   constructor (walletKeyring) {

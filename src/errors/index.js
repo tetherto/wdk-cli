@@ -105,6 +105,8 @@ export function isNetworkError (error) {
  */
 export class WdkCliError extends Error {
   /**
+   * Creates a new WdkCliError with a stable code and optional user-facing suggestion.
+   *
    * @param {string} message - The error message.
    * @param {ErrorCodeType} code - The stable error code.
    * @param {string} [suggestion] - An optional hint shown to the user.
