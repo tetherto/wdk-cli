@@ -84,7 +84,7 @@ wdk wallet unlock --name savings --ttl 60     # 60 min session
 wdk wallet default --name trading
 
 # Get all wallet addresses across networks
-wdk get address
+wdk get address --all
 
 # Get address for a specific network
 wdk get address --network ethereum
@@ -93,10 +93,10 @@ wdk get address --network ethereum
 wdk get address --network ethereum --wallet trading
 
 # Check all balances across networks (with USD totals)
-wdk get balance
+wdk get balance --all
 
 # Check balance for a specific wallet
-wdk get balance --wallet savings
+wdk get balance --all --wallet savings
 
 # Send 1 ETH (decimal default; add --base-units to send in wei)
 wdk send --to 0x000000000000000000000000000000000000dEaD --amount 1 --network ethereum
@@ -114,7 +114,7 @@ wdk network list
 wdk wallet lock --name trading
 
 # Lock all wallets when done
-wdk wallet lock
+wdk wallet lock --all
 ```
 
 ## Commands
@@ -130,7 +130,7 @@ wdk wallet export --name <name>                       # Display the seed phrase 
 wdk wallet list                                       # List all wallets with lock/default status
 wdk wallet unlock --name <name> [--ttl <minutes>]     # Unlock a wallet for signing transactions
 wdk wallet lock --name <name>                         # Lock a single wallet
-wdk wallet lock                                       # Lock all wallets (stops daemon)
+wdk wallet lock --all                                 # Lock all wallets (stops daemon)
 wdk wallet delete --name <name>                       # Delete a wallet (requires passphrase)
 wdk wallet default --name <name>                      # Set the default wallet
 wdk wallet rename --name <old> --new-name <new>       # Rename a wallet
@@ -268,12 +268,12 @@ Custom entries (added via `token add`) live under `customTokens.<network>.<ticke
 
 ```bash
 wdk get address --network <network> [--index <n>]              # Derive wallet address
-wdk get address                                                 # All mainnet addresses
-wdk get address --testnet                                       # All testnet addresses
+wdk get address --all                                           # All mainnet addresses
+wdk get address --all --testnet                                 # All addresses incl. testnets
 wdk get balance --network ethereum                              # Native ETH balance
 wdk get balance --network ethereum --token usdt                 # ERC-20 by registered ticker
-wdk get balance                                                 # All mainnet balances with USD
-wdk get balance --testnet                                       # All testnet balances with USD
+wdk get balance --all                                           # All mainnet balances with USD
+wdk get balance --all --testnet                                 # All balances incl. testnets
 wdk get history --network ethereum                                              # All supported tokens
 wdk get history --network ethereum --token xaut --limit 50                      # XAUT transfers, last 50
 wdk get history --network ethereum --from-date 2026-01-01 --to-date 2026-03-31  # Date range filter

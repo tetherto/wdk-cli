@@ -62,12 +62,12 @@ wdk network info --network ethereum --json
 wdk get address --network ethereum --json
 # {"network":"ethereum","index":0,"address":"0x..."}
 
-# All mainnet addresses (omit --network)
-wdk get address --json
+# All mainnet addresses
+wdk get address --all --json
 # {"index":0,"type":"mainnet","addresses":[{"network":"ethereum","address":"0x..."},{"network":"bitcoin","address":"1A1z..."},...]}
 
-# All testnet addresses
-wdk get address --testnet --json
+# All addresses including testnets
+wdk get address --all --testnet --json
 ```
 
 ### Check Balance
@@ -80,12 +80,12 @@ wdk get balance --network ethereum --json
 # Token balance — use registered ticker (see `wdk token list`)
 wdk get balance --network ethereum --token usdt --json
 
-# All mainnet balances with USD totals (omit --network)
-wdk get balance --json
+# All mainnet balances with USD totals
+wdk get balance --all --json
 # {"index":0,"type":"mainnet","balances":[{"network":"ethereum","address":"0x...","balance":"...","symbol":"ETH","decimals":18,"formatted":"1.00 ETH","usd":2100.50},...],"totalUsd":2500.75}
 
-# All testnet balances
-wdk get balance --testnet --json
+# All balances including testnets
+wdk get balance --all --testnet --json
 ```
 
 ### Send
