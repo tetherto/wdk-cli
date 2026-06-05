@@ -56,10 +56,10 @@ function getNestedValue (obj, path) {
  *
  * @param {Record<string, unknown>} obj - The object to flatten.
  * @param {string} [prefix] - Dot-path prefix accumulated during recursion.
- * @returns {Array<[string, string]>} Flat list of [dotPath, stringValue] tuples.
+ * @returns {[string, string][]} Flat list of [dotPath, stringValue] tuples.
  */
 function flatten (obj, prefix = '') {
-  /** @type {Array<[string, string]>} */
+  /** @type {[string, string][]} */
   const result = []
   for (const [key, value] of Object.entries(obj)) {
     const path = prefix ? `${prefix}.${key}` : key
@@ -75,7 +75,7 @@ function flatten (obj, prefix = '') {
 /**
  * Prints dot-path / value pairs to stdout with aligned columns.
  *
- * @param {Array<[string, string]>} entries - Flat key-value pairs to display.
+ * @param {[string, string][]} entries - Flat key-value pairs to display.
  * @returns {void}
  */
 function printEntries (entries) {

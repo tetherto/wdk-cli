@@ -51,7 +51,7 @@ function buildVersionString () {
     if (name.startsWith('@tetherto/wdk') && version) versions.set(name, version)
   }
 
-  /** @type {Array<{ label: string, version: string }>} */
+  /** @type {{ label: string, version: string }[]} */
   const rows = [{ label: APP_NAME, version: `v${APP_VERSION}` }]
   for (const name of [...versions.keys()].sort()) {
     rows.push({ label: `  ${name}`, version: `v${versions.get(name)}` })

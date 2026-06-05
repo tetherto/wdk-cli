@@ -14,6 +14,7 @@
 
 /** @typedef {import('./protocol.js').DaemonRequest} DaemonRequest */
 /** @typedef {import('./protocol.js').DaemonResponse} DaemonResponse */
+/** @typedef {import('./protocol.js').WalletStatus} WalletStatus */
 /** @typedef {import('node:net').Server} Server */
 /** @typedef {import('node:net').Socket} Socket */
 
@@ -234,7 +235,7 @@ export class WalletDaemon {
   /**
    * Returns a status list for all currently unlocked wallets.
    *
-   * @returns {Array<{ name: string, ttlMs: number, ttlRemaining: number }>} Array of wallet status entries.
+   * @returns {WalletStatus[]} Array of wallet status entries.
    */
   #getWalletStatusList () {
     return [...this.#wallets.entries()].map(([name, state]) => {

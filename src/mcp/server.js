@@ -26,7 +26,7 @@ import { createRampUrl } from '../actions/ramp.js'
 import { listTokens, getToken } from '../actions/token.js'
 import { resolveTokenIdentifier, toBaseUnits } from '../services/token-service.js'
 
-/** @typedef {{ content: Array<{ type: 'text', text: string }>, isError?: boolean }} ToolResult */
+/** @typedef {{ content: { type: 'text', text: string }[], isError?: boolean }} ToolResult */
 
 /**
  * @param {unknown} error
