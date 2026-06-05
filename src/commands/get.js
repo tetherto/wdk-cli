@@ -15,7 +15,7 @@
 import chalk from 'chalk'
 import ora from 'ora'
 import { resolveIndex } from '../services/config-service.js'
-import { handleError } from '../errors/index.js'
+import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
 import { formatNetworkLabel, formatAddress, formatTxHash } from '../ui/formatters.js'
 import { INDEXER_TOKENS } from '../services/indexer-service.js'
 import { resolveTokenIdentifier } from '../services/token-service.js'
@@ -43,23 +43,33 @@ export function registerGetCommand (program) {
 
   const address = get
     .command('address')
-    .description('Derive wallet address for a network. Omit --network to show all.')
+    .description('Derive a wallet address for one network (--network) or every network (--all)')
     .option('--wallet <name>', 'Wallet name')
-    .option('--network <network>', 'Blockchain network (omit for all)')
+    .option('--network <network>', 'Blockchain network')
+    .option('--all', 'Show address for every network')
     .option('--index <n>', 'Account index', nonNegativeInt)
-    .option('--testnet', 'Include testnet networks (for all-network mode)')
+    .option('--testnet', 'Include testnet networks (when --all)')
 
   configureHelp(address, {
-    params: [{ flags: '--network <network>', description: 'Blockchain network (omit for all)' }],
+    params: [
+      { flags: '--network <network>', description: 'Blockchain network (required, unless using --all)' },
+      { flags: '--all', description: 'Show address for every network' }
+    ],
     options: [
       { flags: '--wallet <name>', description: 'Wallet name (default: default wallet)' },
       { flags: '--index <n>', description: 'Account index (default: 0)' },
-      { flags: '--testnet', description: 'Include testnet networks (for all-network mode)' }
+      { flags: '--testnet', description: 'Include testnet networks (when --all)' }
     ]
   })
 
   address.action(async (options) => {
     try {
+      if (!options.network && !options.all) {
+        throw new WdkCliError(
+          'Provide --network <network> or --all.',
+          ErrorCode.INVALID_ARGUMENT
+        )
+      }
       const index = resolveIndex(options.index)
 
       if (options.network) {
@@ -125,16 +135,18 @@ export function registerGetCommand (program) {
 
   const balance = get
     .command('balance')
-    .description('Check wallet balance (native, ERC-20, or SPL token). Omit --network to show all.')
+    .description('Check wallet balance (native, ERC-20, or SPL) for one network (--network) or every network (--all)')
     .option('--wallet <name>', 'Wallet name')
-    .option('--network <network>', 'Blockchain network (omit for all)')
+    .option('--network <network>', 'Blockchain network')
+    .option('--all', 'Show balances for every network')
     .option('--index <n>', 'Account index', nonNegativeInt)
     .option('--token <token>', 'Registered token (e.g. usdt); omit for native. See `wdk token list`')
-    .option('--testnet', 'Include testnet networks (for all-network mode)')
+    .option('--testnet', 'Include testnet networks (when --all)')
 
   configureHelp(balance, {
     params: [
-      { flags: '--network <network>', description: 'Blockchain network (omit for all)' },
+      { flags: '--network <network>', description: 'Blockchain network (required, unless using --all)' },
+      { flags: '--all', description: 'Show balances for every network' },
       {
         flags: '--token <token>',
         description:
@@ -144,12 +156,18 @@ export function registerGetCommand (program) {
     options: [
       { flags: '--wallet <name>', description: 'Wallet name (default: default wallet)' },
       { flags: '--index <n>', description: 'Account index (default: 0)' },
-      { flags: '--testnet', description: 'Include testnet networks (for all-network mode)' }
+      { flags: '--testnet', description: 'Include testnet networks (when --all)' }
     ]
   })
 
   balance.action(async (options) => {
     try {
+      if (!options.network && !options.all) {
+        throw new WdkCliError(
+          'Provide --network <network> or --all.',
+          ErrorCode.INVALID_ARGUMENT
+        )
+      }
       const index = resolveIndex(options.index)
 
       if (options.network) {

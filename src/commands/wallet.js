@@ -24,6 +24,7 @@ import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
 import { promptPassphrase, promptSeedPhrase } from '../ui/prompts.js'
 import { requirePassphraseConfirmation } from '../ui/auth.js'
 import { configureHelp } from '../ui/help.js'
+import { createTable } from '../ui/tables.js'
 import { nonNegativeInt } from '../ui/parsers.js'
 
 /** @typedef {import('commander').Command} Command */
@@ -283,24 +284,26 @@ export function registerWalletCommand (program) {
       }
 
       console.log()
-      console.log(chalk.bold('Wallets:'))
-      console.log()
+      const table = createTable(['Name', 'Default', 'Status', 'TTL Remaining'])
       for (const name of wallets) {
-        const isDefault = name === defaultWallet ? chalk.dim(' [default]') : ''
         const unlocked = unlockedWallets.find((w) => w.name === name)
-        let status
-        if (unlocked) {
-          if (unlocked.ttlMs === 0) {
-            status = chalk.green(' ✓') + chalk.dim(' (unlimited)')
-          } else {
-            const mins = Math.ceil(unlocked.ttlRemaining / 60000)
-            status = chalk.green(' ✓') + chalk.dim(` (${mins} min remaining)`)
-          }
+        let ttlCell
+        if (!unlocked) {
+          ttlCell = chalk.dim('-')
+        } else if (unlocked.ttlMs === 0) {
+          ttlCell = chalk.dim('unlimited')
         } else {
-          status = chalk.dim(' locked')
+          ttlCell = `${Math.ceil(unlocked.ttlRemaining / 60000)} min`
         }
-        console.log(`  ${chalk.green('•')} ${name}${isDefault}${status}`)
+        table.push([
+          chalk.bold(name),
+          name === defaultWallet ? chalk.green('✓') : '',
+          unlocked ? chalk.green('unlocked') : chalk.dim('locked'),
+          ttlCell
+        ])
       }
+      console.log(table.toString())
+      console.log(chalk.dim(`\n  ${wallets.length} wallet${wallets.length === 1 ? '' : 's'}`))
       console.log()
     } catch (error) {
       handleError(error, program.opts().verbose, isJson())
@@ -449,17 +452,27 @@ export function registerWalletCommand (program) {
 
   const lockCmd = wallet
     .command('lock')
-    .description('Lock a wallet (omit --name to lock all)')
+    .description('Lock one wallet (--name) or every wallet (--all)')
     .option('--name <name>', 'Wallet name')
+    .option('--all', 'Lock every wallet')
 
   configureHelp(lockCmd, {
-    params: [{ flags: '--name <name>', description: 'Wallet name (omit to lock all)' }]
+    params: [
+      { flags: '--name <name>', description: 'Wallet name (required, unless using --all)' },
+      { flags: '--all', description: 'Lock every wallet' }
+    ]
   })
 
   lockCmd.action(async (options) => {
     const name = options.name
     try {
-      if (!name) {
+      if (!name && !options.all) {
+        throw new WdkCliError(
+          'Provide --name <name> or --all.',
+          ErrorCode.INVALID_ARGUMENT
+        )
+      }
+      if (options.all) {
         if (await daemonClient.isRunning()) {
           await daemonClient.lock()
         }
