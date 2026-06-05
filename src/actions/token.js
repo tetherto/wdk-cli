@@ -27,53 +27,74 @@ import { WdkCliError, ErrorCode } from '../errors/index.js'
 /** @typedef {import('../config/wdk-tokens.js').TokenMetadata} TokenMetadata */
 
 /**
+ * Validates that a token name matches the registry key shape: lowercase
+ * alphanumeric, optionally with hyphens. Throws on any mismatch.
+ *
+ * @param {unknown} value - The token name to validate.
+ * @returns {string} The validated token name (unchanged).
+ * @throws {WdkCliError} INVALID_ARGUMENT when `value` is not a valid token name.
+ */
+export function validateTokenName (value) {
+  if (typeof value !== 'string' || !/^[a-z0-9][a-z0-9-]*$/.test(value)) {
+    throw new WdkCliError(
+      `Invalid token name '${value}'.`,
+      ErrorCode.INVALID_ARGUMENT
+    )
+  }
+  return value
+}
+
+/**
  * @typedef {Object} ListTokensInput
  * @property {string} [network] - Filter to a single network. Omit for every network.
  */
 
 /**
  * @typedef {Object} ListTokensNetworkResult
- * @property {string} network
- * @property {Record<string, TokenEntry>} tokens
+ * @property {string} network - The network the listing is scoped to.
+ * @property {Record<string, TokenEntry>} tokens - Tokens keyed by registry key (lowercased).
  */
 
 /**
  * @typedef {Object} ListTokensAllResult
- * @property {Record<string, Record<string, TokenEntry>>} tokens
+ * @property {Record<string, Record<string, TokenEntry>>} tokens - Tokens keyed first by network, then by registry key.
  */
 
 /**
  * @typedef {Object} GetTokenInput
- * @property {string} network
- * @property {string} token
+ * @property {string} network - The network the token belongs to.
+ * @property {string} token - Registry key (must be lowercase alphanumeric).
  */
 
 /**
  * @typedef {{ network: string, token: string } & TokenEntry} GetTokenResult
+ *   The matched entry's fields, plus its `network` and `token` key.
  */
 
 /**
  * @typedef {Object} AddTokenInput
- * @property {string} network
- * @property {string} token
- * @property {TokenEntry} entry
+ * @property {string} network - The network the token belongs to.
+ * @property {string} token - Registry key (must be lowercase alphanumeric).
+ * @property {TokenEntry} entry - Validated entry to persist under `customTokens.<network>.<token>`.
  */
 
 /**
  * @typedef {{ network: string, token: string, added: true, overridesBuiltin?: true } & TokenEntry} AddTokenResult
+ *   The persisted entry's fields, plus `network`, `token`, `added: true`,
+ *   and optional `overridesBuiltin: true` when the new entry overrides a built-in of the same ticker.
  */
 
 /**
  * @typedef {Object} DeleteTokenInput
- * @property {string} network
- * @property {string} token
+ * @property {string} network - The network the token belongs to.
+ * @property {string} token - Registry key (must be lowercase alphanumeric).
  */
 
 /**
  * @typedef {Object} DeleteTokenResult
- * @property {string} network
- * @property {string} token
- * @property {true} deleted
+ * @property {string} network - The network the token was removed from.
+ * @property {string} token - Registry key of the removed entry.
+ * @property {true} deleted - Always `true` on a successful response.
  * @property {true} [revertedToBuiltin] - True when the deleted entry was overriding a built-in,
  *   which is now effective again.
  */
@@ -156,14 +177,14 @@ export function validateTokenEntry (data) {
 /**
  * @typedef {Object} TokenSpec
  * @property {string} network - The parent network the token belongs to.
- * @property {string} token - Registry key, lowercased (e.g. "usdt").
+ * @property {string} token - Registry key (lowercase alphanumeric; e.g. "usdt").
  * @property {TokenEntry} entry - Validated token entry.
  */
 
 /**
  * Validates a `wdk token add` spec object. Type-checks the known fields and
  * delegates the entry-shaped portion to `validateTokenEntry`. Unknown top-level
- * fields pass through silently so users can annotate their specs without the
+ * fields are silently ignored so users can annotate their specs without the
  * CLI complaining.
  *
  * @param {unknown} data - Raw spec JSON (untrusted input).
@@ -191,10 +212,11 @@ export function validateTokenSpec (data) {
       ErrorCode.INVALID_ARGUMENT
     )
   }
+  validateTokenName(token)
 
   const { network: _n, token: _t, ...rest } = obj
   const entry = validateTokenEntry(rest)
-  return { network, token: token.toLowerCase(), entry }
+  return { network, token, entry }
 }
 
 /**
@@ -216,10 +238,12 @@ export function listTokens (input = {}) {
  *
  * @param {GetTokenInput} input
  * @returns {GetTokenResult}
- * @throws {WdkCliError} When the token is not registered on the network.
+ * @throws {WdkCliError} NETWORK_NOT_SUPPORTED when the network is unknown.
+ * @throws {WdkCliError} TOKEN_NOT_SUPPORTED when no entry matches the ticker on that network.
  */
 export function getToken (input) {
   validateNetwork(input.network)
+  validateTokenName(input.token)
   const entry = getTokenByName(input.network, input.token)
   if (!entry) {
     throw new WdkCliError(
@@ -227,7 +251,7 @@ export function getToken (input) {
       ErrorCode.TOKEN_NOT_SUPPORTED
     )
   }
-  return { network: input.network, token: input.token.toLowerCase(), ...entry }
+  return { network: input.network, token: input.token, ...entry }
 }
 
 /**
@@ -236,16 +260,19 @@ export function getToken (input) {
  *
  * @param {AddTokenInput} input
  * @returns {AddTokenResult}
+ * @throws {WdkCliError} NETWORK_NOT_SUPPORTED when the network is unknown.
+ * @throws {WdkCliError} INVALID_ARGUMENT when `input.entry` is malformed, or when
+ *   `entry.isNative` conflicts with an existing native token on the network.
  */
 export function addToken (input) {
   validateNetwork(input.network)
+  validateTokenName(input.token)
   const entry = validateTokenEntry(input.entry)
-  const ticker = input.token.toLowerCase()
 
   if (entry.isNative) {
     const tokens = getTokensForNetwork(input.network)
     for (const [existingTicker, existingEntry] of Object.entries(tokens)) {
-      if (existingEntry.isNative && existingTicker !== ticker) {
+      if (existingEntry.isNative && existingTicker !== input.token) {
         throw new WdkCliError(
           `Network '${input.network}' already has native token '${existingTicker}' (${existingEntry.symbol}). ` +
             `Each network can have at most one native token. Delete '${existingTicker}' first if you want to replace it.`,
@@ -259,7 +286,7 @@ export function addToken (input) {
   saveCustomToken(input.network, input.token, entry)
   return {
     network: input.network,
-    token: ticker,
+    token: input.token,
     added: true,
     ...(overridesBuiltin ? { overridesBuiltin: true } : {}),
     ...entry
@@ -271,16 +298,19 @@ export function addToken (input) {
  *
  * @param {DeleteTokenInput} input
  * @returns {DeleteTokenResult}
- * @throws {WdkCliError} When the token is built-in (no custom override to remove) or unknown.
+ * @throws {WdkCliError} NETWORK_NOT_SUPPORTED when the network is unknown.
+ * @throws {WdkCliError} INVALID_ARGUMENT when the entry is built-in (no custom override to remove).
+ * @throws {WdkCliError} TOKEN_NOT_SUPPORTED when the entry is unknown on the network.
  */
 export function deleteToken (input) {
   validateNetwork(input.network)
+  validateTokenName(input.token)
   const removed = deleteCustomToken(input.network, input.token)
   if (removed) {
     const revertedToBuiltin = isBuiltinToken(input.network, input.token)
     return {
       network: input.network,
-      token: input.token.toLowerCase(),
+      token: input.token,
       deleted: true,
       ...(revertedToBuiltin ? { revertedToBuiltin: true } : {})
     }

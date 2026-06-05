@@ -14,7 +14,7 @@
 
 import { getAllNetworks, getAllNetworkNames, isTestnet, VALID_WALLET_TYPES } from '../config/networks.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
-import { validateTokenEntry } from './token.js'
+import { validateTokenEntry, validateTokenName } from './token.js'
 
 /**
  * @typedef {Object} ListNetworksInput
@@ -72,7 +72,7 @@ export function listNetworks (input = {}) {
 
 /**
  * @typedef {Object} TokenSpecEntry
- * @property {string} token - Registry key for the token (lowercased; e.g. "usdt").
+ * @property {string} token - Registry key for the token (lowercase alphanumeric; e.g. "usdt").
  * @property {string} symbol - Display symbol shown in the CLI (e.g. "USDT").
  * @property {number} decimals - Number of decimal places, integer 0–24.
  * @property {boolean} isNative - True for the network's native asset; false for ERC-20 / SPL / etc.
@@ -116,9 +116,10 @@ function validateTokenInSpec (item, idx) {
       ErrorCode.INVALID_ARGUMENT
     )
   }
+  validateTokenName(tokenKey)
   const { token: _tk, ...rest } = tokenItem
   const entry = validateTokenEntry(rest)
-  return { token: tokenKey.toLowerCase(), ...entry }
+  return { token: tokenKey, ...entry }
 }
 
 /**

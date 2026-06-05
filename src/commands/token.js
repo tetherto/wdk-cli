@@ -18,7 +18,8 @@ import {
   getToken,
   addToken,
   deleteToken,
-  validateTokenSpec
+  validateTokenSpec,
+  validateTokenName
 } from '../actions/token.js'
 import { getTokenSource } from '../services/token-service.js'
 import { validateNetwork } from '../config/networks.js'
@@ -276,6 +277,7 @@ export function registerTokenCommand (program) {
     try {
       const { network, token } = options
       validateNetwork(network)
+      validateTokenName(token)
 
       const source = getTokenSource(network, token)
       if (!source) {
