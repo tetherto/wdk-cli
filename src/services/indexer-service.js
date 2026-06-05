@@ -66,7 +66,7 @@ for (const [name, entry] of Object.entries(walletsFile.networks)) {
  *
  * @type {readonly string[]}
  */
-export const INDEXER_TOKENS = Object.freeze([
+export const INDEXER_TOKENS = [
   ...new Set(
     Object.values(getAllTokens()).flatMap((tokens) =>
       Object.values(tokens)
@@ -74,7 +74,7 @@ export const INDEXER_TOKENS = Object.freeze([
         .filter((c) => typeof c === 'string' && c.length > 0)
     )
   )
-])
+]
 
 /**
  * Returns the indexer chain slug for a network, or `undefined` when the network

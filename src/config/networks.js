@@ -69,9 +69,9 @@ export const NETWORK_NAMES = Object.keys(NETWORKS)
  *
  * @type {readonly string[]}
  */
-export const VALID_WALLET_TYPES = Object.freeze(
-  [...new Set(Object.values(walletsFile.networks).map((w) => parseModuleName(w.module).name))]
-)
+export const VALID_WALLET_TYPES = [
+  ...new Set(Object.values(walletsFile.networks).map((w) => parseModuleName(w.module).name))
+]
 
 /**
  * Returns all user-defined custom networks from config, each marked with `custom: true`.

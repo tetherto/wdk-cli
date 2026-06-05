@@ -74,7 +74,7 @@ import { WdkCliError, ErrorCode } from '../errors/index.js'
  * @property {'configured' | 'not_configured' | 'n/a' | 'error'} status - Configuration status.
  */
 
-export const SUPPORTED_AI_TOOLS = Object.freeze(['claude-desktop', 'claude-code', 'openclaw'])
+export const SUPPORTED_AI_TOOLS = ['claude-desktop', 'claude-code', 'openclaw']
 
 /**
  * Returns the Windows %LOCALAPPDATA% directory path.
