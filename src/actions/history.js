@@ -18,7 +18,6 @@ import {
   isIndexerSupported,
   getIndexerSlug,
   getIndexerTokens,
-  INDEXER_TOKENS,
   getTokenTransfers,
   getTokenTransfersBatch
 } from '../services/indexer-service.js'
@@ -26,14 +25,16 @@ import { getTokenByName } from '../services/token-service.js'
 import { formatAmount } from '../ui/formatters.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 
+/** @typedef {import('../services/indexer-service.js').TokenTransfer} TokenTransfer */
+
 /**
  * Enriches a raw indexer transfer with `decimals` and a human-readable
  * `formatted` amount, looked up via the token registry. Falls back to the
  * raw amount when the token isn't registered on the network.
  *
- * @param {string} network
- * @param {{ timestamp: number, from?: string, to?: string, amount: string, transactionHash: string, token: string }} t
- * @returns {{ timestamp: number, from: string, to: string, amount: string, formatted: string, decimals?: number, transactionHash: string, token: string }}
+ * @param {string} network - The blockchain network the transfer belongs to.
+ * @param {TokenTransfer} t - The raw transfer record from the indexer.
+ * @returns {HistoryTransfer} The transfer with `formatted` (and `decimals` when known) added.
  */
 function enrichTransfer (network, t) {
   const entry = getTokenByName(network, t.token)
@@ -102,11 +103,14 @@ export async function getHistory (input) {
     )
   }
 
-  if (input.token && !INDEXER_TOKENS.includes(input.token)) {
-    throw new WdkCliError(
-      `Invalid token '${input.token}'. Valid: ${INDEXER_TOKENS.join(', ')}`,
-      ErrorCode.INVALID_TOKEN
-    )
+  if (input.token) {
+    const supported = getIndexerTokens(input.network)
+    if (!supported.includes(input.token)) {
+      throw new WdkCliError(
+        `Token '${input.token}' is not supported by the indexer on '${input.network}'. Supported: ${supported.join(', ')}`,
+        ErrorCode.TOKEN_NOT_SUPPORTED
+      )
+    }
   }
 
   const limit = input.limit ?? 30
