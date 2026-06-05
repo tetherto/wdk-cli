@@ -32,6 +32,7 @@ import { loadJson } from '../ui/parsers.js'
 import { saveCustomToken } from '../services/token-service.js'
 
 /** @typedef {import('commander').Command} Command */
+/** @typedef {import('../config/wdk-tokens.js').TokenEntry} TokenEntry */
 
 /**
  * Registers the `network` subcommand tree (list, create, delete, info) on the root program.
@@ -126,7 +127,7 @@ export function registerNetworkCommand (program) {
       try {
         for (const tok of tokens) {
           const { token: ticker, ...entry } = tok
-          saveCustomToken(name, ticker, entry)
+          saveCustomToken(name, ticker, /** @type {TokenEntry} */ (entry))
           savedTickers.push(ticker)
         }
       } catch (err) {

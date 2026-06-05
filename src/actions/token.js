@@ -22,9 +22,9 @@ import {
   deleteCustomToken
 } from '../services/token-service.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
+import { TokenEntrySchema, TokenSpecSchema, parseSpec } from '../ui/schemas.js'
 
 /** @typedef {import('../config/wdk-tokens.js').TokenEntry} TokenEntry */
-/** @typedef {import('../config/wdk-tokens.js').TokenMetadata} TokenMetadata */
 
 /**
  * @typedef {Object} ListTokensInput
@@ -79,120 +79,36 @@ import { WdkCliError, ErrorCode } from '../errors/index.js'
  */
 
 /**
- * Validates a structured token entry object. Throws `INVALID_ARGUMENT` on any
- * malformed field. Returns the cleaned-up entry suitable for persisting.
+ * Validates a structured token entry object via the zod schema. Returns the
+ * cleaned-up entry suitable for persisting.
  *
- * @param {unknown} data
- * @returns {TokenEntry}
+ * @param {unknown} data - Raw token-entry JSON (untrusted input).
+ * @returns {TokenEntry} The validated entry.
+ * @throws {WdkCliError} INVALID_ARGUMENT on any malformed field.
  */
 export function validateTokenEntry (data) {
-  if (!data || typeof data !== 'object' || Array.isArray(data)) {
-    throw new WdkCliError('Token data must be an object.', ErrorCode.INVALID_ARGUMENT)
-  }
-  const obj = /** @type {Record<string, unknown>} */ (data)
-  const { symbol, decimals, isNative, address, metadata } = obj
-
-  if (typeof symbol !== 'string' || !symbol) {
-    throw new WdkCliError(
-      'Token "symbol" must be a non-empty string.',
-      ErrorCode.INVALID_ARGUMENT
-    )
-  }
-  const decimalsNum = /** @type {number} */ (decimals)
-  if (!Number.isInteger(decimalsNum) || decimalsNum < 0 || decimalsNum > 24) {
-    throw new WdkCliError(
-      'Token "decimals" must be an integer between 0 and 24.',
-      ErrorCode.INVALID_ARGUMENT
-    )
-  }
-  if (typeof isNative !== 'boolean') {
-    throw new WdkCliError('Token "isNative" must be a boolean.', ErrorCode.INVALID_ARGUMENT)
-  }
-  if (address !== undefined && (typeof address !== 'string' || !address)) {
-    throw new WdkCliError(
-      'Token "address" must be a non-empty string when provided.',
-      ErrorCode.INVALID_ARGUMENT
-    )
-  }
-  if (!isNative && !address) {
-    throw new WdkCliError(
-      'Non-native tokens require an "address".',
-      ErrorCode.INVALID_ARGUMENT
-    )
-  }
-
-  /** @type {TokenEntry} */
-  const entry = { symbol, decimals: decimalsNum, isNative }
-  if (typeof address === 'string') entry.address = address
-
-  if (metadata !== undefined) {
-    if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
-      throw new WdkCliError(
-        'Token "metadata" must be an object when provided.',
-        ErrorCode.INVALID_ARGUMENT
-      )
-    }
-    const meta = /** @type {Record<string, unknown>} */ (metadata)
-    /** @type {TokenMetadata} */
-    const clean = {}
-    for (const key of /** @type {const} */ (['indexerSlug', 'moonpaySlug', 'bitfinexSlug'])) {
-      const value = meta[key]
-      if (value === undefined) continue
-      if (typeof value !== 'string' || !value) {
-        throw new WdkCliError(
-          `Token "metadata.${key}" must be a non-empty string when provided.`,
-          ErrorCode.INVALID_ARGUMENT
-        )
-      }
-      clean[key] = value
-    }
-    if (Object.keys(clean).length > 0) entry.metadata = clean
-  }
-
-  return entry
+  return /** @type {TokenEntry} */ (parseSpec(TokenEntrySchema, data, 'Token data'))
 }
 
 /**
  * @typedef {Object} TokenSpec
- * @property {string} network
- * @property {string} token - Registry key (e.g. "usdt")
- * @property {TokenEntry} entry - Validated token entry
+ * @property {string} network - The parent network the token belongs to.
+ * @property {string} token - Registry key, lowercased (e.g. "usdt").
+ * @property {TokenEntry} entry - Validated token entry.
  */
 
 /**
- * Validates a `wdk token add` spec object. Type-checks the known fields and
- * delegates the entry-shaped portion to `validateTokenEntry`. Unknown top-level
- * fields pass through silently so users can annotate their specs without the
- * CLI complaining.
+ * Validates a `wdk token add` spec object via the zod schema. Splits the
+ * parsed result into `{ network, token, entry }` for downstream consumers.
  *
- * @param {unknown} data
- * @returns {TokenSpec}
+ * @param {unknown} data - Raw spec JSON (untrusted input).
+ * @returns {TokenSpec} The validated and normalized spec.
+ * @throws {WdkCliError} INVALID_ARGUMENT on any malformed field.
  */
 export function validateTokenSpec (data) {
-  if (!data || typeof data !== 'object' || Array.isArray(data)) {
-    throw new WdkCliError('Token spec must be a JSON object.', ErrorCode.INVALID_ARGUMENT)
-  }
-  const obj = /** @type {Record<string, unknown>} */ (data)
-
-  const network = obj.network
-  if (typeof network !== 'string' || !network) {
-    throw new WdkCliError(
-      'Token spec "network" must be a non-empty string.',
-      ErrorCode.INVALID_ARGUMENT
-    )
-  }
-
-  const token = obj.token
-  if (typeof token !== 'string' || !token) {
-    throw new WdkCliError(
-      'Token spec "token" must be a non-empty string (registry key).',
-      ErrorCode.INVALID_ARGUMENT
-    )
-  }
-
-  const { network: _n, token: _t, ...rest } = obj
-  const entry = validateTokenEntry(rest)
-  return { network, token: token.toLowerCase(), entry }
+  const parsed = parseSpec(TokenSpecSchema, data, 'Token spec')
+  const { network, token, ...entryFields } = parsed
+  return { network, token, entry: /** @type {TokenEntry} */ (entryFields) }
 }
 
 /**
