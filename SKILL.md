@@ -22,7 +22,7 @@ Operate a self-custody multi-chain wallet through the `wdk` CLI. For AI agents w
 1. Always append `--json` to get machine-parseable output (errors also return JSON: `{"error":"...","code":"...","suggestion":"..."}`)
 2. Before sending tokens, use `--dry-run` to preview, show summary to user, and wait for confirmation in chat
 3. `--amount` accepts **decimal by default** (e.g. `--amount 1.5`). Add `--base-units` to interpret as base units (wei, satoshi, lamport)
-4. `--token` is always a registered ticker (e.g. `usdt`, `eth`) — not a contract address. Run `wdk token list` to see available tokens; use `wdk token add` to register new ones
+4. `--token` is always a registered ticker (e.g. `usdt`, `eth`) — not a contract address. Run `wdk token list` to see available tokens; if a ticker is missing, ask the user to register it via `wdk token add`
 5. Never ask for or log seed phrases or passphrases
 
 ## Prerequisites
@@ -135,32 +135,20 @@ wdk sell --network ethereum --token eth --json
 wdk sell --network polygon --token usdt --crypto-amount 50 --json
 ```
 
-`--token` is required (registered ticker). `--fiat-amount` and `--crypto-amount` are mutually exclusive — both accept decimal values. Supported tokens per network are derived from the token registry's `metadata.moonpay` field (see `wdk token list`). Requires `ramp.moonpay.apiKey` / `ramp.moonpay.signUrl` / `ramp.moonpay.environment` to be configured.
+`--token` is required (registered ticker). `--fiat-amount` and `--crypto-amount` are mutually exclusive — both accept decimal values. Supported tokens per network are derived from the token registry's `metadata.moonpaySlug` field (see `wdk token list`). Requires `ramp.moonpay.apiKey` / `ramp.moonpay.signUrl` / `ramp.moonpay.environment` to be configured.
 
 ### Token Registry
 
 The CLI ships with a registry (`wdk.tokens.json`) of all known tokens — symbol, decimals, contract address, and provider mappings (indexer, MoonPay, Bitfinex). The `--token` flag on any command (`get balance`, `send`, `get history`, `buy`, `sell`) resolves against this registry.
 
 ```bash
-# Browse the registry
+# Browse the registry (read-only)
 wdk token list --json                                       # all networks, all tokens
 wdk token list --network ethereum --json                    # one network
 wdk token info --network ethereum --token usdt --json       # single entry
-
-# Add a custom token (or override a built-in entry)
-wdk token add --network polygon --token dai --data '{
-  "symbol": "DAI",
-  "decimals": 18,
-  "isNative": false,
-  "address": "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",
-  "metadata": { "bitfinex": "tDAIUSD" }
-}'
-
-# Remove a custom token (built-ins cannot be deleted; use `add` to override)
-wdk token delete --network polygon --token dai
 ```
 
-Custom tokens live under `customTokens.<network>.<ticker>` in the user config and survive `wdk config reset --all`.
+If the user passes an unregistered ticker, branch on `TOKEN_NOT_SUPPORTED` and **ask the user to register it** — do not run `wdk token add` yourself. Adding tokens modifies persistent config; that's a user-driven decision.
 
 ## Amount Conversion
 
@@ -188,8 +176,8 @@ Errors are returned as structured JSON: `{"error": "...", "code": "...", "sugges
 | `INSUFFICIENT_FUNDS` | Not enough balance | Inform user, show current balance |
 | `INVALID_AMOUNT` | Malformed / negative / over-precision amount | Re-prompt user; respect token decimals (see `wdk token info`) |
 | `INVALID_ARGUMENT` | Bad/missing CLI flag | Read the message; common cases: missing `--key`, mutually exclusive flags |
-| `TOKEN_NOT_SUPPORTED` | Unregistered `--token` | Ask user to register: `wdk token add --network <n> --token <t> --data '{...}'` |
-| `NETWORK_NOT_SUPPORTED` | Unknown network name | Ask user to list available: `wdk network list` |
+| `TOKEN_NOT_SUPPORTED` | Unregistered `--token` | Ask user to register: `wdk token add '{"network":"<n>","token":"<t>","symbol":"...","decimals":...,"isNative":...,...}'` |
+| `NETWORK_NOT_SUPPORTED` | Unknown network name, **or** the network exists but has no `indexerSlug` configured (so `get history` is unavailable) | If the network is unknown, ask the user to run `wdk network list`. If the message says "not supported by the indexer API", the network is missing its `indexerSlug` — ask the user to delete and recreate it with `--indexer-slug <chain>` (the chain slug the WDK indexer uses, usually the same as the network name). |
 | `NETWORK_ERROR` (403 from indexer) | Missing/invalid API key | Ask user: `wdk config set --key indexer.apiKey --value <key>` |
 | `MISSING_CONFIG` (moonpay) | Ramp not configured | Ask user: `wdk config set --key ramp.moonpay.apiKey --value <key>` (also `signUrl`, `environment`) |
 | `ENVIRONMENT_MISMATCH` | sandbox key on mainnet (or vice versa) | Ask user: `wdk config set --key ramp.moonpay.environment --value <sandbox\|production>` |
@@ -201,5 +189,6 @@ These actions are **strictly forbidden** for AI agents. Do not attempt them unde
 1. **NEVER create or import wallets** — `wdk wallet create` and `wdk wallet import` require passphrase input. Tell the user to do it themselves.
 2. **NEVER unlock the wallet** — `wdk wallet unlock` requires passphrase input. If the wallet is locked, tell the user to unlock it.
 3. **NEVER export or ask for seed phrases or passphrases** — this is sensitive data that must never be logged, stored, or transmitted.
+4. **NEVER mutate the network or token registry** — `wdk network create / delete`, `wdk token add / delete`. These modify persistent user config and are user-driven decisions. If a command needs a registry change, surface the suggestion to the user and let them run it.
 
 These restrictions exist for security. Only the human user can perform wallet management through interactive terminal input (or via `WDK_PASSPHRASE` env var in automated environments).

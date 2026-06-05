@@ -55,7 +55,7 @@ export function resolveAsset (network, token, module) {
     const code = getMoonpayCode(network, lower)
     if (code) return { code, token: lower }
 
-    const supported = getTokensSupportedBy(network, 'moonpay')
+    const supported = getTokensSupportedBy(network, 'moonpaySlug')
     if (supported.length === 0) {
       throw new WdkCliError(
         `Network '${network}' does not support moonpay.`,

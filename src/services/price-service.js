@@ -32,7 +32,7 @@ const CACHE_TTL_MS = 5 * 60 * 1000
 let cache = null
 
 /**
- * Collects every unique `metadata.bitfinex` value from the token registry, so
+ * Collects every unique `metadata.bitfinexSlug` value from the token registry, so
  * a single Bitfinex API call covers all known networks and tokens.
  *
  * @returns {string[]} Array of Bitfinex symbol strings.
@@ -41,7 +41,7 @@ function getAllBitfinexSymbols () {
   const symbols = new Set()
   for (const network of Object.keys(getAllTokens())) {
     for (const token of Object.values(getTokensForNetwork(network))) {
-      const sym = token.metadata?.bitfinex
+      const sym = token.metadata?.bitfinexSlug
       if (sym) symbols.add(sym)
     }
   }
@@ -96,7 +96,7 @@ export async function getNativeUsdPrice (network) {
       ErrorCode.NETWORK_NOT_SUPPORTED
     )
   }
-  const bitfinexSymbol = native.metadata?.bitfinex
+  const bitfinexSymbol = native.metadata?.bitfinexSlug
   if (!bitfinexSymbol) {
     throw new WdkCliError(
       `No USD price available for ${native.symbol} on ${network}.`,
@@ -127,7 +127,7 @@ export async function getTokenUsdPrice (network, tokenAddress) {
   if (!tokenInfo) {
     throw new WdkCliError(`Unknown token ${tokenAddress} on ${network}.`, ErrorCode.INVALID_TOKEN)
   }
-  const bitfinexSymbol = tokenInfo.metadata?.bitfinex
+  const bitfinexSymbol = tokenInfo.metadata?.bitfinexSlug
   if (!bitfinexSymbol) {
     throw new WdkCliError(
       `No USD price available for ${tokenInfo.symbol} on ${network}.`,

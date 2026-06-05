@@ -7,9 +7,9 @@
         "decimals": 8,
         "isNative": true,
         "metadata": {
-          "indexer": "btc",
-          "moonpay": "btc",
-          "bitfinex": "tBTCUSD"
+          "indexerSlug": "btc",
+          "moonpaySlug": "btc",
+          "bitfinexSlug": "tBTCUSD"
         }
       }
     },
@@ -19,8 +19,8 @@
         "decimals": 8,
         "isNative": true,
         "metadata": {
-          "moonpay": "btc",
-          "bitfinex": "tBTCUSD"
+          "moonpaySlug": "btc",
+          "bitfinexSlug": "tBTCUSD"
         }
       }
     },
@@ -30,8 +30,8 @@
         "decimals": 18,
         "isNative": true,
         "metadata": {
-          "moonpay": "eth",
-          "bitfinex": "tETHUSD"
+          "moonpaySlug": "eth",
+          "bitfinexSlug": "tETHUSD"
         }
       },
       "usdt": {
@@ -40,9 +40,9 @@
         "isNative": false,
         "address": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
         "metadata": {
-          "indexer": "usdt",
-          "moonpay": "usdt",
-          "bitfinex": "tUSTUSD"
+          "indexerSlug": "usdt",
+          "moonpaySlug": "usdt",
+          "bitfinexSlug": "tUSTUSD"
         }
       },
       "xaut": {
@@ -51,8 +51,8 @@
         "isNative": false,
         "address": "0x68749665FF8D2d112Fa859AA293F07A622782F38",
         "metadata": {
-          "indexer": "xaut",
-          "bitfinex": "tXAUTUSD"
+          "indexerSlug": "xaut",
+          "bitfinexSlug": "tXAUTUSD"
         }
       }
     },
@@ -62,8 +62,8 @@
         "decimals": 18,
         "isNative": true,
         "metadata": {
-          "moonpay": "eth",
-          "bitfinex": "tETHUSD"
+          "moonpaySlug": "eth",
+          "bitfinexSlug": "tETHUSD"
         }
       },
       "usdt": {
@@ -72,8 +72,8 @@
         "isNative": false,
         "address": "0xd077A400968890Eacc75cdc901F0356c943e4fDb",
         "metadata": {
-          "indexer": "usdt",
-          "bitfinex": "tUSTUSD"
+          "indexerSlug": "usdt",
+          "bitfinexSlug": "tUSTUSD"
         }
       }
     },
@@ -83,8 +83,8 @@
         "decimals": 18,
         "isNative": true,
         "metadata": {
-          "moonpay": "pol_polygon",
-          "bitfinex": "tMATICUSD"
+          "moonpaySlug": "pol_polygon",
+          "bitfinexSlug": "tMATICUSD"
         }
       },
       "usdt": {
@@ -93,9 +93,9 @@
         "isNative": false,
         "address": "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
         "metadata": {
-          "indexer": "usdt",
-          "moonpay": "usdt_polygon",
-          "bitfinex": "tUSTUSD"
+          "indexerSlug": "usdt",
+          "moonpaySlug": "usdt_polygon",
+          "bitfinexSlug": "tUSTUSD"
         }
       }
     },
@@ -105,8 +105,8 @@
         "decimals": 18,
         "isNative": true,
         "metadata": {
-          "moonpay": "eth_arbitrum",
-          "bitfinex": "tETHUSD"
+          "moonpaySlug": "eth_arbitrum",
+          "bitfinexSlug": "tETHUSD"
         }
       },
       "usdt": {
@@ -115,9 +115,9 @@
         "isNative": false,
         "address": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
         "metadata": {
-          "indexer": "usdt",
-          "moonpay": "usdt_arbitrum",
-          "bitfinex": "tUSTUSD"
+          "indexerSlug": "usdt",
+          "moonpaySlug": "usdt_arbitrum",
+          "bitfinexSlug": "tUSTUSD"
         }
       }
     },
@@ -127,8 +127,8 @@
         "decimals": 18,
         "isNative": true,
         "metadata": {
-          "moonpay": "eth_base",
-          "bitfinex": "tETHUSD"
+          "moonpaySlug": "eth_base",
+          "bitfinexSlug": "tETHUSD"
         }
       },
       "usdt": {
@@ -137,7 +137,7 @@
         "isNative": false,
         "address": "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2",
         "metadata": {
-          "bitfinex": "tUSTUSD"
+          "bitfinexSlug": "tUSTUSD"
         }
       }
     },
@@ -147,8 +147,8 @@
         "decimals": 18,
         "isNative": true,
         "metadata": {
-          "moonpay": "bnb_bsc",
-          "bitfinex": "tBNBUSD"
+          "moonpaySlug": "bnb_bsc",
+          "bitfinexSlug": "tBNBUSD"
         }
       },
       "usdt": {
@@ -157,8 +157,8 @@
         "isNative": false,
         "address": "0x55d398326f99059fF775485246999027B3197955",
         "metadata": {
-          "moonpay": "usdt_bsc",
-          "bitfinex": "tUSTUSD"
+          "moonpaySlug": "usdt_bsc",
+          "bitfinexSlug": "tUSTUSD"
         }
       }
     },
@@ -168,8 +168,8 @@
         "decimals": 18,
         "isNative": true,
         "metadata": {
-          "moonpay": "avax_cchain",
-          "bitfinex": "tAVAXUSD"
+          "moonpaySlug": "avax_cchain",
+          "bitfinexSlug": "tAVAXUSD"
         }
       },
       "usdt": {
@@ -178,7 +178,7 @@
         "isNative": false,
         "address": "0x9702230A8Ea53601f5cD2dc00fDBc13d4dF4A8c7",
         "metadata": {
-          "bitfinex": "tUSTUSD"
+          "bitfinexSlug": "tUSTUSD"
         }
       }
     },
@@ -188,8 +188,8 @@
         "decimals": 9,
         "isNative": true,
         "metadata": {
-          "moonpay": "sol",
-          "bitfinex": "tSOLUSD"
+          "moonpaySlug": "sol",
+          "bitfinexSlug": "tSOLUSD"
         }
       },
       "usdt": {
@@ -198,8 +198,8 @@
         "isNative": false,
         "address": "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
         "metadata": {
-          "moonpay": "usdt_sol",
-          "bitfinex": "tUSTUSD"
+          "moonpaySlug": "usdt_sol",
+          "bitfinexSlug": "tUSTUSD"
         }
       }
     },
@@ -209,8 +209,8 @@
         "decimals": 9,
         "isNative": true,
         "metadata": {
-          "moonpay": "sol",
-          "bitfinex": "tSOLUSD"
+          "moonpaySlug": "sol",
+          "bitfinexSlug": "tSOLUSD"
         }
       }
     },
@@ -220,7 +220,7 @@
         "decimals": 9,
         "isNative": true,
         "metadata": {
-          "bitfinex": "tSOLUSD"
+          "bitfinexSlug": "tSOLUSD"
         }
       }
     },
@@ -230,8 +230,8 @@
         "decimals": 8,
         "isNative": true,
         "metadata": {
-          "indexer": "btc",
-          "bitfinex": "tBTCUSD"
+          "indexerSlug": "btc",
+          "bitfinexSlug": "tBTCUSD"
         }
       }
     },
@@ -241,7 +241,7 @@
         "decimals": 8,
         "isNative": true,
         "metadata": {
-          "bitfinex": "tBTCUSD"
+          "bitfinexSlug": "tBTCUSD"
         }
       }
     },
@@ -251,8 +251,8 @@
         "decimals": 6,
         "isNative": true,
         "metadata": {
-          "moonpay": "trx",
-          "bitfinex": "tTRXUSD"
+          "moonpaySlug": "trx",
+          "bitfinexSlug": "tTRXUSD"
         }
       },
       "usdt": {
@@ -261,9 +261,9 @@
         "isNative": false,
         "address": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
         "metadata": {
-          "indexer": "usdt",
-          "moonpay": "usdt_trx",
-          "bitfinex": "tUSTUSD"
+          "indexerSlug": "usdt",
+          "moonpaySlug": "usdt_trx",
+          "bitfinexSlug": "tUSTUSD"
         }
       }
     },
@@ -273,7 +273,7 @@
         "decimals": 6,
         "isNative": true,
         "metadata": {
-          "bitfinex": "tTRXUSD"
+          "bitfinexSlug": "tTRXUSD"
         }
       }
     },
@@ -283,8 +283,8 @@
         "decimals": 18,
         "isNative": true,
         "metadata": {
-          "moonpay": "eth",
-          "bitfinex": "tETHUSD"
+          "moonpaySlug": "eth",
+          "bitfinexSlug": "tETHUSD"
         }
       },
       "usdt": {
@@ -293,9 +293,9 @@
         "isNative": false,
         "address": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
         "metadata": {
-          "indexer": "usdt",
-          "moonpay": "usdt",
-          "bitfinex": "tUSTUSD"
+          "indexerSlug": "usdt",
+          "moonpaySlug": "usdt",
+          "bitfinexSlug": "tUSTUSD"
         }
       },
       "xaut": {
@@ -304,8 +304,8 @@
         "isNative": false,
         "address": "0x68749665FF8D2d112Fa859AA293F07A622782F38",
         "metadata": {
-          "indexer": "xaut",
-          "bitfinex": "tXAUTUSD"
+          "indexerSlug": "xaut",
+          "bitfinexSlug": "tXAUTUSD"
         }
       }
     },
@@ -315,8 +315,8 @@
         "decimals": 18,
         "isNative": true,
         "metadata": {
-          "moonpay": "eth",
-          "bitfinex": "tETHUSD"
+          "moonpaySlug": "eth",
+          "bitfinexSlug": "tETHUSD"
         }
       },
       "usdt": {
@@ -325,8 +325,8 @@
         "isNative": false,
         "address": "0xd077A400968890Eacc75cdc901F0356c943e4fDb",
         "metadata": {
-          "indexer": "usdt",
-          "bitfinex": "tUSTUSD"
+          "indexerSlug": "usdt",
+          "bitfinexSlug": "tUSTUSD"
         }
       }
     },
@@ -336,8 +336,8 @@
         "decimals": 18,
         "isNative": true,
         "metadata": {
-          "moonpay": "pol_polygon",
-          "bitfinex": "tMATICUSD"
+          "moonpaySlug": "pol_polygon",
+          "bitfinexSlug": "tMATICUSD"
         }
       },
       "usdt": {
@@ -346,9 +346,9 @@
         "isNative": false,
         "address": "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
         "metadata": {
-          "indexer": "usdt",
-          "moonpay": "usdt_polygon",
-          "bitfinex": "tUSTUSD"
+          "indexerSlug": "usdt",
+          "moonpaySlug": "usdt_polygon",
+          "bitfinexSlug": "tUSTUSD"
         }
       }
     },
@@ -358,8 +358,8 @@
         "decimals": 18,
         "isNative": true,
         "metadata": {
-          "moonpay": "eth_arbitrum",
-          "bitfinex": "tETHUSD"
+          "moonpaySlug": "eth_arbitrum",
+          "bitfinexSlug": "tETHUSD"
         }
       },
       "usdt": {
@@ -368,9 +368,9 @@
         "isNative": false,
         "address": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
         "metadata": {
-          "indexer": "usdt",
-          "moonpay": "usdt_arbitrum",
-          "bitfinex": "tUSTUSD"
+          "indexerSlug": "usdt",
+          "moonpaySlug": "usdt_arbitrum",
+          "bitfinexSlug": "tUSTUSD"
         }
       }
     },
@@ -380,8 +380,8 @@
         "decimals": 18,
         "isNative": true,
         "metadata": {
-          "moonpay": "eth_base",
-          "bitfinex": "tETHUSD"
+          "moonpaySlug": "eth_base",
+          "bitfinexSlug": "tETHUSD"
         }
       },
       "usdt": {
@@ -390,7 +390,7 @@
         "isNative": false,
         "address": "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2",
         "metadata": {
-          "bitfinex": "tUSTUSD"
+          "bitfinexSlug": "tUSTUSD"
         }
       }
     },
@@ -400,7 +400,7 @@
         "decimals": 18,
         "isNative": true,
         "metadata": {
-          "bitfinex": "tETHUSD"
+          "bitfinexSlug": "tETHUSD"
         }
       },
       "usdt": {
@@ -409,7 +409,7 @@
         "isNative": false,
         "address": "0xB8CE59FC3717ada4C02eaDF9682A9e934F625ebb",
         "metadata": {
-          "bitfinex": "tUSTUSD"
+          "bitfinexSlug": "tUSTUSD"
         }
       }
     }

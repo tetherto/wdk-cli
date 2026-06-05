@@ -20,36 +20,18 @@ import {
   isCustomNetwork,
   isValidNetwork,
   saveCustomNetwork,
-  deleteCustomNetwork,
-  parseModuleName
+  deleteCustomNetwork
 } from '../config/networks.js'
-import { listNetworks } from '../actions/networks.js'
+import { listNetworks, validateNetworkSpec } from '../actions/networks.js'
 import { configService } from '../services/config-service.js'
 import { createTable } from '../ui/tables.js'
 import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
 import { configureHelp } from '../ui/help.js'
 import { requirePassphraseConfirmation } from '../ui/auth.js'
-import { parseJsonArg } from '../ui/parsers.js'
-import { walletsFile } from '../config/wdk-config.js'
-import { getNativeToken } from '../services/token-service.js'
+import { loadJson } from '../ui/parsers.js'
+import { saveCustomToken } from '../services/token-service.js'
 
 /** @typedef {import('commander').Command} Command */
-
-const VALID_WALLET_TYPES = [
-  ...new Set(Object.values(walletsFile.networks).map((w) => parseModuleName(w.module).name))
-]
-/**
- * Default native decimals per wallet module, derived from any one built-in
- * network's native token in the registry. Used to suggest a decimals value to
- * users running `wdk network create` without providing one explicitly.
- */
-const DEFAULT_DECIMALS = {}
-for (const [name, entry] of Object.entries(walletsFile.networks)) {
-  const mod = parseModuleName(entry.module).name
-  if (mod in DEFAULT_DECIMALS) continue
-  const native = getNativeToken(name)
-  if (native) DEFAULT_DECIMALS[mod] = native.decimals
-}
 
 /**
  * Registers the `network` subcommand tree (list, create, delete, info) on the root program.
@@ -92,7 +74,7 @@ export function registerNetworkCommand (program) {
           chalk.bold(nameLabel),
           n.displayName,
           n.module,
-          n.symbol,
+          n.symbol ?? chalk.dim('-'),
           n.testnet ? chalk.dim('yes') : ''
         ])
       }
@@ -106,85 +88,24 @@ export function registerNetworkCommand (program) {
 
   const createCmd = network
     .command('create')
-    .description('Create a custom network')
-    .requiredOption('--name <name>', 'Network identifier (e.g. base, optimism)')
-    .requiredOption(
-      '--data <json>',
-      'JSON with network definition (displayName, module, nativeSymbol, decimals, testnet, indexerSlug, tokens, config)'
-    )
+    .description('Create a custom network from a JSON spec (inline or file path)')
+    .argument('<data>', 'JSON string or path to JSON file')
 
   configureHelp(createCmd, {
-    params: [
-      {
-        flags: '--name <name>',
-        description: 'Network identifier (e.g. base, optimism)',
-        required: true
-      },
-      {
-        flags: '--data <json>',
-        description: 'JSON with network definition',
-        required: true
-      }
+    args: [
+      { flags: '<data>', description: 'JSON string or path to JSON file', required: true }
     ]
   })
 
-  createCmd.action(async (options) => {
+  createCmd.action(async (dataArg) => {
     try {
-      const name = options.name
+      const spec = validateNetworkSpec(loadJson(dataArg, '<data>'))
+      const { network: name, module: walletType, displayName, testnet, indexerSlug } = spec
+      const networkConfig = spec.config ?? {}
+      const tokens = spec.tokens ?? []
 
-      const jsonData = /** @type {Record<string, any>} */ (
-        parseJsonArg(options.data, '--data')
-      )
-
-      const displayName = jsonData.displayName
-      const walletType = jsonData.module
-      const symbol = jsonData.nativeSymbol
-      const decimals = jsonData.decimals ?? DEFAULT_DECIMALS[walletType] ?? 18
-      const testnet = jsonData.testnet ?? false
-      const indexerSlug = jsonData.indexerSlug
-      if (indexerSlug !== undefined && (typeof indexerSlug !== 'string' || !indexerSlug)) {
-        throw new WdkCliError(
-          'indexerSlug must be a non-empty string (the indexer chain slug, e.g. "ethereum").',
-          ErrorCode.INVALID_ARGUMENT
-        )
-      }
-      const tokens = Array.isArray(jsonData.tokens) ? jsonData.tokens : undefined
-      let networkConfig = {}
-      if (jsonData.config && typeof jsonData.config === 'object') {
-        networkConfig = jsonData.config
-      }
-
-      const missing = []
-      if (!displayName) missing.push('displayName')
-      if (!walletType) missing.push('module')
-      if (!symbol) missing.push('nativeSymbol')
-      if (missing.length > 0) {
-        throw new WdkCliError(
-          `JSON missing required fields: ${missing.join(', ')}`,
-          ErrorCode.INVALID_ARGUMENT
-        )
-      }
-
-      if (!/^[a-z0-9][a-z0-9-]*$/.test(name)) {
-        throw new WdkCliError(
-          'Name must be lowercase alphanumeric with hyphens.',
-          ErrorCode.INVALID_ARGUMENT
-        )
-      }
       if (isValidNetwork(name)) {
         throw new WdkCliError(`Network '${name}' already exists.`, ErrorCode.WALLET_EXISTS)
-      }
-      if (!VALID_WALLET_TYPES.includes(walletType)) {
-        throw new WdkCliError(
-          `Wallet type must be one of: ${VALID_WALLET_TYPES.join(', ')}`,
-          ErrorCode.UNSUPPORTED_MODULE
-        )
-      }
-      if (!Number.isInteger(decimals) || decimals < 0 || decimals > 24) {
-        throw new WdkCliError(
-          'Decimals must be an integer between 0 and 24.',
-          ErrorCode.INVALID_ARGUMENT
-        )
       }
 
       const config = {
@@ -192,21 +113,35 @@ export function registerNetworkCommand (program) {
         displayName,
         type: walletType,
         module: walletType,
-        nativeSymbol: symbol,
-        decimals,
         custom: true,
         testnet
       }
-      if (tokens) config.tokens = tokens
       if (indexerSlug) config.indexerSlug = indexerSlug
 
       await requirePassphraseConfirmation()
 
       saveCustomNetwork(name, config)
       configService.set(`networks.${name}`, networkConfig)
+      const savedTickers = []
+      try {
+        for (const tok of tokens) {
+          const { token: ticker, ...entry } = tok
+          saveCustomToken(name, ticker, entry)
+          savedTickers.push(ticker)
+        }
+      } catch (err) {
+        for (const ticker of savedTickers) configService.delete(`customTokens.${name}.${ticker}`)
+        deleteCustomNetwork(name)
+        configService.delete(`networks.${name}`)
+        throw err
+      }
 
       if (program.opts().json) {
-        console.log(JSON.stringify({ ...config, config: networkConfig }))
+        console.log(JSON.stringify({
+          ...config,
+          config: networkConfig,
+          tokens
+        }))
         return
       }
 
@@ -215,17 +150,25 @@ export function registerNetworkCommand (program) {
       console.log(`  Name:       ${name}`)
       console.log(`  Display:    ${displayName}`)
       console.log(`  Module:     ${walletType}`)
-      console.log(`  Symbol:     ${symbol}`)
-      console.log(`  Decimals:   ${decimals}`)
       console.log(`  Testnet:    ${testnet ? 'yes' : 'no'}`)
       if (indexerSlug) console.log(`  Indexer:    ${indexerSlug}`)
-      if (tokens) console.log(`  Tokens:     ${tokens.length} configured`)
       if (Object.keys(networkConfig).length > 0) { console.log(`  Config:     ${Object.keys(networkConfig).length} keys`) }
+      if (tokens.length > 0) {
+        console.log(`  Tokens:     ${tokens.map((t) => t.token).join(', ')}`)
+      }
       console.log()
+      const hasNative = tokens.some((t) => t.isNative)
+      if (!hasNative) {
+        console.log(
+          chalk.dim(
+            `Next: register the native asset:\n  wdk token add '{"network":"${name}","token":"<ticker>","symbol":"...","decimals":...,"isNative":true}'`
+          )
+        )
+      }
       if (Object.keys(networkConfig).length === 0) {
         console.log(
           chalk.dim(
-            `Use wdk config set --key <key> --value <value> --network ${name} to configure network settings.`
+            `Configure RPC with: wdk config set --key provider --value <url> --network ${name}`
           )
         )
       }
@@ -265,6 +208,7 @@ export function registerNetworkCommand (program) {
 
       deleteCustomNetwork(name)
       configService.delete(`networks.${name}`)
+      configService.delete(`customTokens.${name}`)
 
       if (program.opts().json) {
         console.log(JSON.stringify({ name, deleted: true }))
@@ -308,8 +252,8 @@ export function registerNetworkCommand (program) {
       console.log()
       console.log(`  Name:       ${networkName}`)
       console.log(`  Module:     ${config.module}`)
-      console.log(`  Symbol:     ${config.nativeSymbol}`)
-      console.log(`  Decimals:   ${config.decimals}`)
+      console.log(`  Symbol:     ${config.nativeSymbol ?? chalk.dim('(no native token registered)')}`)
+      console.log(`  Decimals:   ${config.decimals ?? chalk.dim('-')}`)
       console.log(`  Testnet:    ${isTestnet(networkName) ? 'yes' : 'no'}`)
       console.log(`  Source:     ${isBuiltinNetwork(networkName) ? 'built-in' : 'custom'}`)
       console.log()

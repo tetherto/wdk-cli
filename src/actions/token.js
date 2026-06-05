@@ -135,7 +135,7 @@ export function validateTokenEntry (data) {
     const meta = /** @type {Record<string, unknown>} */ (metadata)
     /** @type {TokenMetadata} */
     const clean = {}
-    for (const key of /** @type {const} */ (['indexer', 'moonpay', 'bitfinex'])) {
+    for (const key of /** @type {const} */ (['indexerSlug', 'moonpaySlug', 'bitfinexSlug'])) {
       const value = meta[key]
       if (value === undefined) continue
       if (typeof value !== 'string' || !value) {
@@ -150,6 +150,49 @@ export function validateTokenEntry (data) {
   }
 
   return entry
+}
+
+/**
+ * @typedef {Object} TokenSpec
+ * @property {string} network
+ * @property {string} token - Registry key (e.g. "usdt")
+ * @property {TokenEntry} entry - Validated token entry
+ */
+
+/**
+ * Validates a `wdk token add` spec object. Type-checks the known fields and
+ * delegates the entry-shaped portion to `validateTokenEntry`. Unknown top-level
+ * fields pass through silently so users can annotate their specs without the
+ * CLI complaining.
+ *
+ * @param {unknown} data
+ * @returns {TokenSpec}
+ */
+export function validateTokenSpec (data) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    throw new WdkCliError('Token spec must be a JSON object.', ErrorCode.INVALID_ARGUMENT)
+  }
+  const obj = /** @type {Record<string, unknown>} */ (data)
+
+  const network = obj.network
+  if (typeof network !== 'string' || !network) {
+    throw new WdkCliError(
+      'Token spec "network" must be a non-empty string.',
+      ErrorCode.INVALID_ARGUMENT
+    )
+  }
+
+  const token = obj.token
+  if (typeof token !== 'string' || !token) {
+    throw new WdkCliError(
+      'Token spec "token" must be a non-empty string (registry key).',
+      ErrorCode.INVALID_ARGUMENT
+    )
+  }
+
+  const { network: _n, token: _t, ...rest } = obj
+  const entry = validateTokenEntry(rest)
+  return { network, token: token.toLowerCase(), entry }
 }
 
 /**
@@ -195,11 +238,26 @@ export function getToken (input) {
 export function addToken (input) {
   validateNetwork(input.network)
   const entry = validateTokenEntry(input.entry)
+  const ticker = input.token.toLowerCase()
+
+  if (entry.isNative) {
+    const tokens = getTokensForNetwork(input.network)
+    for (const [existingTicker, existingEntry] of Object.entries(tokens)) {
+      if (existingEntry.isNative && existingTicker !== ticker) {
+        throw new WdkCliError(
+          `Network '${input.network}' already has native token '${existingTicker}' (${existingEntry.symbol}). ` +
+            `Each network can have at most one native token. Delete '${existingTicker}' first if you want to replace it.`,
+          ErrorCode.INVALID_ARGUMENT
+        )
+      }
+    }
+  }
+
   const overridesBuiltin = isBuiltinToken(input.network, input.token)
   saveCustomToken(input.network, input.token, entry)
   return {
     network: input.network,
-    token: input.token.toLowerCase(),
+    token: ticker,
     added: true,
     ...(overridesBuiltin ? { overridesBuiltin: true } : {}),
     ...entry

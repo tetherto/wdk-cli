@@ -23,7 +23,7 @@ const walletsFileRaw = createRequire(import.meta.url)('../../wdk.config.json')
  * @property {boolean} [testnet] - True when the network is a testnet.
  * @property {string} [indexerSlug] - Optional override for the indexer chain slug.
  *   Defaults to the network name. Set only when they differ (e.g. `smart-account-ethereum` → `ethereum`).
- *   Per-token indexer codes live in `wdk.tokens.json` under `metadata.indexer`.
+ *   Per-token indexer slugs live in `wdk.tokens.json` under `metadata.indexerSlug`.
  * @property {Record<string, unknown>} [config] - The per-network module configuration (RPC URL, chainId, etc.).
  */
 

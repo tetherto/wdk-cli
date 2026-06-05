@@ -21,9 +21,9 @@ const tokensFileRaw = createRequire(import.meta.url)('../../wdk.tokens.json')
  * may be absent when the token is not supported by that provider.
  *
  * @typedef {Object} TokenMetadata
- * @property {string} [indexer] - The token code used by the indexer API (e.g. "usdt").
- * @property {string} [moonpay] - The asset code used by MoonPay (e.g. "usdt_polygon").
- * @property {string} [bitfinex] - The Bitfinex trading pair for USD price (e.g. "tUSTUSD").
+ * @property {string} [indexerSlug] - The token slug used by the indexer API (e.g. "usdt").
+ * @property {string} [moonpaySlug] - The asset slug used by MoonPay (e.g. "usdt_polygon").
+ * @property {string} [bitfinexSlug] - The Bitfinex pair slug for USD price (e.g. "tUSTUSD").
  */
 
 /**

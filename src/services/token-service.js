@@ -86,31 +86,31 @@ export function getTokensForNetwork (network) {
 }
 
 /**
- * Returns the indexer code (`metadata.indexer`) for the given token, or undefined
- * when the token isn't registered or has no indexer mapping.
+ * Returns the indexer slug (`metadata.indexerSlug`) for the given token, or
+ * undefined when the token isn't registered or has no indexer mapping.
  *
  * @param {string} network
  * @param {string} token
  * @returns {string | undefined}
  */
 export function getIndexerCode (network, token) {
-  return getTokenByName(network, token)?.metadata?.indexer
+  return getTokenByName(network, token)?.metadata?.indexerSlug
 }
 
 /**
- * Returns the MoonPay asset code (`metadata.moonpay`) for the given token, or
- * undefined when the token isn't registered or has no MoonPay mapping.
+ * Returns the MoonPay asset slug (`metadata.moonpaySlug`) for the given token,
+ * or undefined when the token isn't registered or has no MoonPay mapping.
  *
  * @param {string} network
  * @param {string} token
  * @returns {string | undefined}
  */
 export function getMoonpayCode (network, token) {
-  return getTokenByName(network, token)?.metadata?.moonpay
+  return getTokenByName(network, token)?.metadata?.moonpaySlug
 }
 
 /**
- * Returns the Bitfinex trading pair (`metadata.bitfinex`) for the given token,
+ * Returns the Bitfinex pair slug (`metadata.bitfinexSlug`) for the given token,
  * or undefined when the token isn't registered or has no Bitfinex mapping.
  *
  * @param {string} network
@@ -118,7 +118,7 @@ export function getMoonpayCode (network, token) {
  * @returns {string | undefined}
  */
 export function getBitfinexCode (network, token) {
-  return getTokenByName(network, token)?.metadata?.bitfinex
+  return getTokenByName(network, token)?.metadata?.bitfinexSlug
 }
 
 /**
@@ -126,7 +126,7 @@ export function getBitfinexCode (network, token) {
  * given provider in their `metadata` block.
  *
  * @param {string} network
- * @param {'indexer' | 'moonpay' | 'bitfinex'} provider
+ * @param {'indexerSlug' | 'moonpaySlug' | 'bitfinexSlug'} provider
  * @returns {string[]} Token names (lowercase keys from the registry).
  */
 export function getTokensSupportedBy (network, provider) {

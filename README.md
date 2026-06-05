@@ -154,55 +154,113 @@ wdk network delete --name <name>      # Delete a custom network (requires unlock
 
 #### Adding Custom Networks
 
-Use `wdk network create` with `--name` and `--data` (JSON). Requires an unlocked wallet:
+`wdk network create <data>` takes a single argument — either an inline JSON string or a path to a JSON file. Requires an unlocked wallet.
 
 ```bash
-wdk network create --name optimism --data '{
-  "displayName": "Optimism",
-  "module": "@tetherto/wdk-wallet-evm",
-  "testnet": false,
-  "config": {
-    "provider": "https://mainnet.optimism.io",
-    "transferMaxFee": 5000000000000000
-  }
-}'
+# Inline JSON
+wdk network create '{"network":"optimism","module":"@tetherto/wdk-wallet-evm","indexerSlug":"ethereum","config":{"provider":"https://mainnet.optimism.io","chainId":10}}'
+
+# Or from a file
+wdk network create ./optimism.json
 ```
 
-**`--data` JSON fields:**
+Example spec file:
+
+```json
+{
+  "network": "optimism",
+  "module": "@tetherto/wdk-wallet-evm",
+  "displayName": "Optimism",
+  "testnet": false,
+  "indexerSlug": "ethereum",
+  "config": { "provider": "https://mainnet.optimism.io", "chainId": 10 },
+  "tokens": [
+    {
+      "token": "eth",
+      "symbol": "ETH",
+      "decimals": 18,
+      "isNative": true,
+      "metadata": { "moonpaySlug": "eth", "bitfinexSlug": "tETHUSD" }
+    },
+    {
+      "token": "usdt",
+      "symbol": "USDT",
+      "decimals": 6,
+      "isNative": false,
+      "address": "0x...",
+      "metadata": { "indexerSlug": "usdt", "moonpaySlug": "usdt", "bitfinexSlug": "tUSTUSD" }
+    }
+  ]
+}
+```
+
+**Spec fields:**
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `displayName` | Yes | Human-readable name (e.g. `Optimism`) |
-| `module` | Yes | Wallet type: `@tetherto/wdk-wallet-evm`, `@tetherto/wdk-wallet-btc`, `@tetherto/wdk-wallet-solana`, `@tetherto/wdk-wallet-spark`, `@tetherto/wdk-wallet-tron`, `@tetherto/wdk-wallet-evm-erc-4337` |
-| `testnet` | No | Mark as testnet (default: false) |
-| `indexerSlug` | No | Override for the indexer chain slug (defaults to the network name). Set only when the network name differs from the chain queried by the indexer — e.g. `smart-account-ethereum` uses `indexerSlug: "ethereum"`. Indexer-supported tokens are derived from the token registry's `metadata.indexer` field. |
-| `config` | No | Network config passed to SDK (provider, chainId, etc.) |
+| `network` | Yes | Network identifier (lowercase, hyphens allowed) |
+| `module` | Yes | Wallet module: `@tetherto/wdk-wallet-evm`, `@tetherto/wdk-wallet-btc`, `@tetherto/wdk-wallet-solana`, `@tetherto/wdk-wallet-spark`, `@tetherto/wdk-wallet-tron`, `@tetherto/wdk-wallet-evm-erc-4337` |
+| `displayName` | No | Human-readable name (defaults to `network`) |
+| `testnet` | No | `true` to mark as a testnet |
+| `indexerSlug` | Required for indexer support | Chain slug used by the WDK indexer API (e.g. `ethereum`, `polygon`, `bitcoin`). If omitted, the indexer is disabled for this network and `wdk get history` will error with `NETWORK_NOT_SUPPORTED`. For most networks the slug equals the network name; smart-account / forked networks point at the underlying chain (e.g. `smart-account-ethereum` uses `"indexerSlug": "ethereum"`). |
+| `config` | No | SDK config object (provider URL, chainId, etc.). May be set later via `wdk config set --network <name>`. |
+| `tokens` | No | Token registry entries to register atomically with the network. At most one entry may have `isNative: true`. Each entry's shape matches the [Tokens](#tokens) spec. |
 
-After creating the network, register its native and any token assets via `wdk token add`. Custom networks are stored in config and work with all commands (`get balance`, `send`, `get address`, etc.). Network config can also be updated later with `wdk config set --key <key> --value <value> --network <name>`.
+The spec is parsed and validated atomically: if any token in `tokens[]` fails validation, the network is not created (full rollback). Unknown top-level fields pass through silently (so you can annotate specs with comments, tags, owner, etc.).
+
+Deleting a custom network (`wdk network delete --name <n>`) also removes its registered tokens.
 
 ### Tokens
 
 The CLI ships with a registry (`wdk.tokens.json`) of all known tokens per network — symbol, decimals, contract address, and provider mappings (indexer code, MoonPay asset code, Bitfinex pair). The `--token` flag on `get balance` / `send` / `get history` / `buy` / `sell` resolves against this registry.
 
 ```bash
-wdk token list                                          # All tokens, grouped by network
-wdk token list --network ethereum                       # Filter to one network
-wdk token info --network ethereum --token usdt          # Show full entry
-wdk token add --network <n> --token <t> --data '<json>' # Add/override (requires unlocked wallet)
-wdk token delete --network <n> --token <t>              # Remove a custom entry
+wdk token list                                                 # All tokens, grouped by network
+wdk token list --network ethereum                              # Filter to one network
+wdk token info --network ethereum --token usdt                 # Show full entry
+
+# Add a token from inline JSON or a file
+wdk token add '{"network":"ethereum","token":"dai","symbol":"DAI","decimals":18,"isNative":false,"address":"0x..."}'
+wdk token add ./dai-on-ethereum.json
+
+wdk token delete --network <n> --token <t>                     # Remove a custom entry
 ```
 
-**`token add --data` JSON fields:**
+`wdk token add <data>` takes a single argument — inline JSON or a path to a JSON file.
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `symbol` | Yes | Display symbol (e.g. `USDT`) |
-| `decimals` | Yes | Integer 0–24 |
-| `isNative` | Yes | Boolean — `true` for the chain's native asset |
-| `address` | If `!isNative` | Contract / mint address |
-| `metadata.indexer` | No | Indexer code (enables `get history`) |
-| `metadata.moonpay` | No | MoonPay asset code (enables `buy`/`sell`) |
-| `metadata.bitfinex` | No | Bitfinex pair (enables USD price in `get balance`) |
+**Token entry fields — and why each one is needed:**
+
+| Field | Required | What the CLI does with it |
+|-------|----------|---------------------------|
+| `network` | Yes | Parent network the token belongs to. Must already exist. |
+| `token` | Yes | Registry key (lowercased) used by `--token <ticker>` flags across the CLI. |
+| `symbol` | Yes | Display label shown in `get balance`, `send` previews, fee lines, and tables (e.g. `1.5 ETH`, `100 USDT`). |
+| `decimals` | Yes | Used to convert between the CLI's decimal `--amount` (e.g. `1.5`) and the SDK's base units (wei / satoshi / lamport). Integer 0–24. |
+| `isNative` | Yes | Routes transfers through the native-coin path (no contract call) vs the token-contract path. Each network can have **at most one** native entry. |
+| `address` | If `!isNative` | Contract / mint address used by the SDK to call `transfer` / `getBalance` on the right token. Required for ERC-20 / SPL / TRC-20; omit for native. |
+| `metadata.indexerSlug` | No | Asset slug sent to the WDK indexer (`/api/v1/{chain}/{indexerSlug}/{addr}/token-transfers`). Without it, this token is skipped by `wdk get history`. **Requires the network to also have `indexerSlug` set** — a token slug alone doesn't enable the indexer; the network's `indexerSlug` is what tells the CLI the indexer is available for that chain. |
+| `metadata.moonpaySlug` | No | MoonPay asset code used in the buy/sell URL. Without it, `wdk buy`/`wdk sell` rejects the token. |
+| `metadata.bitfinexSlug` | No | Bitfinex pair symbol used to fetch a USD price. Without it, `wdk get balance` shows the balance but no USD column for that token. |
+
+Provider mappings (`metadata.*Slug`) are all optional. Omit them when the integration doesn't apply — the rest of the CLI keeps working; only the specific feature is disabled for that token. Unknown top-level fields pass through silently so you can annotate entries with comments, tags, owner, etc.
+
+Example full entry (file or inline):
+
+```json
+{
+  "network": "optimism",
+  "token": "usdt",
+  "symbol": "USDT",
+  "decimals": 6,
+  "isNative": false,
+  "address": "0x...",
+  "metadata": {
+    "indexerSlug": "usdt",
+    "moonpaySlug": "usdt",
+    "bitfinexSlug": "tUSTUSD"
+  }
+}
+```
 
 Custom entries (added via `token add`) live under `customTokens.<network>.<ticker>` and survive `wdk config reset --all`. Built-in entries can be **overridden** by adding a custom entry with the same ticker — a yellow warning is shown when this happens. `token delete` only removes custom entries; the built-in falls through after deletion.
 
@@ -272,7 +330,7 @@ wdk config set --key ramp.moonpay.environment --value sandbox    # or production
 | `--fiat-amount <value>` | Fiat amount (mutually exclusive with `--crypto-amount`) |
 | `--crypto-amount <value>` | Crypto amount (mutually exclusive with `--fiat-amount`) |
 
-Supported tokens are derived from the registry — any token with `metadata.moonpay` set in `wdk.tokens.json` (or a custom token added via `wdk token add`). Environment validation prevents using production MoonPay with testnet networks (and vice versa).
+Supported tokens are derived from the registry — any token with `metadata.moonpaySlug` set in `wdk.tokens.json` (or a custom token added via `wdk token add`). Environment validation prevents using production MoonPay with testnet networks (and vice versa).
 
 Configure via `wdk config set --key ramp.moonpay.apiKey --value <key>`, `ramp.moonpay.signUrl`, and `ramp.moonpay.environment`.
 

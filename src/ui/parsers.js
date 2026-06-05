@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import { readFileSync } from 'node:fs'
 import { InvalidArgumentError } from 'commander'
 import BigNumber from 'bignumber.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
@@ -45,20 +46,46 @@ export function nonNegativeInt (value) {
 }
 
 /**
- * Parses a JSON string from a CLI flag, throwing a structured `WdkCliError`
- * with a flag-specific message when the value isn't valid JSON. Used after
- * commander argument parsing — inside action handlers, not as an argParser.
+ * Auto-detects whether `value` is an inline JSON string or a path to a JSON
+ * file, and parses it. The "one positional, two delivery modes" input pattern
+ * used by `wdk network create` and `wdk token add`.
  *
- * @param {string} raw - The raw value as passed by the user.
- * @param {string} flag - The flag name to reference in the error (e.g. `--data`).
+ * Detection rule: if the value (after stripping whitespace) starts with `{`
+ * or `[`, parse as inline JSON. Otherwise read the value as a file path.
+ *
+ * @param {string} value - Raw CLI argument; either JSON or a file path.
+ * @param {string} label - Argument label for error messages (e.g. `<data>`).
  * @returns {unknown} The parsed JSON value.
- * @throws {WdkCliError} INVALID_ARGUMENT when the value isn't valid JSON.
+ * @throws {WdkCliError} INVALID_ARGUMENT on parse or read failure.
  */
-export function parseJsonArg (raw, flag) {
+export function loadJson (value, label) {
+  const trimmed = value.trim()
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+    try {
+      return JSON.parse(value)
+    } catch (err) {
+      throw new WdkCliError(
+        `Invalid JSON in ${label}: ${/** @type {Error} */ (err).message}`,
+        ErrorCode.INVALID_ARGUMENT
+      )
+    }
+  }
+  let raw
+  try {
+    raw = readFileSync(value, 'utf8')
+  } catch (err) {
+    throw new WdkCliError(
+      `Cannot read ${label} from '${value}': ${/** @type {Error} */ (err).message}`,
+      ErrorCode.INVALID_ARGUMENT
+    )
+  }
   try {
     return JSON.parse(raw)
-  } catch {
-    throw new WdkCliError(`Invalid JSON in ${flag}`, ErrorCode.INVALID_ARGUMENT)
+  } catch (err) {
+    throw new WdkCliError(
+      `${label} file '${value}' is not valid JSON: ${/** @type {Error} */ (err).message}`,
+      ErrorCode.INVALID_ARGUMENT
+    )
   }
 }
 

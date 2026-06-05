@@ -18,7 +18,7 @@ import {
   getToken,
   addToken,
   deleteToken,
-  validateTokenEntry
+  validateTokenSpec
 } from '../actions/token.js'
 import { getTokenSource } from '../services/token-service.js'
 import { validateNetwork } from '../config/networks.js'
@@ -27,7 +27,7 @@ import { configureHelp } from '../ui/help.js'
 import { requirePassphraseConfirmation } from '../ui/auth.js'
 import { createTable } from '../ui/tables.js'
 import { formatAddress } from '../ui/formatters.js'
-import { parseJsonArg } from '../ui/parsers.js'
+import { loadJson } from '../ui/parsers.js'
 
 /** @typedef {import('commander').Command} Command */
 /** @typedef {import('../config/wdk-tokens.js').TokenEntry} TokenEntry */
@@ -73,9 +73,9 @@ function tokenRow (network, token, entry) {
     String(entry.decimals),
     entry.isNative ? 'yes' : '',
     entry.address ? formatAddress(entry.address, true) : chalk.dim('—'),
-    entry.metadata?.indexer ?? chalk.dim('—'),
-    entry.metadata?.moonpay ?? chalk.dim('—'),
-    entry.metadata?.bitfinex ?? chalk.dim('—'),
+    entry.metadata?.indexerSlug ?? chalk.dim('—'),
+    entry.metadata?.moonpaySlug ?? chalk.dim('—'),
+    entry.metadata?.bitfinexSlug ?? chalk.dim('—'),
     source === 'custom' ? chalk.yellow('custom') : chalk.dim('built-in')
   ]
 }
@@ -216,34 +216,24 @@ export function registerTokenCommand (program) {
   // ─── add ────────────────────────────────────────────────────────────────
   const addCmd = token
     .command('add')
-    .description('Add or override a token entry (stored under customTokens.<network>.<token>)')
-    .requiredOption('--network <network>', 'Network the token belongs to')
-    .requiredOption('--token <token>', 'Token (e.g. usdt)')
-    .requiredOption(
-      '--data <json>',
-      'JSON object: { symbol, decimals, isNative, address?, metadata? }'
-    )
+    .description('Add or override a token entry from a JSON spec (inline or file path)')
+    .argument('<data>', 'JSON string or path to JSON file')
 
   configureHelp(addCmd, {
-    params: [
-      { flags: '--network <network>', description: 'Network the token belongs to', required: true },
-      { flags: '--token <token>', description: 'Token (e.g. usdt)', required: true },
-      {
-        flags: '--data <json>',
-        description: 'JSON object: { symbol, decimals, isNative, address?, metadata? }',
-        required: true
-      }
+    args: [
+      { flags: '<data>', description: 'JSON string or path to JSON file', required: true }
     ]
   })
 
-  addCmd.action(async (options) => {
+  addCmd.action(async (dataArg) => {
     try {
-      validateNetwork(options.network)
-      const entry = validateTokenEntry(parseJsonArg(options.data, '--data'))
+      const spec = validateTokenSpec(loadJson(dataArg, '<data>'))
+      const { network, token: ticker, entry } = spec
+      validateNetwork(network)
 
       await requirePassphraseConfirmation()
 
-      const result = addToken({ network: options.network, token: options.token, entry })
+      const result = addToken({ network, token: ticker, entry })
 
       if (program.opts().json) {
         console.log(JSON.stringify(result))

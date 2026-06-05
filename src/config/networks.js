@@ -63,6 +63,17 @@ export { NETWORKS }
 export const NETWORK_NAMES = Object.keys(NETWORKS)
 
 /**
+ * The set of wallet module names that built-in networks use. Custom networks
+ * created via `wdk network create` must pick one of these so they bind to a
+ * supported SDK.
+ *
+ * @type {readonly string[]}
+ */
+export const VALID_WALLET_TYPES = Object.freeze(
+  [...new Set(Object.values(walletsFile.networks).map((w) => parseModuleName(w.module).name))]
+)
+
+/**
  * Returns all user-defined custom networks from config, each marked with `custom: true`.
  *
  * @returns {Record<string, NetworkConfig>} Map of custom network name to config.
@@ -73,7 +84,13 @@ export function getCustomNetworks () {
   /** @type {Record<string, NetworkConfig>} */
   const result = {}
   for (const [name, config] of Object.entries(custom)) {
-    result[name] = { ...(config), custom: true }
+    const native = getNativeToken(name)
+    result[name] = {
+      ...config,
+      nativeSymbol: native?.symbol,
+      decimals: native?.decimals,
+      custom: true
+    }
   }
   return result
 }
