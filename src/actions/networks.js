@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { getAllNetworks, getAllNetworkNames, isTestnet } from '../config/networks.js'
-import { NetworkSpecSchema, parseSpec } from '../ui/schemas.js'
+import { getAllNetworks, getAllNetworkNames, isTestnet, VALID_WALLET_TYPES } from '../config/networks.js'
+import { WdkCliError, ErrorCode } from '../errors/index.js'
+import { validateTokenEntry } from './token.js'
 
 /**
  * @typedef {Object} ListNetworksInput
@@ -91,10 +92,39 @@ export function listNetworks (input = {}) {
  */
 
 /**
- * Validates a `wdk network create` spec via the zod schema. Type-checks the
- * known fields; passes unknown top-level fields through silently so users can
- * annotate their specs (e.g. comments, ownership tags) without the CLI
- * complaining. Enforces no duplicate token keys and at most one native token.
+ * Validates a single `tokens[i]` item from a network spec. Extracts the
+ * registry key, delegates entry-shape validation to `validateTokenEntry`,
+ * and returns the canonical `TokenSpecEntry`.
+ *
+ * @param {unknown} item - Raw token entry from the spec.
+ * @param {number} idx - Position in the `tokens[]` array (for error messages).
+ * @returns {TokenSpecEntry} The validated entry with `token` lowercased.
+ * @throws {WdkCliError} INVALID_ARGUMENT on any malformed field.
+ */
+function validateTokenInSpec (item, idx) {
+  if (!item || typeof item !== 'object' || Array.isArray(item)) {
+    throw new WdkCliError(
+      `Network spec "tokens[${idx}]" must be an object.`,
+      ErrorCode.INVALID_ARGUMENT
+    )
+  }
+  const tokenItem = /** @type {Record<string, unknown>} */ (item)
+  const tokenKey = tokenItem.token
+  if (typeof tokenKey !== 'string' || !tokenKey) {
+    throw new WdkCliError(
+      `Network spec "tokens[${idx}].token" must be a non-empty string (registry key).`,
+      ErrorCode.INVALID_ARGUMENT
+    )
+  }
+  const { token: _tk, ...rest } = tokenItem
+  const entry = validateTokenEntry(rest)
+  return { token: tokenKey.toLowerCase(), ...entry }
+}
+
+/**
+ * Validates a `wdk network create` spec object. Type-checks the known fields;
+ * passes unknown top-level fields through silently so users can annotate their
+ * specs (e.g. comments, ownership tags) without the CLI complaining.
  *
  * @param {unknown} data - The raw spec value (parsed JSON, untrusted input).
  * @returns {NetworkSpec} The validated and normalized spec.
@@ -102,5 +132,100 @@ export function listNetworks (input = {}) {
  * @throws {WdkCliError} UNSUPPORTED_MODULE when `module` isn't a known wallet module.
  */
 export function validateNetworkSpec (data) {
-  return /** @type {NetworkSpec} */ (parseSpec(NetworkSpecSchema, data, 'Network spec'))
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    throw new WdkCliError('Network spec must be a JSON object.', ErrorCode.INVALID_ARGUMENT)
+  }
+  const obj = /** @type {Record<string, unknown>} */ (data)
+
+  const network = obj.network
+  if (typeof network !== 'string' || !/^[a-z0-9][a-z0-9-]*$/.test(network)) {
+    throw new WdkCliError(
+      'Network spec "network" must be lowercase alphanumeric with hyphens.',
+      ErrorCode.INVALID_ARGUMENT
+    )
+  }
+
+  const moduleName = obj.module
+  if (typeof moduleName !== 'string' || !VALID_WALLET_TYPES.includes(moduleName)) {
+    throw new WdkCliError(
+      `Network spec "module" must be one of: ${VALID_WALLET_TYPES.join(', ')}`,
+      ErrorCode.UNSUPPORTED_MODULE
+    )
+  }
+
+  let displayName = network
+  if (obj.displayName !== undefined) {
+    if (typeof obj.displayName !== 'string' || !obj.displayName) {
+      throw new WdkCliError(
+        'Network spec "displayName" must be a non-empty string when provided.',
+        ErrorCode.INVALID_ARGUMENT
+      )
+    }
+    displayName = obj.displayName
+  }
+
+  const testnet = obj.testnet ?? false
+  if (typeof testnet !== 'boolean') {
+    throw new WdkCliError('Network spec "testnet" must be a boolean.', ErrorCode.INVALID_ARGUMENT)
+  }
+
+  let indexerSlug
+  if (obj.indexerSlug !== undefined) {
+    if (typeof obj.indexerSlug !== 'string' || !obj.indexerSlug) {
+      throw new WdkCliError(
+        'Network spec "indexerSlug" must be a non-empty string when provided.',
+        ErrorCode.INVALID_ARGUMENT
+      )
+    }
+    indexerSlug = obj.indexerSlug
+  }
+
+  let config
+  if (obj.config !== undefined) {
+    if (!obj.config || typeof obj.config !== 'object' || Array.isArray(obj.config)) {
+      throw new WdkCliError(
+        'Network spec "config" must be an object when provided.',
+        ErrorCode.INVALID_ARGUMENT
+      )
+    }
+    config = /** @type {Record<string, unknown>} */ (obj.config)
+  }
+
+  /** @type {TokenSpecEntry[] | undefined} */
+  let tokens
+  if (obj.tokens !== undefined) {
+    if (!Array.isArray(obj.tokens)) {
+      throw new WdkCliError(
+        'Network spec "tokens" must be an array when provided.',
+        ErrorCode.INVALID_ARGUMENT
+      )
+    }
+    tokens = obj.tokens.map(validateTokenInSpec)
+    const seen = new Set()
+    const duplicates = []
+    for (const t of tokens) {
+      if (seen.has(t.token)) duplicates.push(t.token)
+      seen.add(t.token)
+    }
+    if (duplicates.length > 0) {
+      throw new WdkCliError(
+        `Network spec "tokens" has duplicate registry key(s): ${[...new Set(duplicates)].join(', ')}.`,
+        ErrorCode.INVALID_ARGUMENT
+      )
+    }
+    const natives = tokens.filter((t) => t.isNative)
+    if (natives.length > 1) {
+      throw new WdkCliError(
+        `Network spec "tokens" has ${natives.length} native entries (${natives.map((t) => t.token).join(', ')}). Each network can have at most one native token.`,
+        ErrorCode.INVALID_ARGUMENT
+      )
+    }
+  }
+
+  /** @type {NetworkSpec} */
+  const spec = { network, module: moduleName, displayName, testnet }
+  if (indexerSlug) spec.indexerSlug = indexerSlug
+  if (config) spec.config = config
+  if (tokens) spec.tokens = tokens
+  return spec
 }
