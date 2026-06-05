@@ -38,6 +38,8 @@ function isEnoent (err) {
  */
 export class Keyring {
   /**
+   * Creates a Keyring bound to a specific encrypted seed file path.
+   *
    * @param {string} path - Absolute path to the encrypted seed file.
    */
   constructor (path) {

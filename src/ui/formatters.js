@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { getNetworkConfig } from '../config/networks.js'
-import { getTokenConfig } from '../config/tokens.js'
+import { getTokenByAddress } from '../services/token-service.js'
 
 /**
  * Formats a raw bigint amount into a human-readable string with symbol.
@@ -90,11 +90,11 @@ export function formatDate (dateStr) {
  */
 export function formatTokenAmount (amount, rawAmount, network, token) {
   if (token) {
-    const tokenConfig = getTokenConfig(network, token)
-    return tokenConfig
+    const tokenInfo = getTokenByAddress(network, token)
+    return tokenInfo
       ? {
-          formatted: formatAmount(amount, tokenConfig.decimals, tokenConfig.symbol),
-          symbol: tokenConfig.symbol
+          formatted: formatAmount(amount, tokenInfo.decimals, tokenInfo.symbol),
+          symbol: tokenInfo.symbol
         }
       : { formatted: `${rawAmount} tokens (base units)` }
   }

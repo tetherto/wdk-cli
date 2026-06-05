@@ -14,6 +14,7 @@
 
 /** @typedef {import('./protocol.js').DaemonRequest} DaemonRequest */
 /** @typedef {import('./protocol.js').DaemonResponse} DaemonResponse */
+/** @typedef {import('./protocol.js').WalletStatus} WalletStatus */
 /** @typedef {import('node:net').Server} Server */
 /** @typedef {import('node:net').Socket} Socket */
 
@@ -32,7 +33,7 @@ import { configService } from '../services/config-service.js'
 import { deriveKey, decryptWithKey } from '../security/encryption.js'
 import { WdkService } from '../services/wdk-service.js'
 import { isValidNetwork, getNetworkConfig } from '../config/networks.js'
-import { getTokenConfig } from '../config/tokens.js'
+import { getTokenByAddress } from '../services/token-service.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 import { formatAmount } from '../ui/formatters.js'
 
@@ -63,6 +64,10 @@ function errorResponse (e) {
   }
 }
 
+/**
+ * Long-lived wallet daemon. Holds unlocked WDK instances in memory and serves
+ * CLI/MCP requests over a Unix socket.
+ */
 export class WalletDaemon {
   /** @type {Map<string, WalletState>} */
   #wallets = new Map()
@@ -230,7 +235,7 @@ export class WalletDaemon {
   /**
    * Returns a status list for all currently unlocked wallets.
    *
-   * @returns {Array<{ name: string, ttlMs: number, ttlRemaining: number }>} Array of wallet status entries.
+   * @returns {WalletStatus[]} Array of wallet status entries.
    */
   #getWalletStatusList () {
     return [...this.#wallets.entries()].map(([name, state]) => {
@@ -338,13 +343,13 @@ export class WalletDaemon {
 
           if (req.token) {
             const balance = await account.getTokenBalance(req.token)
-            const config = getTokenConfig(req.network, req.token)
+            const tokenInfo = getTokenByAddress(req.network, req.token)
             return {
               ok: true,
               data: {
                 balance: balance.toString(),
-                symbol: config?.symbol || 'tokens',
-                decimals: config?.decimals || 0
+                symbol: tokenInfo?.symbol || 'tokens',
+                decimals: tokenInfo?.decimals || 0
               }
             }
           }

@@ -14,37 +14,9 @@
 
 import chalk from 'chalk'
 
-/**
- * @typedef {(
- *   | 'KEY_NOT_FOUND'
- *   | 'INVALID_SEED_PHRASE'
- *   | 'WRONG_PASSPHRASE'
- *   | 'NETWORK_NOT_SUPPORTED'
- *   | 'INSUFFICIENT_BALANCE'
- *   | 'TRANSACTION_FAILED'
- *   | 'NETWORK_ERROR'
- *   | 'WALLET_NOT_UNLOCKED'
- *   | 'WALLET_EXISTS'
- *   | 'WALLET_LOCKED'
- *   | 'PASSPHRASE_MISMATCH'
- *   | 'INVALID_ARGUMENT'
- *   | 'INVALID_INDEX'
- *   | 'INVALID_CONFIG'
- *   | 'MISSING_CONFIG'
- *   | 'UNSUPPORTED_MODULE'
- *   | 'TOKEN_NOT_SUPPORTED'
- *   | 'ENVIRONMENT_MISMATCH'
- *   | 'SIGN_FAILED'
- *   | 'INVALID_AMOUNT'
- *   | 'INVALID_TOKEN'
- *   | 'PROVIDER_UNAVAILABLE'
- *   | 'QUOTE_REJECTED'
- *   | 'UNKNOWN_ERROR'
- *   | 'UNEXPECTED_ERROR'
- * )} ErrorCodeType
- */
+/** @typedef {typeof ErrorCode[keyof typeof ErrorCode]} ErrorCodeType */
 
-export const ErrorCode = Object.freeze({
+export const ErrorCode = /** @type {const} */ ({
   KEY_NOT_FOUND: 'KEY_NOT_FOUND',
   INVALID_SEED_PHRASE: 'INVALID_SEED_PHRASE',
   WRONG_PASSPHRASE: 'WRONG_PASSPHRASE',
@@ -105,6 +77,8 @@ export function isNetworkError (error) {
  */
 export class WdkCliError extends Error {
   /**
+   * Creates a new WdkCliError with a stable code and optional user-facing suggestion.
+   *
    * @param {string} message - The error message.
    * @param {ErrorCodeType} code - The stable error code.
    * @param {string} [suggestion] - An optional hint shown to the user.

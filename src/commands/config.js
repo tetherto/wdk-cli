@@ -56,10 +56,10 @@ function getNestedValue (obj, path) {
  *
  * @param {Record<string, unknown>} obj - The object to flatten.
  * @param {string} [prefix] - Dot-path prefix accumulated during recursion.
- * @returns {Array<[string, string]>} Flat list of [dotPath, stringValue] tuples.
+ * @returns {[string, string][]} Flat list of [dotPath, stringValue] tuples.
  */
 function flatten (obj, prefix = '') {
-  /** @type {Array<[string, string]>} */
+  /** @type {[string, string][]} */
   const result = []
   for (const [key, value] of Object.entries(obj)) {
     const path = prefix ? `${prefix}.${key}` : key
@@ -75,7 +75,7 @@ function flatten (obj, prefix = '') {
 /**
  * Prints dot-path / value pairs to stdout with aligned columns.
  *
- * @param {Array<[string, string]>} entries - Flat key-value pairs to display.
+ * @param {[string, string][]} entries - Flat key-value pairs to display.
  * @returns {void}
  */
 function printEntries (entries) {
@@ -301,7 +301,19 @@ export function registerConfigCommand (program) {
       await requirePassphraseConfirmation()
 
       if (all) {
+        // Preserve user-identity data across the reset — these are user-chosen
+        // records, not configuration values: which wallet is the default,
+        // user-added networks, and user-added tokens.
+        const preservedDefaultWallet = configService.getDefaultWallet()
+        const preservedCustomNetworks = configService.get('customNetworks')
+        const preservedCustomTokens = configService.get('customTokens')
+
         configService.clear()
+
+        if (preservedDefaultWallet) configService.setDefaultWallet(preservedDefaultWallet)
+        if (preservedCustomNetworks) configService.set('customNetworks', preservedCustomNetworks)
+        if (preservedCustomTokens) configService.set('customTokens', preservedCustomTokens)
+
         await daemonClient.lock()
 
         if (isJson()) {

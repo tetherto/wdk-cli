@@ -15,9 +15,10 @@
 import chalk from 'chalk'
 import ora from 'ora'
 import { resolveIndex } from '../services/config-service.js'
-import { handleError } from '../errors/index.js'
+import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
 import { formatNetworkLabel, formatAddress, formatTxHash } from '../ui/formatters.js'
 import { INDEXER_TOKENS } from '../services/indexer-service.js'
+import { resolveTokenIdentifier } from '../services/token-service.js'
 import { createTable } from '../ui/tables.js'
 import { configureHelp } from '../ui/help.js'
 import { positiveInt, nonNegativeInt } from '../ui/parsers.js'
@@ -42,23 +43,33 @@ export function registerGetCommand (program) {
 
   const address = get
     .command('address')
-    .description('Derive wallet address for a network. Omit --network to show all.')
+    .description('Derive a wallet address for one network (--network) or every network (--all)')
     .option('--wallet <name>', 'Wallet name')
-    .option('--network <network>', 'Blockchain network (omit for all)')
+    .option('--network <network>', 'Blockchain network')
+    .option('--all', 'Show address for every network')
     .option('--index <n>', 'Account index', nonNegativeInt)
-    .option('--testnet', 'Include testnet networks (for all-network mode)')
+    .option('--testnet', 'Include testnet networks (when --all)')
 
   configureHelp(address, {
-    params: [{ flags: '--network <network>', description: 'Blockchain network (omit for all)' }],
+    params: [
+      { flags: '--network <network>', description: 'Blockchain network (required, unless using --all)' },
+      { flags: '--all', description: 'Show address for every network' }
+    ],
     options: [
       { flags: '--wallet <name>', description: 'Wallet name (default: default wallet)' },
       { flags: '--index <n>', description: 'Account index (default: 0)' },
-      { flags: '--testnet', description: 'Include testnet networks (for all-network mode)' }
+      { flags: '--testnet', description: 'Include testnet networks (when --all)' }
     ]
   })
 
   address.action(async (options) => {
     try {
+      if (!options.network && !options.all) {
+        throw new WdkCliError(
+          'Provide --network <network> or --all.',
+          ErrorCode.INVALID_ARGUMENT
+        )
+      }
       const index = resolveIndex(options.index)
 
       if (options.network) {
@@ -106,15 +117,15 @@ export function registerGetCommand (program) {
 
       console.log()
       console.log(chalk.bold(`Wallet Addresses (index: ${result.index}, ${result.type}):`))
-      console.log()
       if (result.addresses.length === 0) {
+        console.log()
         console.log(chalk.dim('  No addresses available.'))
       } else {
-        console.log(`  ${'Network'.padEnd(28)} ${'Address'}`)
-        console.log(`  ${'─'.repeat(28)} ${'─'.repeat(44)}`)
+        const table = createTable(['Network', 'Address'])
         for (const r of result.addresses) {
-          console.log(`  ${formatNetworkLabel(r.network).padEnd(28)} ${r.address}`)
+          table.push([formatNetworkLabel(r.network), r.address])
         }
+        console.log(table.toString())
       }
       console.log()
     } catch (error) {
@@ -124,30 +135,39 @@ export function registerGetCommand (program) {
 
   const balance = get
     .command('balance')
-    .description('Check wallet balance (native, ERC-20, or SPL token). Omit --network to show all.')
+    .description('Check wallet balance (native, ERC-20, or SPL) for one network (--network) or every network (--all)')
     .option('--wallet <name>', 'Wallet name')
-    .option('--network <network>', 'Blockchain network (omit for all)')
+    .option('--network <network>', 'Blockchain network')
+    .option('--all', 'Show balances for every network')
     .option('--index <n>', 'Account index', nonNegativeInt)
-    .option('--token <address>', 'Token contract address (ERC-20 or SPL mint)')
-    .option('--testnet', 'Include testnet networks (for all-network mode)')
+    .option('--token <token>', 'Registered token (e.g. usdt); omit for native. See `wdk token list`')
+    .option('--testnet', 'Include testnet networks (when --all)')
 
   configureHelp(balance, {
     params: [
-      { flags: '--network <network>', description: 'Blockchain network (omit for all)' },
+      { flags: '--network <network>', description: 'Blockchain network (required, unless using --all)' },
+      { flags: '--all', description: 'Show balances for every network' },
       {
-        flags: '--token <address>',
-        description: 'Token contract address (ERC-20 or SPL mint), omit for native token'
+        flags: '--token <token>',
+        description:
+          'Registered token (e.g. usdt); omit for native. See `wdk token list`.'
       }
     ],
     options: [
       { flags: '--wallet <name>', description: 'Wallet name (default: default wallet)' },
       { flags: '--index <n>', description: 'Account index (default: 0)' },
-      { flags: '--testnet', description: 'Include testnet networks (for all-network mode)' }
+      { flags: '--testnet', description: 'Include testnet networks (when --all)' }
     ]
   })
 
   balance.action(async (options) => {
     try {
+      if (!options.network && !options.all) {
+        throw new WdkCliError(
+          'Provide --network <network> or --all.',
+          ErrorCode.INVALID_ARGUMENT
+        )
+      }
       const index = resolveIndex(options.index)
 
       if (options.network) {
@@ -155,10 +175,15 @@ export function registerGetCommand (program) {
         const spinner = program.opts().json ? null : ora('Fetching balance...').start()
         let result
         try {
+          let tokenArg
+          if (options.token) {
+            const resolved = resolveTokenIdentifier(network, options.token)
+            tokenArg = resolved.isNative ? undefined : resolved.address
+          }
           result = await getBalance({
             network,
             index,
-            token: options.token,
+            token: tokenArg,
             wallet: options.wallet
           })
           spinner?.stop()
@@ -205,20 +230,21 @@ export function registerGetCommand (program) {
 
       console.log()
       console.log(chalk.bold(`Wallet Balance (index: ${result.index}, ${result.type}):`))
-      console.log()
       if (result.balances.length === 0) {
+        console.log()
         console.log(chalk.dim('  No balances available.'))
       } else {
-        console.log(`  ${'Network'.padEnd(28)} ${'Address'.padEnd(17)} ${'Balance'}`)
-        console.log(`  ${'─'.repeat(28)} ${'─'.repeat(17)} ${'─'.repeat(24)}`)
+        const table = createTable(['Network', 'Address', 'Balance', 'USD'])
         for (const r of result.balances) {
-          const usdStr = chalk.dim(` (~$${r.usd.toFixed(2)})`)
-          console.log(
-            `  ${formatNetworkLabel(r.network).padEnd(28)} ${formatAddress(r.address, true).padEnd(17)} ${chalk.bold(r.formatted)}${usdStr}`
-          )
+          table.push([
+            formatNetworkLabel(r.network),
+            formatAddress(r.address, true),
+            chalk.bold(r.formatted),
+            chalk.dim(`~$${r.usd.toFixed(2)}`)
+          ])
         }
-        console.log()
-        console.log(`  ${chalk.bold(`Total: ~$${result.totalUsd.toFixed(2)}`)}`)
+        console.log(table.toString())
+        console.log(chalk.bold(`  Total: ~$${result.totalUsd.toFixed(2)}`))
       }
       console.log()
     } catch (error) {
@@ -315,7 +341,7 @@ export function registerGetCommand (program) {
         const row = [
           date,
           direction,
-          tx.amount,
+          tx.formatted ?? tx.amount,
           formatAddress(counterparty, true),
           formatTxHash(tx.transactionHash)
         ]

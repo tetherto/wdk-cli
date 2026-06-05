@@ -73,6 +73,9 @@ async function loadWalletManager (moduleSpec) {
   }
 }
 
+/**
+ * Holds the in-memory WDK instance and caches per-network wallet accounts.
+ */
 export class WdkService {
   constructor () {
     /** @type {WDK | null} */

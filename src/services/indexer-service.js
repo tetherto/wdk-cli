@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/** @typedef {import('../config/wdk-config.js').IndexerEntry} IndexerEntry */
-
 import { configService } from './config-service.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 import { walletsFile } from '../config/wdk-config.js'
+import { getAllTokens, getIndexerCode, getTokensSupportedBy } from './token-service.js'
 
 /**
  * @typedef {Object} TokenTransfer
@@ -55,59 +54,74 @@ import { walletsFile } from '../config/wdk-config.js'
  * @typedef {{ transfers: TokenTransfer[] } | { error: string, message: string, status: number }} BatchTransferResultItem
  */
 
-/** @type {Record<string, IndexerEntry>} */
-const INDEXER_MAP = {}
+/** @type {Record<string, string>} */
+const BUILTIN_INDEXER_SLUGS = {}
 for (const [name, entry] of Object.entries(walletsFile.networks)) {
-  if (entry.indexer) {
-    INDEXER_MAP[name] = entry.indexer
-  }
+  if (entry.indexerSlug) BUILTIN_INDEXER_SLUGS[name] = entry.indexerSlug
 }
 
-export const INDEXER_TOKENS = Object.freeze(['usdt', 'usat', 'xaut', 'btc'])
+/**
+ * The universe of indexer token codes known to any registered token.
+ * Derived from `metadata.indexerSlug` across the whole token registry.
+ *
+ * @type {readonly string[]}
+ */
+export const INDEXER_TOKENS = [
+  ...new Set(
+    Object.values(getAllTokens()).flatMap((tokens) =>
+      Object.values(tokens)
+        .map((t) => t.metadata?.indexerSlug)
+        .filter((c) => typeof c === 'string' && c.length > 0)
+    )
+  )
+]
 
 /**
- * Looks up the indexer entry for a network.
+ * Returns the indexer chain slug for a network, or `undefined` when the network
+ * has no `indexerSlug` configured. Absence is the authoritative signal that the
+ * indexer is not available for the network — callers should check via
+ * `isIndexerSupported` (or this function's return value) before constructing
+ * indexer URLs.
+ *
+ * Built-ins set `indexerSlug` in `wdk.config.json`; custom networks set it via
+ * `customNetworks.<name>.indexerSlug`.
  *
  * @param {string} network - The network name.
- * @returns {IndexerEntry | undefined} The indexer entry, or undefined if not found.
+ * @returns {string | undefined} The chain slug, or undefined if not configured.
  */
-function getIndexerEntry (network) {
-  if (INDEXER_MAP[network]) return INDEXER_MAP[network]
-  return /** @type {IndexerEntry | undefined} */ (
-    configService.get(`customNetworks.${network}.indexer`)
+export function getIndexerSlug (network) {
+  if (BUILTIN_INDEXER_SLUGS[network]) return BUILTIN_INDEXER_SLUGS[network]
+  return /** @type {string | undefined} */ (
+    configService.get(`customNetworks.${network}.indexerSlug`)
   )
 }
 
 /**
- * Returns the indexer blockchain identifier for a network.
+ * Returns the indexer codes supported for a network, collected from the token
+ * registry's `metadata.indexerSlug` field on each entry.
  *
  * @param {string} network - The network name.
- * @returns {string | undefined} The blockchain identifier, or undefined if not supported.
- */
-export function getIndexerBlockchain (network) {
-  return getIndexerEntry(network)?.blockchain
-}
-
-/**
- * Returns the supported indexer tokens for a network.
- *
- * @param {string} network - The network name.
- * @returns {string[]} Array of supported token symbols.
+ * @returns {string[]} Array of indexer token codes (e.g. ["usdt", "btc"]).
  */
 export function getIndexerTokens (network) {
-  const entry = getIndexerEntry(network)
-  if (!entry) return []
-  return entry.tokens.filter((t) => INDEXER_TOKENS.includes(t))
+  const codes = new Set()
+  for (const token of getTokensSupportedBy(network, 'indexerSlug')) {
+    const code = getIndexerCode(network, token)
+    if (code) codes.add(code)
+  }
+  return [...codes]
 }
 
 /**
- * Returns whether the indexer API is supported for a network.
+ * Returns whether the indexer API is supported for a network. A network is
+ * supported when it has an `indexerSlug` configured (either as a built-in
+ * field in `wdk.config.json` or under `customNetworks.<name>.indexerSlug`).
  *
  * @param {string} network - The network name.
- * @returns {boolean} True if the network has an indexer entry.
+ * @returns {boolean} True if the network has an `indexerSlug` configured.
  */
 export function isIndexerSupported (network) {
-  return !!getIndexerEntry(network)
+  return getIndexerSlug(network) !== undefined
 }
 
 /**
@@ -120,13 +134,13 @@ export function isIndexerSupported (network) {
  * @returns {Promise<TokenTransfer[]>} Array of token transfers.
  */
 export async function getTokenTransfers (network, token, address, options = {}) {
-  const blockchain = getIndexerBlockchain(network)
-  if (!blockchain) {
+  if (!isIndexerSupported(network)) {
     throw new WdkCliError(
       `Network '${network}' is not supported by the indexer API.`,
       ErrorCode.NETWORK_NOT_SUPPORTED
     )
   }
+  const blockchain = getIndexerSlug(network)
 
   const baseUrl = /** @type {string | undefined} */ (configService.get('indexer.baseUrl'))
   const apiKey = /** @type {string | undefined} */ (configService.get('indexer.apiKey'))

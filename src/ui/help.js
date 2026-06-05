@@ -23,7 +23,8 @@
 
 /**
  * @typedef {Object} HelpConfig
- * @property {HelpItem[]} [params] - Positional parameter items.
+ * @property {HelpItem[]} [args] - Positional argument items (rendered as `Args:` section).
+ * @property {HelpItem[]} [params] - Flag parameter items.
  * @property {HelpItem[]} [options] - Option items.
  * @property {string[]} [hideFlags] - Flag strings to hide from the global flags section.
  */
@@ -39,7 +40,7 @@
 function formatSection (title, items, pad) {
   const lines = [`${title}:`]
   for (const item of items) {
-    const label = item.required ? ' (required)' : ''
+    const label = item.required ? ' (REQUIRED)' : ''
     lines.push(`  ${item.flags.padEnd(pad)}${item.description}${label}`)
   }
   return lines.join('\n')
@@ -53,6 +54,7 @@ function formatSection (title, items, pad) {
  * @returns {void}
  */
 export function configureHelp (cmd, config) {
+  const hasArgs = config.args && config.args.length > 0
   const hasParams = config.params && config.params.length > 0
   const hasOptions = config.options && config.options.length > 0
 
@@ -61,12 +63,20 @@ export function configureHelp (cmd, config) {
       const usage = helper.commandUsage(cmd)
       const desc = helper.commandDescription(cmd)
 
-      const allItems = [...(config.params || []), ...(config.options || [])]
+      const allItems = [
+        ...(config.args || []),
+        ...(config.params || []),
+        ...(config.options || [])
+      ]
       const pad = allItems.length > 0 ? Math.max(...allItems.map((i) => i.flags.length)) + 4 : 24
 
       const sections = []
       sections.push(usage)
       if (desc) sections.push(desc)
+
+      if (hasArgs) {
+        sections.push(formatSection('Args', config.args, pad))
+      }
 
       if (hasParams) {
         sections.push(formatSection('Params', config.params, pad))

@@ -90,6 +90,9 @@ function spawnDaemon () {
   })
 }
 
+/**
+ * Thin client for the wallet daemon's Unix-socket API.
+ */
 export class DaemonClient {
   socketPath = getDaemonSocketPath()
 

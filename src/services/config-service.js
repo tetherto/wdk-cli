@@ -20,6 +20,10 @@ const ENV_MAP = {
   'indexer.apiKey': 'WDK_INDEXER_API_KEY'
 }
 
+/**
+ * Persistent user-config store backed by `Conf`. Env vars in `ENV_MAP` take
+ * precedence over stored values on read.
+ */
 class ConfigService {
   constructor () {
     this.conf = new Conf({
@@ -74,18 +78,20 @@ class ConfigService {
   }
 
   /**
-   * Returns the full config store, merging in any active environment variable overrides.
+   * Returns the full config store with environment variable overrides applied.
+   * Excludes `customTokens` — tokens are their own registry (`wdk token list`),
+   * not configuration.
    *
    * @returns {Record<string, unknown>} The merged config object.
    */
   list () {
-    const store = { ...this.conf.store }
+    const { customTokens: _ct, ...config } = { ...this.conf.store }
     for (const [confKey, envKey] of Object.entries(ENV_MAP)) {
       if (process.env[envKey]) {
-        this.#setNestedValue(store, confKey, process.env[envKey])
+        this.#setNestedValue(config, confKey, process.env[envKey])
       }
     }
-    return store
+    return config
   }
 
   /**
