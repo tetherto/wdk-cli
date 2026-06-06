@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/** @typedef {import('./protocol.js').DaemonRequest} DaemonRequest */
-/** @typedef {import('./protocol.js').DaemonResponse} DaemonResponse */
-/** @typedef {import('./protocol.js').WalletStatus} WalletStatus */
-/** @typedef {import('node:net').Server} Server */
-/** @typedef {import('node:net').Socket} Socket */
-
 import { createServer } from 'node:net'
 import { readFileSync } from 'node:fs'
 import { writeFile, unlink, chmod, mkdir } from 'node:fs/promises'
@@ -36,6 +30,12 @@ import { isValidNetwork, getNetworkConfig } from '../config/networks.js'
 import { getTokenByAddress } from '../services/token-service.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 import { formatAmount } from '../ui/formatters.js'
+
+/** @typedef {import('./protocol.js').DaemonRequest} DaemonRequest */
+/** @typedef {import('./protocol.js').DaemonResponse} DaemonResponse */
+/** @typedef {import('./protocol.js').WalletStatus} WalletStatus */
+/** @typedef {import('node:net').Server} Server */
+/** @typedef {import('node:net').Socket} Socket */
 
 /**
  * @typedef {Object} WalletState

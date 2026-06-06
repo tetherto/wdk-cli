@@ -12,18 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import MoonPayProtocol from '@tetherto/wdk-protocol-fiat-moonpay'
+import { WdkCliError, ErrorCode } from '../../errors/index.js'
+import { resolveAsset } from '../../config/ramp.js'
+import { isTestnet } from '../../config/networks.js'
+import { configService } from '../config-service.js'
+
 /** @typedef {import('./types.js').RampProvider} RampProvider */
 /** @typedef {import('./types.js').RampInput} RampInput */
 /** @typedef {import('./types.js').ResolvedAssets} ResolvedAssets */
 /** @typedef {import('./types.js').QuoteResult} QuoteResult */
 /** @typedef {import('./types.js').UrlResult} UrlResult */
 /** @typedef {import('./types.js').Direction} Direction */
-
-import MoonPayProtocol from '@tetherto/wdk-protocol-fiat-moonpay'
-import { WdkCliError, ErrorCode } from '../../errors/index.js'
-import { resolveAsset } from '../../config/ramp.js'
-import { isTestnet } from '../../config/networks.js'
-import { configService } from '../config-service.js'
 
 /**
  * @typedef {Object} MoonPayConfig

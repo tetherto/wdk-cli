@@ -12,16 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/** @typedef {import('./protocol.js').DaemonRequest} DaemonRequest */
-/** @typedef {import('./protocol.js').DaemonResponse} DaemonResponse */
-/** @typedef {import('./protocol.js').GetAddressResult} GetAddressResult */
-/** @typedef {import('./protocol.js').GetBalanceResult} GetBalanceResult */
-/** @typedef {import('./protocol.js').EstimateFeeResult} EstimateFeeResult */
-/** @typedef {import('./protocol.js').SendResult} SendResult */
-/** @typedef {import('./protocol.js').WalletStatus} WalletStatus */
-/** @typedef {import('./protocol.js').ListWalletsResult} ListWalletsResult */
-/** @typedef {import('./protocol.js').StatusResult} StatusResult */
-
 import { connect } from 'node:net'
 import { spawn } from 'node:child_process'
 import { readFile, access, unlink } from 'node:fs/promises'
@@ -34,10 +24,20 @@ import {
   DAEMON_SPAWN_TIMEOUT_MS
 } from '../config/constants.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
-/** @typedef {import('../errors/index.js').ErrorCodeType} ErrorCodeType */
 import { configService } from '../services/config-service.js'
 import { KeyService } from '../services/key-service.js'
 import { WalletKeyring } from '../security/keyring.js'
+
+/** @typedef {import('./protocol.js').DaemonRequest} DaemonRequest */
+/** @typedef {import('./protocol.js').DaemonResponse} DaemonResponse */
+/** @typedef {import('./protocol.js').GetAddressResult} GetAddressResult */
+/** @typedef {import('./protocol.js').GetBalanceResult} GetBalanceResult */
+/** @typedef {import('./protocol.js').EstimateFeeResult} EstimateFeeResult */
+/** @typedef {import('./protocol.js').SendResult} SendResult */
+/** @typedef {import('./protocol.js').WalletStatus} WalletStatus */
+/** @typedef {import('./protocol.js').ListWalletsResult} ListWalletsResult */
+/** @typedef {import('./protocol.js').StatusResult} StatusResult */
+/** @typedef {import('../errors/index.js').ErrorCodeType} ErrorCodeType */
 
 /**
  * Resolves the absolute path to the wdk-daemon.mjs binary, relative to this file.

@@ -21,6 +21,8 @@ import { configureHelp } from '../ui/help.js'
 import { requirePassphraseConfirmation } from '../ui/auth.js'
 import { daemonClient } from '../daemon/client.js'
 
+/** @typedef {import('commander').Command} Command */
+
 /**
  * Returns true when the given config path affects the SDK's per-network wallet registration.
  * Changes under `networks.*` require the daemon to be locked so stale wallet managers are dropped.
@@ -31,8 +33,6 @@ import { daemonClient } from '../daemon/client.js'
 function affectsSdkRegistration (fullKey) {
   return fullKey === 'networks' || fullKey.startsWith('networks.')
 }
-
-/** @typedef {import('commander').Command} Command */
 
 /**
  * Traverses a nested object by a dot-separated path and returns the value.
