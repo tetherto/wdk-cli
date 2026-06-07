@@ -399,48 +399,41 @@ export function registerWalletCommand (program) {
 
       const ttl = options.ttl
 
+      const passphrase = await promptPassphrase(`Enter passphrase of '${name}' wallet to unlock:`)
+      await keyService.unlock(passphrase, name)
+
+      let alreadyUnlocked = false
       if (await daemonClient.isRunning()) {
         try {
           const status = await daemonClient.status()
-          const existing = status.wallets.find((w) => w.name === name)
-          if (existing) {
-            await daemonClient.unlockWallet(name, '', ttl)
-            if (isJson()) {
-              console.log(
-                JSON.stringify({ wallet: name, unlocked: true, alreadyUnlocked: true, ttl })
-              )
-            } else if (ttl === 0) {
-              console.log(
-                chalk.yellow(`  Wallet '${name}' already unlocked (timer set to unlimited)`)
-              )
-            } else {
-              console.log(
-                chalk.yellow(`  Wallet '${name}' already unlocked (timer reset to ${ttl} min)`)
-              )
-            }
-            return
-          }
+          alreadyUnlocked = !!status.wallets.find((w) => w.name === name)
         } catch {
-          /* daemon unreachable, continue */
+          /* daemon unreachable */
         }
       }
-
-      const passphrase = await promptPassphrase(`Enter passphrase to unlock '${name}':`)
 
       const spinner = isJson() ? null : ora(`Unlocking '${name}'...`).start()
       await daemonClient.ensureRunning()
       await daemonClient.unlockWallet(name, passphrase, ttl)
 
-      spinner?.succeed(`Wallet '${name}' unlocked`)
+      spinner?.succeed(alreadyUnlocked ? `Wallet '${name}' timer reset` : `Wallet '${name}' unlocked`)
 
       if (isJson()) {
-        console.log(JSON.stringify({ wallet: name, unlocked: true, ttl }))
+        console.log(JSON.stringify({ wallet: name, unlocked: true, alreadyUnlocked, ttl }))
       } else {
         console.log()
-        if (ttl === 0) {
-          console.log(chalk.dim('  Session will not expire'))
+        if (alreadyUnlocked) {
+          if (ttl === 0) {
+            console.log(chalk.dim('  Session timer reset (no expiration)'))
+          } else {
+            console.log(chalk.dim(`  Session timer reset to ${ttl} minutes`))
+          }
         } else {
-          console.log(chalk.dim(`  Session locks after ${ttl} minutes`))
+          if (ttl === 0) {
+            console.log(chalk.dim('  Session will not expire'))
+          } else {
+            console.log(chalk.dim(`  Session locks after ${ttl} minutes`))
+          }
         }
         console.log(chalk.dim(`  Run \`wdk wallet lock --name ${name}\` to end session`))
         console.log()
