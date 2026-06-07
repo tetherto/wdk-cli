@@ -64,7 +64,7 @@ export async function getBalance (input) {
     symbol: r.symbol,
     decimals: r.decimals,
     formatted: formatAmount(balanceBigInt, r.decimals, r.symbol),
-    usd: Math.round(usd * 100) / 100,
+    usd,
     ...(input.token ? { token: input.token } : {})
   }
 }

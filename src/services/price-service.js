@@ -147,12 +147,13 @@ export async function getTokenUsdPrice (network, tokenAddress) {
 }
 
 /**
- * Converts a native or token amount (in base units) to a USD value.
+ * Converts a native or token amount (in base units) to a USD value, rounded
+ * to 2 decimal places (USD's standard display precision).
  *
  * @param {string} network - The network name.
  * @param {bigint} amount - The amount in base units (e.g. wei, satoshis).
  * @param {string} [tokenAddress] - The token contract address; omit for native token.
- * @returns {Promise<number>} The equivalent USD value.
+ * @returns {Promise<number>} The equivalent USD value, rounded to 2 decimal places.
  */
 export async function convertToUsd (network, amount, tokenAddress) {
   if (tokenAddress) {
@@ -162,7 +163,7 @@ export async function convertToUsd (network, amount, tokenAddress) {
     }
     const price = await getTokenUsdPrice(network, tokenAddress)
     const value = new BigNumber(amount.toString()).shiftedBy(-tokenInfo.decimals)
-    return value.multipliedBy(price).toNumber()
+    return Math.round(value.multipliedBy(price).toNumber() * 100) / 100
   }
   const native = getNativeToken(network)
   if (!native) {
@@ -173,5 +174,5 @@ export async function convertToUsd (network, amount, tokenAddress) {
   }
   const price = await getNativeUsdPrice(network)
   const value = new BigNumber(amount.toString()).shiftedBy(-native.decimals)
-  return value.multipliedBy(price).toNumber()
+  return Math.round(value.multipliedBy(price).toNumber() * 100) / 100
 }

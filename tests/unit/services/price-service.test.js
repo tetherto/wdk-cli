@@ -67,15 +67,15 @@ describe('price-service', () => {
     }
   })
 
-  it('preserves precision for bigint above Number.MAX_SAFE_INTEGER', async () => {
+  it('handles bigint above Number.MAX_SAFE_INTEGER (rounded to 2 dp)', async () => {
     globalThis.fetch = makeFetchMock({ ...DEFAULT_PRICES, tETHUSD: 1 })
     try {
       const { convertToUsd } = await loadService()
+      // 1.234567890123456789 ETH @ $1 → rounds to $1.23
       const amount = 1_234_567_890_123_456_789n
       const usd = await convertToUsd('ethereum', amount)
       expect(Number.isFinite(usd)).toBe(true)
-      const expected = Number(amount) / 1e18
-      expect(Math.abs(usd - expected)).toBeLessThan(1e-12)
+      expect(usd).toBe(1.23)
     } finally {
       globalThis.fetch = originalFetch
     }
