@@ -99,10 +99,6 @@ export function registerConfigCommand (program) {
     .description('Manage CLI configuration')
     .option('--network <network>', 'Scope to a specific network')
 
-  function isJson () {
-    return !!program.opts().json
-  }
-
   configureHelp(config, {})
 
   const getCmd = config
@@ -142,7 +138,7 @@ export function registerConfigCommand (program) {
         validateNetwork(network)
         if (key) {
           const value = configService.get(`networks.${network}.${key}`)
-          if (isJson()) {
+          if (program.opts().json) {
             console.log(JSON.stringify({ key, network, value: value ?? null }))
           } else if (value === undefined) {
             console.log(chalk.yellow(`Key '${key}' is not set for ${network}.`))
@@ -151,7 +147,7 @@ export function registerConfigCommand (program) {
           }
         } else {
           const networkConfig = configService.get(`networks.${network}`)
-          if (isJson()) {
+          if (program.opts().json) {
             console.log(JSON.stringify({ network, config: networkConfig ?? {} }))
           } else if (networkConfig && typeof networkConfig === 'object') {
             console.log()
@@ -169,7 +165,7 @@ export function registerConfigCommand (program) {
         }
       } else if (key) {
         const value = configService.get(key)
-        if (isJson()) {
+        if (program.opts().json) {
           console.log(JSON.stringify({ key, value: value ?? null }))
         } else if (value === undefined) {
           console.log(chalk.yellow(`Key '${key}' is not set.`))
@@ -178,7 +174,7 @@ export function registerConfigCommand (program) {
         }
       } else {
         const allConfig = configService.list()
-        if (isJson()) {
+        if (program.opts().json) {
           console.log(JSON.stringify(allConfig))
         } else {
           printEntries(flatten(allConfig))
@@ -186,7 +182,7 @@ export function registerConfigCommand (program) {
         }
       }
     } catch (error) {
-      handleError(error, program.opts().verbose, isJson())
+      handleError(error, program.opts().verbose, program.opts().json)
     }
   })
 
@@ -235,7 +231,7 @@ export function registerConfigCommand (program) {
 
       configService.set(fullKey, parsed)
 
-      if (isJson()) {
+      if (program.opts().json) {
         console.log(JSON.stringify({ key: fullKey, value: parsed, success: true }))
       } else if (network && !key) {
         console.log(chalk.green(`Updated config for ${network}`))
@@ -247,7 +243,7 @@ export function registerConfigCommand (program) {
 
       if (affectsSdkRegistration(fullKey)) {
         await daemonClient.lock()
-        if (!isJson()) {
+        if (!program.opts().json) {
           console.log(
             chalk.yellow(
               'Note: all wallets have been locked so the new network config takes effect. Run `wdk wallet unlock` to continue.'
@@ -256,7 +252,7 @@ export function registerConfigCommand (program) {
         }
       }
     } catch (error) {
-      handleError(error, program.opts().verbose, isJson())
+      handleError(error, program.opts().verbose, program.opts().json)
     }
   })
 
@@ -316,7 +312,7 @@ export function registerConfigCommand (program) {
 
         await daemonClient.lock()
 
-        if (isJson()) {
+        if (program.opts().json) {
           console.log(JSON.stringify({ reset: true, all: true }))
         } else {
           console.log(chalk.green('All config has been reset to factory defaults.'))
@@ -343,7 +339,7 @@ export function registerConfigCommand (program) {
         configService.delete(fullKey)
       }
 
-      if (isJson()) {
+      if (program.opts().json) {
         console.log(JSON.stringify({ key: fullKey, reset: true, value: defaultValue ?? null }))
       } else if (network) {
         console.log(chalk.green(`Reset ${key} to default (${network}).`))
@@ -353,7 +349,7 @@ export function registerConfigCommand (program) {
 
       if (affectsSdkRegistration(fullKey)) {
         await daemonClient.lock()
-        if (!isJson()) {
+        if (!program.opts().json) {
           console.log(
             chalk.yellow(
               'Note: all wallets have been locked so the new network config takes effect. Run `wdk wallet unlock` to continue.'
@@ -362,7 +358,7 @@ export function registerConfigCommand (program) {
         }
       }
     } catch (error) {
-      handleError(error, program.opts().verbose, isJson())
+      handleError(error, program.opts().verbose, program.opts().json)
     }
   })
 
@@ -371,7 +367,7 @@ export function registerConfigCommand (program) {
   configureHelp(pathCmd, {})
 
   pathCmd.action(() => {
-    if (isJson()) {
+    if (program.opts().json) {
       console.log(JSON.stringify({ path: configService.configPath }))
     } else {
       console.log(configService.configPath)

@@ -103,7 +103,8 @@ export class WdkCliError extends Error {
  * Top-level error handler for CLI commands. Always calls `process.exit`.
  *
  * @param {unknown} error - The thrown value to report.
- * @param {boolean} [verbose] - When true, includes the stack trace in non-JSON output.
+ * @param {boolean} [verbose] - When true, includes the stack trace in the output
+ *   (appended after the message in text mode, added as a `stack` field in JSON mode).
  * @param {boolean} [json] - When true, prints a single JSON line instead of the human-readable format.
  * @returns {never}
  */
@@ -114,11 +115,13 @@ export function handleError (error, verbose = false, json = false) {
         JSON.stringify({
           error: error.message,
           code: error.code,
-          ...(error.suggestion ? { suggestion: error.suggestion } : {})
+          ...(error.suggestion ? { suggestion: error.suggestion } : {}),
+          ...(verbose && error.stack ? { stack: error.stack } : {})
         })
       )
     } else {
       error.display()
+      if (verbose && error.stack) console.error(error.stack)
     }
     process.exit(1)
   }
@@ -137,21 +140,29 @@ export function handleError (error, verbose = false, json = false) {
       const match = messages[err.code]
       if (match) {
         if (json) {
-          console.log(JSON.stringify({ error: match, code: err.code }))
+          console.log(JSON.stringify({
+            error: match,
+            code: err.code,
+            ...(verbose && error.stack ? { stack: error.stack } : {})
+          }))
         } else {
           console.error(chalk.red(`Error: ${match}`))
+          if (verbose && error.stack) console.error(error.stack)
         }
-        if (verbose && !json) console.error(error.stack)
         process.exit(1)
       }
     }
 
     if (json) {
-      console.log(JSON.stringify({ error: error.message, code: ErrorCode.UNKNOWN_ERROR }))
+      console.log(JSON.stringify({
+        error: error.message,
+        code: ErrorCode.UNKNOWN_ERROR,
+        ...(verbose && error.stack ? { stack: error.stack } : {})
+      }))
     } else {
       console.error(chalk.red(`Error: ${error.message}`))
+      if (verbose && error.stack) console.error(error.stack)
     }
-    if (verbose && !json) console.error(error.stack)
     process.exit(1)
   }
 

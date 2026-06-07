@@ -176,8 +176,8 @@ export function registerMcpCommand (program) {
   setup.action((options) => {
     try {
       printSetupResult(setupMcp(options.aiTool))
-    } catch (e) {
-      handleError(e, program.opts().verbose, program.opts().json)
+    } catch (error) {
+      handleError(error, program.opts().verbose, program.opts().json)
     }
   })
 
@@ -199,8 +199,8 @@ export function registerMcpCommand (program) {
   remove.action((options) => {
     try {
       printRemoveResult(removeMcp(options.aiTool))
-    } catch (e) {
-      handleError(e, program.opts().verbose, program.opts().json)
+    } catch (error) {
+      handleError(error, program.opts().verbose, program.opts().json)
     }
   })
 
@@ -222,8 +222,8 @@ export function registerMcpCommand (program) {
   verifySetup.action((options) => {
     try {
       printVerifyResult(verifyMcpSetup(options.aiTool), options.aiTool)
-    } catch (e) {
-      handleError(e, program.opts().verbose, program.opts().json)
+    } catch (error) {
+      handleError(error, program.opts().verbose, program.opts().json)
     }
   })
 
@@ -234,8 +234,8 @@ export function registerMcpCommand (program) {
   list.action(() => {
     try {
       printList(listMcpStatus())
-    } catch (e) {
-      handleError(e, program.opts().verbose, program.opts().json)
+    } catch (error) {
+      handleError(error, program.opts().verbose, program.opts().json)
     }
   })
 }

@@ -49,10 +49,6 @@ export function registerWalletCommand (program) {
 
   configureHelp(wallet, {})
 
-  function isJson () {
-    return !!program.opts().json
-  }
-
   const create = wallet
     .command('create')
     .description('Create a new wallet with a generated seed phrase')
@@ -80,7 +76,7 @@ export function registerWalletCommand (program) {
 
       const seedPhrase = keyService.generate(wordCount)
 
-      if (!isJson()) {
+      if (!program.opts().json) {
         console.log(
           chalk.dim(
             'Enter a passphrase to encrypt your seed phrase. Remember the passphrase to unlock this wallet in the future.'
@@ -90,7 +86,7 @@ export function registerWalletCommand (program) {
       }
 
       const passphrase = await promptPassphrase('Passphrase (empty for none):')
-      if (passphrase === '' && !isJson()) {
+      if (passphrase === '' && !program.opts().json) {
         console.log()
         console.log(
           chalk.bold.yellow(
@@ -103,7 +99,7 @@ export function registerWalletCommand (program) {
       if (passphrase !== confirmPw) {
         throw new WdkCliError('Passphrases do not match.', ErrorCode.PASSPHRASE_MISMATCH)
       }
-      const spinner = isJson() ? null : ora('Encrypting and storing seed phrase...').start()
+      const spinner = program.opts().json ? null : ora('Encrypting and storing seed phrase...').start()
       await keyService.store(seedPhrase, passphrase, name)
       spinner?.succeed(`Seed phrase encrypted and stored as '${name}'.`)
 
@@ -113,7 +109,7 @@ export function registerWalletCommand (program) {
         setAsDefault = true
       }
 
-      if (isJson()) {
+      if (program.opts().json) {
         console.log(JSON.stringify({ wallet: name, seedPhrase, setAsDefault }))
       } else {
         console.log()
@@ -128,7 +124,7 @@ export function registerWalletCommand (program) {
         if (setAsDefault) console.log(chalk.dim('  Set as default wallet.'))
       }
     } catch (error) {
-      handleError(error, program.opts().verbose, isJson())
+      handleError(error, program.opts().verbose, program.opts().json)
     }
   })
 
@@ -150,7 +146,7 @@ export function registerWalletCommand (program) {
         throw new WdkCliError(`Wallet '${name}' already exists.`, ErrorCode.WALLET_EXISTS)
       }
 
-      if (!isJson()) console.log(chalk.dim('Enter your BIP-39 seed phrase (12 or 24 words).'))
+      if (!program.opts().json) console.log(chalk.dim('Enter your BIP-39 seed phrase (12 or 24 words).'))
       const seedPhrase = (await promptSeedPhrase()).trim()
 
       if (!keyService.validate(seedPhrase)) {
@@ -160,7 +156,7 @@ export function registerWalletCommand (program) {
         )
       }
 
-      if (!isJson()) {
+      if (!program.opts().json) {
         console.log(
           chalk.dim(
             'Enter a passphrase to encrypt your seed phrase. Remember the passphrase to unlock this wallet in the future.'
@@ -170,7 +166,7 @@ export function registerWalletCommand (program) {
       }
 
       const passphrase = await promptPassphrase('Passphrase (empty for none):')
-      if (passphrase === '' && !isJson()) {
+      if (passphrase === '' && !program.opts().json) {
         console.log()
         console.log(
           chalk.bold.yellow(
@@ -184,7 +180,7 @@ export function registerWalletCommand (program) {
         throw new WdkCliError('Passphrases do not match.', ErrorCode.PASSPHRASE_MISMATCH)
       }
 
-      const spinner = isJson() ? null : ora('Encrypting and storing seed phrase...').start()
+      const spinner = program.opts().json ? null : ora('Encrypting and storing seed phrase...').start()
       await keyService.store(seedPhrase, passphrase, name)
       spinner?.succeed(`Seed phrase imported and encrypted as '${name}'.`)
 
@@ -194,13 +190,13 @@ export function registerWalletCommand (program) {
         setAsDefault = true
       }
 
-      if (isJson()) {
+      if (program.opts().json) {
         console.log(JSON.stringify({ wallet: name, imported: true, setAsDefault }))
       } else {
         if (setAsDefault) console.log(chalk.dim('  Set as default wallet.'))
       }
     } catch (error) {
-      handleError(error, program.opts().verbose, isJson())
+      handleError(error, program.opts().verbose, program.opts().json)
     }
   })
 
@@ -225,7 +221,7 @@ export function registerWalletCommand (program) {
       const passphrase = await promptPassphrase(`Enter passphrase of '${name}' wallet:`)
       const seedPhrase = await keyService.unlock(passphrase, name)
 
-      if (isJson()) {
+      if (program.opts().json) {
         console.log(JSON.stringify({ wallet: name, seedPhrase }))
       } else {
         console.log()
@@ -237,7 +233,7 @@ export function registerWalletCommand (program) {
         console.log()
       }
     } catch (error) {
-      handleError(error, program.opts().verbose, isJson())
+      handleError(error, program.opts().verbose, program.opts().json)
     }
   })
 
@@ -262,7 +258,7 @@ export function registerWalletCommand (program) {
 
       const defaultWallet = configService.getDefaultWallet()
 
-      if (isJson()) {
+      if (program.opts().json) {
         const result = wallets.map((name) => {
           const unlocked = unlockedWallets.find((w) => w.name === name)
           return {
@@ -306,7 +302,7 @@ export function registerWalletCommand (program) {
       console.log(chalk.dim(`\n  ${wallets.length} wallet${wallets.length === 1 ? '' : 's'}`))
       console.log()
     } catch (error) {
-      handleError(error, program.opts().verbose, isJson())
+      handleError(error, program.opts().verbose, program.opts().json)
     }
   })
 
@@ -354,7 +350,7 @@ export function registerWalletCommand (program) {
         }
       }
 
-      if (isJson()) {
+      if (program.opts().json) {
         console.log(
           JSON.stringify({ wallet: name, deleted: true, ...(newDefault ? { newDefault } : {}) })
         )
@@ -363,7 +359,7 @@ export function registerWalletCommand (program) {
         if (newDefault) console.log(chalk.dim(`  Default wallet changed to '${newDefault}'.`))
       }
     } catch (error) {
-      handleError(error, program.opts().verbose, isJson())
+      handleError(error, program.opts().verbose, program.opts().json)
     }
   })
 
@@ -412,13 +408,13 @@ export function registerWalletCommand (program) {
         }
       }
 
-      const spinner = isJson() ? null : ora(`Unlocking '${name}'...`).start()
+      const spinner = program.opts().json ? null : ora(`Unlocking '${name}'...`).start()
       await daemonClient.ensureRunning()
       await daemonClient.unlockWallet(name, passphrase, ttl)
 
       spinner?.succeed(alreadyUnlocked ? `Wallet '${name}' timer reset` : `Wallet '${name}' unlocked`)
 
-      if (isJson()) {
+      if (program.opts().json) {
         console.log(JSON.stringify({ wallet: name, unlocked: true, alreadyUnlocked, ttl }))
       } else {
         console.log()
@@ -439,7 +435,7 @@ export function registerWalletCommand (program) {
         console.log()
       }
     } catch (error) {
-      handleError(error, program.opts().verbose, isJson())
+      handleError(error, program.opts().verbose, program.opts().json)
     }
   })
 
@@ -470,7 +466,7 @@ export function registerWalletCommand (program) {
           await daemonClient.lock()
         }
 
-        if (isJson()) {
+        if (program.opts().json) {
           console.log(JSON.stringify({ locked: true, all: true }))
         } else {
           console.log()
@@ -486,7 +482,7 @@ export function registerWalletCommand (program) {
       }
 
       if (!(await daemonClient.isRunning())) {
-        if (isJson()) {
+        if (program.opts().json) {
           console.log(JSON.stringify({ wallet: name, locked: true, alreadyLocked: true }))
         } else {
           console.log(chalk.dim(`  Wallet '${name}' is already locked.`))
@@ -496,7 +492,7 @@ export function registerWalletCommand (program) {
 
       await daemonClient.lockWallet(name)
 
-      if (isJson()) {
+      if (program.opts().json) {
         console.log(JSON.stringify({ wallet: name, locked: true }))
       } else {
         console.log()
@@ -504,7 +500,7 @@ export function registerWalletCommand (program) {
         console.log()
       }
     } catch (error) {
-      handleError(error, program.opts().verbose, isJson())
+      handleError(error, program.opts().verbose, program.opts().json)
     }
   })
 
@@ -536,13 +532,13 @@ export function registerWalletCommand (program) {
       }
 
       configService.setDefaultWallet(name)
-      if (isJson()) {
+      if (program.opts().json) {
         console.log(JSON.stringify({ wallet: name, default: true }))
       } else {
         console.log(chalk.green(`  Default wallet set to '${name}'.`))
       }
     } catch (error) {
-      handleError(error, program.opts().verbose, isJson())
+      handleError(error, program.opts().verbose, program.opts().json)
     }
   })
 
@@ -592,13 +588,13 @@ export function registerWalletCommand (program) {
         configService.setDefaultWallet(newName)
       }
 
-      if (isJson()) {
+      if (program.opts().json) {
         console.log(JSON.stringify({ oldName, newName, renamed: true }))
       } else {
         console.log(chalk.green(`  Wallet '${oldName}' renamed to '${newName}'.`))
       }
     } catch (error) {
-      handleError(error, program.opts().verbose, isJson())
+      handleError(error, program.opts().verbose, program.opts().json)
     }
   })
 }
