@@ -66,7 +66,8 @@ function errorResponse (e) {
 
 /**
  * Long-lived wallet daemon. Holds unlocked WDK instances in memory and serves
- * CLI/MCP requests over a Unix socket.
+ * CLI/MCP requests over a local IPC endpoint (Unix domain socket on
+ * macOS/Linux, named pipe on Windows).
  */
 export class WalletDaemon {
   /** @type {Map<string, WalletState>} */
@@ -75,7 +76,10 @@ export class WalletDaemon {
   #server = null
 
   /**
-   * Starts the daemon: creates the Unix socket, writes the PID file, and begins accepting connections.
+   * Starts the daemon: creates the IPC endpoint (Unix domain socket on
+   * macOS/Linux, named pipe on Windows), writes the PID file, and begins
+   * accepting connections. Access is restricted to the current user on both
+   * platforms (umask 0o077 on Unix, default per-user ACL on Windows).
    *
    * @returns {Promise<void>}
    */
