@@ -98,11 +98,11 @@ wdk get balance --all
 # Check balance for a specific wallet
 wdk get balance --all --wallet savings
 
-# Send 1 ETH (decimal default; add --base-units to send in wei)
-wdk send --to 0x000000000000000000000000000000000000dEaD --amount 1 --network ethereum
+# Send 1.23456 ETH (decimal default; add --base-units to send in wei)
+wdk send --to 0x000000000000000000000000000000000000dEaD --amount 1.23456 --network ethereum
 
-# Send 100 USDT (registered token ticker — see `wdk token list`)
-wdk send --to 0x... --amount 100 --token usdt --network ethereum --wallet trading
+# Send 100.5 USDT (registered token ticker — see `wdk token list`)
+wdk send --to 0x... --amount 100.5 --token usdt --network ethereum --wallet trading
 
 # Show network details and config
 wdk network info --network ethereum
@@ -295,7 +295,7 @@ wdk send --to <address> --amount <baseUnits> --base-units --network ethereum    
 wdk send --to <address> --amount <decimal> --network ethereum --dry-run            # preview without sending
 ```
 
-`--amount` is decimal by default (e.g. `1.5` for 1.5 ETH, `0.001` for 0.001 BTC). The CLI converts using the token's registered decimals. Pass `--base-units` to interpret the value as raw base units (wei/satoshi/lamport) — useful for scripts that already have BigInt amounts. Fee estimation runs before confirmation; use `--dry-run` to preview the transaction with fee and USD estimates without sending.
+`--amount` is decimal by default (e.g. `1.5` for 1.5 ETH, `0.001` for 0.001 BTC, `1.23456789012345678` for full 18-decimal ETH precision). The CLI converts using the token's registered decimals. If the value has more decimal places than the token allows (e.g. `1.12345678` with 6-decimal USDT), it's rejected with `INVALID_AMOUNT`. Pass `--base-units` to interpret the value as raw base units (wei/satoshi/lamport) — useful for scripts that already have BigInt amounts. Fee estimation runs before confirmation; use `--dry-run` to preview the transaction with fee and USD estimates without sending.
 
 ### Buy / Sell (On/Off Ramp)
 
@@ -475,8 +475,8 @@ For AI agents with full system access (Claude Code, OpenClaw, custom agents). Th
 
 ```bash
 wdk get balance --network ethereum --json
-wdk send --to 0xRECIPIENT --amount 1 --network ethereum --dry-run --json     # 1 ETH (decimal)
-wdk send --to 0xRECIPIENT --amount 100 --token usdt --network ethereum --json # 100 USDT by ticker
+wdk send --to 0xRECIPIENT --amount 1.23456 --network ethereum --dry-run --json   # decimal accepted (up to token precision)
+wdk send --to 0xRECIPIENT --amount 100.5 --token usdt --network ethereum --json  # decimal USDT by ticker
 ```
 
 The `SKILL.md` file contains complete instructions for AI agents — commands, workflows, error handling, and amount conversions. Feed it as context to your agent.
