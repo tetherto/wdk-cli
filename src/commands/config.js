@@ -223,7 +223,8 @@ export function registerConfigCommand (program) {
       let parsed = value
       try {
         parsed = JSON.parse(value)
-      } catch {
+      } catch (err) {
+        if (!(err instanceof SyntaxError)) throw err
         /* not JSON, use raw value */
       }
 
