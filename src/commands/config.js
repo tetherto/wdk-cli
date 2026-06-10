@@ -227,7 +227,12 @@ export function registerConfigCommand (program) {
         /* not JSON, use raw value */
       }
 
-      const fullKey = network ? (key ? `networks.${network}.${key}` : `networks.${network}`) : key
+      let fullKey
+      if (network) {
+        fullKey = key ? `networks.${network}.${key}` : `networks.${network}`
+      } else {
+        fullKey = key
+      }
 
       configService.set(fullKey, parsed)
 
