@@ -2,6 +2,8 @@
 
 A multi-chain crypto wallet for AI agents, built on [Wallet Development Kit (WDK)](https://wallet.tether.io/). Designed to be operated by AI agents (e.g. Claude, ChatGPT, OpenClaw).
 
+> **AI agents:** see [`SKILL.md`](./SKILL.md) for the complete operational guide — commands, workflows, error handling, and safety rules.
+
 ## Architecture
 
 ```
