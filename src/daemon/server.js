@@ -16,6 +16,7 @@ import { createServer } from 'node:net'
 import { readFileSync } from 'node:fs'
 import { writeFile, unlink, chmod, mkdir } from 'node:fs/promises'
 import { dirname } from 'node:path'
+import { mnemonicToSeedSync } from 'bip39'
 import {
   getDaemonSocketPath,
   getDaemonPidPath,
@@ -136,14 +137,16 @@ export class WalletDaemon {
     const salt = Buffer.from(payload.salt, 'hex')
     const key = deriveKey(passphrase, salt)
     try {
-      let seed
+      let seedPhrase
       try {
-        seed = decryptWithKey(payload, key)
+        seedPhrase = decryptWithKey(payload, key)
       } catch {
         throw new WdkCliError('Incorrect passphrase.', ErrorCode.WRONG_PASSPHRASE)
       }
+      // Buffer (not the immutable mnemonic string) so the seed can be zeroed on lock.
+      const seedBuffer = mnemonicToSeedSync(seedPhrase)
       const wdk = new WdkService()
-      wdk.createInstance(seed)
+      wdk.createInstance(seedBuffer)
 
       const ttlMs = ttlMinutes === 0 ? 0 : ttlMinutes * 60 * 1000
       const state = {

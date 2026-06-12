@@ -14,7 +14,7 @@
 
 import WDK from '@tetherto/wdk'
 import chalk from 'chalk'
-import { isValidNetwork, getNetworkConfig, parseModuleName } from '../config/networks.js'
+import { getNetworkConfig, parseModuleName } from '../config/networks.js'
 import { configService } from './config-service.js'
 import { CONFIG_DEFAULTS } from '../config/constants.js'
 import { WdkCliError, ErrorCode, isNetworkError } from '../errors/index.js'
@@ -80,6 +80,11 @@ export class WdkService {
   constructor () {
     /** @type {WDK | null} */
     this.wdk = null
+    /**
+     * Retained only so dispose() can zero it — WDK never scrubs its own seed.
+     * @type {Buffer | null}
+     */
+    this.seed = null
     /** @type {Set<string>} */
     this.registeredNetworks = new Set()
     /** @type {Map<string, WalletAccount>} */
@@ -87,36 +92,15 @@ export class WdkService {
   }
 
   /**
-   * Creates the underlying WDK instance from a seed phrase (no-op if already created).
+   * Creates the underlying WDK instance from a seed (no-op if already created).
    *
-   * @param {string} seedPhrase - The BIP-39 seed phrase.
+   * @param {string | Buffer} seed - A BIP-39 mnemonic string, or a raw master seed Buffer.
    * @returns {void}
    */
-  createInstance (seedPhrase) {
+  createInstance (seed) {
     if (!this.wdk) {
-      this.wdk = new WDK(seedPhrase)
-    }
-  }
-
-  /**
-   * Initialises the WDK instance and registers the given network.
-   *
-   * @param {string} seedPhrase - The BIP-39 seed phrase.
-   * @param {string} network - The network name to register.
-   * @returns {Promise<void>}
-   */
-  async initialize (seedPhrase, network) {
-    if (!isValidNetwork(network)) {
-      throw new WdkCliError(
-        `Network '${network}' is not supported.`,
-        ErrorCode.NETWORK_NOT_SUPPORTED
-      )
-    }
-
-    this.createInstance(seedPhrase)
-
-    if (!this.registeredNetworks.has(network)) {
-      await this.#registerNetwork(network)
+      this.wdk = new WDK(seed)
+      this.seed = Buffer.isBuffer(seed) ? seed : null
     }
   }
 
@@ -200,6 +184,8 @@ export class WdkService {
   dispose () {
     if (this.wdk) {
       this.wdk.dispose()
+      if (this.seed) this.seed.fill(0)
+      this.seed = null
       this.wdk = null
       this.registeredNetworks.clear()
       this.accountCache.clear()

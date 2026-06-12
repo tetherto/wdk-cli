@@ -46,6 +46,7 @@
     "@tetherto/wdk-protocol-fiat-moonpay": "1.0.0-beta.2",
     "@tetherto/wdk-wallet": "1.0.0-beta.7",
     "bignumber.js": "11.1.1",
+    "bip39": "3.1.0",
     "chalk": "5.6.2",
     "cli-table3": "0.6.5",
     "commander": "14.0.3",
