@@ -198,7 +198,7 @@ export async function startMcpServer () {
       description: 'Get transaction history for a network (requires indexer API)',
       inputSchema: {
         network: z.string().describe('Network name (required)'),
-        token: z.string().optional().describe('Token filter (e.g. usdt, default: usdt)'),
+        token: z.string().optional().describe('Token filter (e.g. usdt, default: all tokens)'),
         limit: z.number().optional().default(30).describe('Max results (default: 30)'),
         index: z.number().optional().default(0).describe('Account index (default: 0)'),
         fromDate: z.string().optional().describe('Start date (ISO 8601, e.g. 2026-01-01)'),
