@@ -53,7 +53,7 @@
         "metadata": {
           "indexerSlug": "xaut",
           "moonpaySlug": "xaut",
-          "bitfinexSlug": "tXAUTUSD"
+          "bitfinexSlug": "tXAUT:USD"
         }
       }
     },
@@ -85,7 +85,7 @@
         "isNative": true,
         "metadata": {
           "moonpaySlug": "pol_polygon",
-          "bitfinexSlug": "tMATICUSD"
+          "bitfinexSlug": "tPOLUSD"
         }
       },
       "usdt0": {
@@ -127,7 +127,7 @@
         "isNative": true,
         "metadata": {
           "moonpaySlug": "bnb_bsc",
-          "bitfinexSlug": "tBNBUSD"
+          "bitfinexSlug": ""
         }
       },
       "xaut": {
@@ -136,7 +136,7 @@
         "isNative": false,
         "address": "0x21cAef8A43163Eea865baeE23b9C2E327696A3bf",
         "metadata": {
-          "bitfinexSlug": "tXAUTUSD"
+          "bitfinexSlug": "tXAUT:USD"
         }
       }
     },
@@ -147,7 +147,7 @@
         "isNative": true,
         "metadata": {
           "moonpaySlug": "avax_cchain",
-          "bitfinexSlug": "tAVAXUSD"
+          "bitfinexSlug": "tAVAX:USD"
         }
       },
       "usdt": {
@@ -284,7 +284,7 @@
         "metadata": {
           "indexerSlug": "xaut",
           "moonpaySlug": "xaut",
-          "bitfinexSlug": "tXAUTUSD"
+          "bitfinexSlug": "tXAUT:USD"
         }
       }
     },
@@ -316,7 +316,7 @@
         "isNative": true,
         "metadata": {
           "moonpaySlug": "pol_polygon",
-          "bitfinexSlug": "tMATICUSD"
+          "bitfinexSlug": "tPOLUSD"
         }
       },
       "usdt0": {
