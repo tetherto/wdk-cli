@@ -101,8 +101,10 @@ export class WalletDaemon {
 
     const oldUmask = isWin ? 0 : process.umask(0o077)
     await new Promise((resolve, reject) => {
-      this.#server.on('error', reject)
+      const onError = reject
+      this.#server.once('error', onError)
       this.#server.listen(socketPath, () => {
+        this.#server.removeListener('error', onError)
         if (!isWin) process.umask(oldUmask)
         resolve()
       })
