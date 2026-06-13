@@ -170,8 +170,8 @@ export async function getTokenTransfers (network, token, address, options = {}) 
     if (response.status === 403) {
       throw new WdkCliError(
         'Indexer API error: 403 Forbidden. Please set your API key or use a proxy API for the indexer provider:\n' +
-          '  wdk config set indexer.apiKey <your-api-key>\n' +
-          '  wdk config set indexer.baseUrl <your-proxy-url>',
+ ' wdk config set --key indexer.apiKey --value <your-api-key> '
+ ' wdk config set --key indexer.baseUrl --value <your-proxy-url> '
         ErrorCode.NETWORK_ERROR
       )
     }
