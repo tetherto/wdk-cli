@@ -38,12 +38,14 @@ export class KeyService {
   }
 
   /**
-   * Validates a BIP-39 seed phrase.
+   * Validates a BIP-39 seed phrase. Only 12- or 24-word phrases are accepted.
    *
    * @param {string} seedPhrase - The seed phrase to validate.
-   * @returns {boolean} True if the seed phrase is valid.
+   * @returns {boolean} True if the seed phrase is a valid 12- or 24-word BIP-39 phrase.
    */
   validate (seedPhrase) {
+    const wordCount = seedPhrase.trim().split(/\s+/).length
+    if (wordCount !== 12 && wordCount !== 24) return false
     return WalletManager.isValidSeedPhrase(seedPhrase)
   }
 
