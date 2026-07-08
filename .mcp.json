@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "wdk-wallet": {
+      "command": "node",
+      "args": ["bin/wdk-mcp.mjs"]
+    }
+  }
+}

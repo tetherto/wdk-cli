@@ -1,0 +1,64 @@
+{
+  "name": "wdk-cli",
+  "version": "0.0.1",
+  "description": "CLI tool for Wallet Development Kit (WDK)",
+  "type": "module",
+  "files": [
+    "bin/",
+    "src/",
+    "scripts/",
+    "wdk.config.json",
+    "wdk.tokens.json"
+  ],
+  "bin": {
+    "wdk": "./bin/wdk.mjs",
+    "wdk-mcp": "./bin/wdk-mcp.mjs",
+    "wdk-daemon": "./bin/wdk-daemon.mjs"
+  },
+  "scripts": {
+    "postinstall": "node scripts/install-wallets.mjs",
+    "install-wallets": "node scripts/install-wallets.mjs",
+    "lint": "standard",
+    "lint:fix": "standard --fix",
+    "typecheck": "tsc --noEmit -p jsconfig.json",
+    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest",
+    "test:coverage": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --coverage"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "<rootDir>/tests/**/*.test.js"
+    ],
+    "transform": {}
+  },
+  "standard": {
+    "ignore": [
+      "tests/**"
+    ]
+  },
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "dependencies": {
+    "@inquirer/prompts": "8.2.0",
+    "@modelcontextprotocol/sdk": "1.27.1",
+    "@tetherto/wdk": "1.0.0-beta.6",
+    "@tetherto/wdk-protocol-fiat-moonpay": "1.0.0-beta.2",
+    "@tetherto/wdk-wallet": "1.0.0-beta.7",
+    "bignumber.js": "11.1.1",
+    "bip39": "3.1.0",
+    "chalk": "5.6.2",
+    "cli-table3": "0.6.5",
+    "commander": "14.0.3",
+    "conf": "15.1.0",
+    "ora": "9.3.0",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.19",
+    "cross-env": "7.0.3",
+    "jest": "29.7.0",
+    "standard": "17.1.2",
+    "typescript": "5.8.3"
+  }
+}

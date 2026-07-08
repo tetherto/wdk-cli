@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "checkJs": true,
+    "allowJs": true,
+    "noEmit": true,
+    "target": "ESNext",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "resolveJsonModule": true,
+    "strict": false,
+    "skipLibCheck": true,
+    "maxNodeModuleJsDepth": 0
+  },
+  "include": ["src/**/*.js", "bin/**/*.mjs"],
+  "exclude": ["node_modules", "examples", "tests"]
+}
