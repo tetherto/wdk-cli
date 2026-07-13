@@ -24,10 +24,10 @@ import {
   stat
 } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
-import { encrypt, decrypt } from './encryption.js'
+import { encrypt, decrypt } from '@tetherto/wdk-utils'
 import { getWalletsDir, getWalletPath, getWalletDir } from '../config/constants.js'
 
-/** @typedef {import('./encryption.js').EncryptedPayload} EncryptedPayload */
+/** @typedef {import('@tetherto/wdk-utils').EncryptedPayload} EncryptedPayload */
 
 function isEnoent (err) {
   return err?.code === 'ENOENT'

@@ -44,6 +44,7 @@
     "@modelcontextprotocol/sdk": "1.27.1",
     "@tetherto/wdk": "1.0.0-beta.6",
     "@tetherto/wdk-protocol-fiat-moonpay": "1.0.0-beta.2",
+    "@tetherto/wdk-utils": "1.0.0-beta.9",
     "@tetherto/wdk-wallet": "1.0.0-beta.7",
     "bignumber.js": "11.1.1",
     "bip39": "3.1.0",
