@@ -12,39 +12,156 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import WdkBaseAssetRegistry, { TokenAssetSchema } from '@tetherto/wdk-asset-registry'
+
 import { tokensFile } from '../config/wdk-tokens.js'
+import { walletsFile } from '../config/wdk-config.js'
 import { configService } from './config-service.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 import { humanToBaseUnits } from '../ui/parsers.js'
 
-/** @typedef {import('../config/wdk-tokens.js').TokenEntry} TokenEntry */
 /** @typedef {import('../config/wdk-tokens.js').TokenMetadata} TokenMetadata */
+/** @typedef {import('../config/wdk-tokens.js').CliTokenAsset} CliTokenAsset */
 
 /**
- * Normalizes an EVM address to lowercase for case-insensitive comparison.
- * Leaves non-EVM addresses (e.g. base58 Solana, Tron) untouched.
+ * A single token entry as consumed by CLI commands and services. Tokens are
+ * addressed by network name plus lower-case token key (`--token <token>`).
  *
- * @param {string} address
+ * @typedef {Object} TokenEntry
+ * @property {string} symbol - The display symbol (e.g. "USDT", "ETH").
+ * @property {number} decimals - The number of decimal places.
+ * @property {boolean} isNative - True when this token is the chain's native asset (use native transfer path).
+ * @property {string} [address] - Contract/mint address. Required for non-native sends; optional for native (wrapped/protocol representation).
+ * @property {TokenMetadata} [metadata] - Optional provider-specific mappings.
+ */
+
+/**
+ * Token asset registry that keeps the CLI-specific extra fields (`network`,
+ * `slug`, `testnet`, `metadata`). The published token registry validation
+ * strips unknown fields and requires `address`, so this extends the generic
+ * base registry, validates against the token schema, and stores the original.
+ *
+ * TODO: drop this subclass once the registry preserves unknown fields and
+ * accepts native assets without an `address` (tetherto/wdk-asset-registry).
+ *
+ * @extends {WdkBaseAssetRegistry<CliTokenAsset>}
+ */
+class CliTokenAssetRegistry extends WdkBaseAssetRegistry {
+  /**
+   * @protected
+   * @param {CliTokenAsset} asset - Asset definition to validate.
+   * @returns {CliTokenAsset} The validated asset, extra fields included.
+   */
+  _assertAsset (asset) {
+    TokenAssetSchema.parse(asset.address === undefined ? { ...asset, address: '' } : asset)
+    return { ...asset }
+  }
+}
+
+/** Built-in asset ids (`<network>/<slug>`), for source checks. */
+const BUILTIN_IDS = new Set(tokensFile.assets.map((a) => a.id))
+
+/** Built-in network names in assets-file order, for stable listing. */
+const BUILTIN_NETWORKS = [...new Set(tokensFile.assets.map((a) => a.network))]
+
+/**
+ * Returns the CAIP-2 chain id for a network: from `wdk.config.json` for
+ * built-in networks, from the custom network config otherwise, falling back
+ * to a synthetic `wdk:<network>` id so legacy custom networks keep working.
+ *
+ * @param {string} network
  * @returns {string}
  */
-function normalizeAddress (address) {
-  return address.startsWith('0x') ? address.toLowerCase() : address
+function chainIdFor (network) {
+  return (
+    walletsFile.networks[network]?.chainId ??
+    /** @type {string | undefined} */ (configService.get(`customNetworks.${network}.chainId`)) ??
+    `wdk:${network}`
+  )
 }
 
 /**
- * Builds the effective token map for a network: built-in entries merged with
- * any user-defined entries under `customTokens.<network>.*`. Custom entries
- * override built-in ones when keys collide.
+ * Converts a stored custom token entry into a registry asset.
  *
  * @param {string} network
- * @returns {Record<string, TokenEntry>}
+ * @param {string} slug - Lower-case token key.
+ * @param {TokenEntry} entry
+ * @returns {CliTokenAsset}
  */
-function getMergedTokens (network) {
-  const builtin = tokensFile.tokens[network] ?? {}
-  const custom = /** @type {Record<string, TokenEntry> | undefined} */ (
-    configService.get(`customTokens.${network}`)
+function customEntryToAsset (network, slug, entry) {
+  return {
+    id: `${network}/${slug}`,
+    chainId: chainIdFor(network),
+    network,
+    slug,
+    symbol: entry.symbol,
+    name: entry.symbol,
+    decimals: entry.decimals,
+    isNative: entry.isNative,
+    ...(entry.address !== undefined && { address: entry.address }),
+    testnet: walletsFile.networks[network]?.testnet ?? false,
+    ...(entry.metadata !== undefined && { metadata: entry.metadata })
+  }
+}
+
+/**
+ * Maps a registry asset back to the CLI's `TokenEntry` shape, so command
+ * output stays independent of registry-internal fields.
+ *
+ * @param {CliTokenAsset} asset
+ * @returns {TokenEntry}
+ */
+function toTokenEntry (asset) {
+  return {
+    symbol: asset.symbol,
+    decimals: asset.decimals,
+    isNative: asset.isNative,
+    ...(asset.address !== undefined && { address: asset.address }),
+    ...(asset.metadata !== undefined && { metadata: asset.metadata })
+  }
+}
+
+/** @type {CliTokenAssetRegistry | null} */
+let cachedRegistry = null
+/** @type {string | null} */
+let cachedCustomSnapshot = null
+
+/**
+ * Returns the token registry with built-in assets plus the user's custom
+ * tokens from config (custom entries override built-in ones by id). The
+ * registry is rebuilt whenever the persisted custom tokens change, so
+ * long-running processes (daemon) observe `wdk token add/remove` live.
+ *
+ * @returns {CliTokenAssetRegistry}
+ */
+function getRegistry () {
+  const custom = /** @type {Record<string, Record<string, TokenEntry>> | undefined} */ (
+    configService.get('customTokens')
   )
-  return { ...builtin, ...(custom ?? {}) }
+  const snapshot = custom === undefined ? '' : JSON.stringify(custom)
+  if (cachedRegistry && snapshot === cachedCustomSnapshot) return cachedRegistry
+
+  const registry = new CliTokenAssetRegistry(tokensFile.assets)
+  if (custom) {
+    for (const [network, entries] of Object.entries(custom)) {
+      for (const [slug, entry] of Object.entries(entries)) {
+        registry.registerAsset(customEntryToAsset(network, slug, entry), true)
+      }
+    }
+  }
+  cachedRegistry = registry
+  cachedCustomSnapshot = snapshot
+  return registry
+}
+
+/**
+ * Returns all assets registered for a network, built-in and custom merged.
+ *
+ * @param {string} network
+ * @returns {CliTokenAsset[]}
+ */
+function assetsForNetwork (network) {
+  return getRegistry().getAsset([{ network }])
 }
 
 /**
@@ -55,7 +172,8 @@ function getMergedTokens (network) {
  * @returns {TokenEntry | undefined} The token entry, or undefined if not registered.
  */
 export function getTokenByName (network, token) {
-  return getMergedTokens(network)[token.toLowerCase()]
+  const asset = getRegistry().getAssetById(`${network}/${token.toLowerCase()}`)
+  return asset ? toTokenEntry(asset) : undefined
 }
 
 /**
@@ -67,12 +185,9 @@ export function getTokenByName (network, token) {
  * @returns {TokenEntry | undefined} The token entry, or undefined if no match.
  */
 export function getTokenByAddress (network, address) {
-  const target = normalizeAddress(address)
-  for (const token of Object.values(getMergedTokens(network))) {
-    if (!token.address) continue
-    if (normalizeAddress(token.address) === target) return token
-  }
-  return undefined
+  const caseSensitive = !address.startsWith('0x')
+  const [asset] = getRegistry().getAsset([{ network, address }], { caseSensitive })
+  return asset ? toTokenEntry(asset) : undefined
 }
 
 /**
@@ -82,7 +197,7 @@ export function getTokenByAddress (network, address) {
  * @returns {Record<string, TokenEntry>} Token entries keyed by token.
  */
 export function getTokensForNetwork (network) {
-  return getMergedTokens(network)
+  return Object.fromEntries(assetsForNetwork(network).map((a) => [a.slug, toTokenEntry(a)]))
 }
 
 /**
@@ -130,12 +245,9 @@ export function getBitfinexCode (network, token) {
  * @returns {string[]} Token names (lowercase keys from the registry).
  */
 export function getTokensSupportedBy (network, provider) {
-  /** @type {string[]} */
-  const result = []
-  for (const [token, entry] of Object.entries(getMergedTokens(network))) {
-    if (entry.metadata && typeof entry.metadata[provider] === 'string') result.push(token)
-  }
-  return result
+  return assetsForNetwork(network)
+    .filter((a) => a.metadata && typeof a.metadata[provider] === 'string')
+    .map((a) => a.slug)
 }
 
 /**
@@ -146,10 +258,8 @@ export function getTokensSupportedBy (network, provider) {
  * @returns {TokenEntry | undefined}
  */
 export function getNativeToken (network) {
-  for (const token of Object.values(getMergedTokens(network))) {
-    if (token.isNative) return token
-  }
-  return undefined
+  const [asset] = getRegistry().getAsset([{ network, isNative: true }])
+  return asset ? toTokenEntry(asset) : undefined
 }
 
 /**
@@ -160,15 +270,15 @@ export function getNativeToken (network) {
 export function getAllTokens () {
   /** @type {Record<string, Record<string, TokenEntry>>} */
   const result = {}
-  for (const network of Object.keys(tokensFile.tokens)) {
-    result[network] = getMergedTokens(network)
+  for (const network of BUILTIN_NETWORKS) {
+    result[network] = getTokensForNetwork(network)
   }
   const customAll = /** @type {Record<string, Record<string, TokenEntry>> | undefined} */ (
     configService.get('customTokens')
   )
   if (customAll) {
     for (const network of Object.keys(customAll)) {
-      if (!result[network]) result[network] = customAll[network]
+      if (!result[network]) result[network] = getTokensForNetwork(network)
     }
   }
   return result
@@ -182,7 +292,7 @@ export function getAllTokens () {
  * @returns {boolean}
  */
 export function isBuiltinToken (network, token) {
-  return !!tokensFile.tokens[network]?.[token.toLowerCase()]
+  return BUILTIN_IDS.has(`${network}/${token.toLowerCase()}`)
 }
 
 /**
@@ -198,7 +308,7 @@ export function getTokenSource (network, token) {
   const lower = token.toLowerCase()
   const custom = configService.get(`customTokens.${network}.${lower}`)
   if (custom !== undefined) return 'custom'
-  if (tokensFile.tokens[network]?.[lower]) return 'built-in'
+  if (BUILTIN_IDS.has(`${network}/${lower}`)) return 'built-in'
   return undefined
 }
 
