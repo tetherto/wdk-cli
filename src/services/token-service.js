@@ -37,12 +37,11 @@ import { humanToBaseUnits } from '../ui/parsers.js'
 
 /**
  * Token asset registry that keeps the CLI-specific extra fields (`network`,
- * `slug`, `testnet`, `metadata`). The published token registry validation
- * strips unknown fields and requires `address`, so this extends the generic
- * base registry, validates against the token schema, and stores the original.
- *
- * TODO: drop this subclass once the registry preserves unknown fields and
- * accepts native assets without an `address` (tetherto/wdk-asset-registry).
+ * `slug`, `testnet`, `metadata`), following the wdk-asset-registry guidance
+ * that consumers needing extra fields define their own registry subclass.
+ * Assets are validated against the token schema and stored as provided. The
+ * schema requires `address`, so native assets (which have none) are validated
+ * with an empty-string placeholder that is never stored or returned.
  *
  * @extends {WdkBaseAssetRegistry<CliTokenAsset>}
  */
