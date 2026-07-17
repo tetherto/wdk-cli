@@ -32,7 +32,7 @@ jest.unstable_mockModule('@tetherto/wdk', () => ({
 const { WdkService } = await import('../../../src/services/wdk-service.js')
 
 const MNEMONIC =
-  'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'
+  'cook voyage document eight skate token alien guide drink uncle term abuse'
 
 describe('WdkService seed memory', () => {
   beforeEach(() => {
@@ -50,11 +50,10 @@ describe('WdkService seed memory', () => {
     const seed = mnemonicToSeedSync(MNEMONIC)
     const svc = new WdkService()
     svc.createInstance(seed)
-    expect(seed.some((b) => b !== 0)).toBe(true)
 
     svc.dispose()
 
-    expect(seed.every((b) => b === 0)).toBe(true)
+    expect(seed).toEqual(Buffer.alloc(64))
     expect(svc.seed).toBeNull()
     expect(svc.wdk).toBeNull()
     expect(disposed.count).toBe(1)

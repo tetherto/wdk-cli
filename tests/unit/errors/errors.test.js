@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import { jest } from '@jest/globals'
 import { WdkCliError, ErrorCode } from '../../../src/errors/index.js'
 
 describe('WdkCliError', () => {
@@ -34,9 +35,13 @@ describe('WdkCliError', () => {
     expect(err.name).toBe('WdkCliError')
   })
 
-  it('display is callable', () => {
-    const err = new WdkCliError('test', ErrorCode.UNKNOWN_ERROR, 'hint')
-    expect(typeof err.display).toBe('function')
+  it('display prints the message and hint to stderr', () => {
+    const spy = jest.spyOn(console, 'error').mockImplementation(() => {})
+
+    new WdkCliError('boom', ErrorCode.UNKNOWN_ERROR, 'try again').display()
+
+    expect(spy.mock.calls).toEqual([['Error: boom'], ['Hint: try again']])
+    spy.mockRestore()
   })
 })
 

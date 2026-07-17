@@ -40,6 +40,14 @@ describe('formatters', () => {
     it('formats USDT amount (6 decimals)', () => {
       expect(formatAmount(1000000n, 6, 'USDT')).toBe('1 USDT')
     })
+
+    it('trims trailing zeros from the fraction', () => {
+      expect(formatAmount(1100000000000000000n, 18, 'ETH')).toBe('1.1 ETH')
+    })
+
+    it('caps the fraction at 8 digits', () => {
+      expect(formatAmount(1234567890123456789n, 18, 'ETH')).toBe('1.23456789 ETH')
+    })
   })
 
   describe('formatAddress', () => {
@@ -50,9 +58,7 @@ describe('formatters', () => {
 
     it('truncates long addresses', () => {
       const addr = '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0'
-      const result = formatAddress(addr, true)
-      expect(result).toMatch(/^0x742d35.*f0bEb0$/)
-      expect(result.length).toBeLessThan(addr.length)
+      expect(formatAddress(addr, true)).toBe('0x742d35...f0bEb0')
     })
 
     it('does not truncate short addresses', () => {
@@ -64,9 +70,7 @@ describe('formatters', () => {
   describe('formatTxHash', () => {
     it('truncates long hashes by default', () => {
       const hash = '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890'
-      const result = formatTxHash(hash)
-      expect(result.length).toBeLessThan(hash.length)
-      expect(result).toContain('...')
+      expect(formatTxHash(hash)).toBe('0xabcdef12...34567890')
     })
 
     it('returns full hash when not truncating', () => {

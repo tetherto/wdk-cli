@@ -61,11 +61,43 @@ const {
   resolveTokenIdentifier,
   saveCustomToken,
   deleteCustomToken,
-  toBaseUnits
+  toBaseUnits,
+  getIndexerCode,
+  getMoonpayCode,
+  getBitfinexCode,
+  getTokensSupportedBy,
+  getAllTokens
 } = await import('../../../src/services/token-service.js')
 
 const USDT_ETH = '0xdAC17F958D2ee523a2206206994597C13D831ec7'
 const USDT_SOL = 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB'
+
+const USDT_ETH_ENTRY = {
+  symbol: 'USDT',
+  decimals: 6,
+  isNative: false,
+  address: USDT_ETH,
+  metadata: {
+    indexerSlug: 'usdt',
+    moonpaySlug: 'usdt',
+    bitfinexSlug: 'tUSTUSD'
+  }
+}
+
+const CUSTOM_ENTRY = {
+  symbol: 'MYTOK',
+  decimals: 9,
+  isNative: false,
+  address: '0x1111111111111111111111111111111111111111'
+}
+
+const BUILT_IN_NETWORKS = [
+  'bitcoin', 'bitcoin-testnet3', 'ethereum', 'sepolia', 'polygon', 'arbitrum',
+  'base', 'bsc', 'avalanche', 'solana', 'solana-testnet', 'solana-devnet',
+  'spark', 'spark-regtest', 'tron', 'tron-testnet', 'smart-account-ethereum',
+  'smart-account-sepolia', 'smart-account-polygon', 'smart-account-arbitrum',
+  'smart-account-base', 'smart-account-plasma'
+]
 
 afterEach(() => {
   delete store.customTokens
@@ -73,18 +105,8 @@ afterEach(() => {
 
 describe('token-service', () => {
   it('resolves built-in tokens by name, case-insensitively', () => {
-    expect(getTokenByName('ethereum', 'usdt')).toEqual({
-      symbol: 'USDT',
-      decimals: 6,
-      isNative: false,
-      address: USDT_ETH,
-      metadata: {
-        indexerSlug: 'usdt',
-        moonpaySlug: 'usdt',
-        bitfinexSlug: 'tUSTUSD'
-      }
-    })
-    expect(getTokenByName('ethereum', 'USDT')).toEqual(getTokenByName('ethereum', 'usdt'))
+    expect(getTokenByName('ethereum', 'usdt')).toEqual(USDT_ETH_ENTRY)
+    expect(getTokenByName('ethereum', 'USDT')).toEqual(USDT_ETH_ENTRY)
     expect(getTokenByName('ethereum', 'nope')).toBeUndefined()
   })
 
@@ -106,11 +128,20 @@ describe('token-service', () => {
   })
 
   it('matches EVM addresses case-insensitively', () => {
-    expect(getTokenByAddress('ethereum', USDT_ETH.toLowerCase())?.symbol).toBe('USDT')
+    expect(getTokenByAddress('ethereum', USDT_ETH.toLowerCase())).toEqual(USDT_ETH_ENTRY)
   })
 
   it('matches non-EVM addresses exactly', () => {
-    expect(getTokenByAddress('solana', USDT_SOL)?.symbol).toBe('USDT')
+    expect(getTokenByAddress('solana', USDT_SOL)).toEqual({
+      symbol: 'USDT',
+      decimals: 6,
+      isNative: false,
+      address: USDT_SOL,
+      metadata: {
+        moonpaySlug: 'usdt_sol',
+        bitfinexSlug: 'tUSTUSD'
+      }
+    })
     expect(getTokenByAddress('solana', USDT_SOL.toLowerCase())).toBeUndefined()
   })
 
@@ -118,34 +149,90 @@ describe('token-service', () => {
     expect(getTokenByAddress('polygon', USDT_ETH)).toBeUndefined()
   })
 
-  it('merges custom tokens and lets them override built-ins', () => {
-    saveCustomToken('ethereum', 'mytok', {
-      symbol: 'MYTOK',
-      decimals: 9,
-      isNative: false,
-      address: '0x1111111111111111111111111111111111111111'
-    })
-    saveCustomToken('ethereum', 'usdt', {
+  it('saveCustomToken persists the entry to config', () => {
+    saveCustomToken('ethereum', 'MyTok', CUSTOM_ENTRY)
+
+    expect(store.customTokens).toEqual({ ethereum: { mytok: CUSTOM_ENTRY } })
+  })
+
+  it('resolves custom tokens by name', () => {
+    store.customTokens = { ethereum: { mytok: CUSTOM_ENTRY } }
+
+    expect(getTokenByName('ethereum', 'mytok')).toEqual(CUSTOM_ENTRY)
+  })
+
+  it('custom tokens override built-ins', () => {
+    const override = {
       symbol: 'USDT',
       decimals: 6,
       isNative: false,
       address: '0x2222222222222222222222222222222222222222'
-    })
+    }
+    store.customTokens = { ethereum: { usdt: override } }
 
-    expect(getTokenByName('ethereum', 'mytok')?.symbol).toBe('MYTOK')
-    expect(getTokenByName('ethereum', 'usdt')?.address).toBe('0x2222222222222222222222222222222222222222')
+    expect(getTokenByName('ethereum', 'usdt')).toEqual(override)
+  })
+
+  it('reports the token source', () => {
+    store.customTokens = { ethereum: { mytok: CUSTOM_ENTRY } }
+
     expect(getTokenSource('ethereum', 'mytok')).toBe('custom')
-    expect(getTokenSource('ethereum', 'usdt')).toBe('custom')
+    expect(getTokenSource('ethereum', 'usdt')).toBe('built-in')
+    expect(getTokenSource('ethereum', 'nope')).toBeUndefined()
+  })
+
+  it('identifies built-in tokens', () => {
+    store.customTokens = { ethereum: { mytok: CUSTOM_ENTRY } }
+
     expect(isBuiltinToken('ethereum', 'usdt')).toBe(true)
     expect(isBuiltinToken('ethereum', 'mytok')).toBe(false)
+  })
+
+  it('includes custom tokens in the network listing', () => {
+    store.customTokens = { ethereum: { mytok: CUSTOM_ENTRY } }
 
     const tokens = getTokensForNetwork('ethereum')
+
     expect(Object.keys(tokens)).toEqual(['eth', 'usdt', 'xaut', 'mytok'])
+    expect(tokens.mytok).toEqual(CUSTOM_ENTRY)
+  })
+
+  it('deleteCustomToken removes the entry', () => {
+    store.customTokens = { ethereum: { mytok: CUSTOM_ENTRY } }
 
     expect(deleteCustomToken('ethereum', 'mytok')).toBe(true)
+    expect(store.customTokens.ethereum).toEqual({})
     expect(deleteCustomToken('ethereum', 'mytok')).toBe(false)
-    expect(getTokenByName('ethereum', 'mytok')).toBeUndefined()
-    expect(getTokenSource('ethereum', 'usdt')).toBe('custom')
+  })
+
+  it('returns the indexer slug', () => {
+    expect(getIndexerCode('ethereum', 'usdt')).toBe('usdt')
+    expect(getIndexerCode('ethereum', 'eth')).toBeUndefined()
+  })
+
+  it('returns the MoonPay slug', () => {
+    expect(getMoonpayCode('ethereum', 'eth')).toBe('eth')
+    expect(getMoonpayCode('ethereum', 'nope')).toBeUndefined()
+  })
+
+  it('returns the Bitfinex slug', () => {
+    expect(getBitfinexCode('ethereum', 'xaut')).toBe('tXAUT:USD')
+    expect(getBitfinexCode('ethereum', 'nope')).toBeUndefined()
+  })
+
+  it('lists tokens supported by a provider', () => {
+    expect(getTokensSupportedBy('ethereum', 'indexerSlug')).toEqual(['usdt', 'xaut'])
+    expect(getTokensSupportedBy('ethereum', 'moonpaySlug')).toEqual(['eth', 'usdt', 'xaut'])
+  })
+
+  it('returns all tokens grouped by network', () => {
+    store.customTokens = { mynet: { tok: CUSTOM_ENTRY } }
+
+    const all = getAllTokens()
+
+    expect(Object.keys(all)).toEqual([...BUILT_IN_NETWORKS, 'mynet'])
+    expect(all.ethereum.usdt).toEqual(USDT_ETH_ENTRY)
+    expect(all.mynet.tok).toEqual(CUSTOM_ENTRY)
   })
 
   it('resolves token identifiers for native and contract tokens', () => {
