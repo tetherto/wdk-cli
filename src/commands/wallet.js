@@ -39,7 +39,7 @@ function createKeyService () {
 }
 
 /**
- * Registers the `wallet` subcommand tree (create, import, export, list, delete, unlock, lock, default, rename) on the root program.
+ * Registers the `wallet` subcommand tree (create, import, export, list, delete, unlock, lock, default, rename, change-passphrase) on the root program.
  *
  * @param {Command} program - The root Commander program instance.
  * @returns {void}
@@ -592,6 +592,73 @@ export function registerWalletCommand (program) {
         console.log(JSON.stringify({ oldName, newName, renamed: true }))
       } else {
         console.log(chalk.green(`  Wallet '${oldName}' renamed to '${newName}'.`))
+      }
+    } catch (error) {
+      handleError(error, program.opts().verbose, program.opts().json)
+    }
+  })
+
+  const changePassphraseCmd = wallet
+    .command('change-passphrase')
+    .description('Change the wallet passphrase')
+    .requiredOption('--name <name>', 'Wallet name')
+
+  configureHelp(changePassphraseCmd, {
+    params: [{ flags: '--name <name>', description: 'Wallet name', required: true }]
+  })
+
+  changePassphraseCmd.action(async (options) => {
+    const name = options.name
+    try {
+      const keyService = createKeyService()
+
+      if (!(await keyService.hasKey(name))) {
+        throw new WdkCliError(`Wallet '${name}' not found.`, ErrorCode.KEY_NOT_FOUND)
+      }
+
+      const currentPassphrase = await promptPassphrase(
+        `Enter current passphrase of '${name}' wallet:`
+      )
+      const seedPhrase = await keyService.unlock(currentPassphrase, name)
+
+      if (!program.opts().json) {
+        console.log()
+        console.log(
+          chalk.dim(
+            'Enter a new passphrase to encrypt your seed phrase. Remember the passphrase to unlock this wallet in the future.'
+          )
+        )
+        console.log()
+      }
+      const newPassphrase = await promptPassphrase('New passphrase (empty for none):')
+      if (newPassphrase === '' && !program.opts().json) {
+        console.log()
+        console.log(
+          chalk.bold.yellow(
+            'WARNING: Empty passphrase. Seed phrase will be stored unencrypted, anyone with access to this machine can read it.'
+          )
+        )
+        console.log()
+      }
+      const confirmPw = await promptPassphrase('Confirm new passphrase:')
+      if (newPassphrase !== confirmPw) {
+        throw new WdkCliError('Passphrases do not match.', ErrorCode.PASSPHRASE_MISMATCH)
+      }
+
+      const spinner = program.opts().json ? null : ora('Re-encrypting seed phrase...').start()
+      await keyService.store(seedPhrase, newPassphrase, name)
+      spinner?.succeed(`Passphrase for wallet '${name}' changed.`)
+
+      try {
+        if (await daemonClient.isRunning()) {
+          await daemonClient.lockWallet(name)
+        }
+      } catch {
+        /* */
+      }
+
+      if (program.opts().json) {
+        console.log(JSON.stringify({ wallet: name, changed: true }))
       }
     } catch (error) {
       handleError(error, program.opts().verbose, program.opts().json)
