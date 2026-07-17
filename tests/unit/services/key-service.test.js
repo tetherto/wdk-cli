@@ -71,6 +71,15 @@ describe('KeyService', () => {
     expect(retrieved).toBe(phrase)
   })
 
+  it('re-encrypts the seed with a new passphrase on store', async () => {
+    const phrase = keyService.generate(12)
+    await keyService.store(phrase, 'oldpass', 'default')
+    await keyService.store(phrase, 'newpass', 'default')
+
+    expect(await keyService.unlock('newpass', 'default')).toBe(phrase)
+    await expect(keyService.unlock('oldpass', 'default')).rejects.toThrow(/Incorrect passphrase/)
+  })
+
   it('throws KeyNotFoundError when no key exists', async () => {
     await expect(keyService.unlock('anypass', 'default')).rejects.toThrow(/No key found/)
   })

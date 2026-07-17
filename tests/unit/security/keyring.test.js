@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { Keyring } from '../../../src/security/keyring.js'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, readdir, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -42,6 +42,15 @@ describe('Keyring', () => {
   it('rejects wrong password on retrieve', async () => {
     await keyring.store('test phrase', 'correctpass')
     await expect(keyring.retrieve('wrongpass')).rejects.toThrow()
+  })
+
+  it('overwrites an existing seed file and leaves no temp file', async () => {
+    await keyring.store('first phrase', 'oldpass')
+    await keyring.store('second phrase', 'newpass')
+
+    expect(await keyring.retrieve('newpass')).toBe('second phrase')
+    await expect(keyring.retrieve('oldpass')).rejects.toThrow()
+    expect(await readdir(tempDir)).toEqual(['keyring.enc'])
   })
 
   it('reports exists false when no file', async () => {

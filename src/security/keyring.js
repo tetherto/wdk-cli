@@ -19,6 +19,7 @@ import {
   unlink,
   mkdir,
   chmod,
+  rename,
   readdir,
   rm,
   stat
@@ -56,8 +57,16 @@ export class Keyring {
   async store (seedPhrase, passphrase) {
     const payload = encrypt(seedPhrase, passphrase)
     await mkdir(dirname(this.path), { recursive: true })
-    await writeFile(this.path, JSON.stringify(payload, null, 2), { encoding: 'utf8', mode: 0o600 })
-    await chmod(this.path, 0o600)
+    // Write-then-rename so a crash mid-write never destroys an existing seed file.
+    const tmpPath = `${this.path}.tmp`
+    try {
+      await writeFile(tmpPath, JSON.stringify(payload, null, 2), { encoding: 'utf8', mode: 0o600 })
+      await chmod(tmpPath, 0o600)
+      await rename(tmpPath, this.path)
+    } catch (err) {
+      await unlink(tmpPath).catch(() => {})
+      throw err
+    }
   }
 
   /**
