@@ -56,13 +56,13 @@ describe('validateRecipient', () => {
 
   it('rejects a testnet address on Bitcoin mainnet', () => {
     expect(() => validateRecipient('bitcoin', BTC_TESTNET)).toThrow(
-      "Invalid recipient address for 'bitcoin' (NETWORK_MISMATCH: testnet address)."
+      "Invalid recipient address for 'bitcoin' (NETWORK_MISMATCH)."
     )
   })
 
   it('rejects a mainnet address on Bitcoin testnet', () => {
     expect(() => validateRecipient('bitcoin-testnet3', BTC_MAINNET)).toThrow(
-      "Invalid recipient address for 'bitcoin-testnet3' (NETWORK_MISMATCH: mainnet address)."
+      "Invalid recipient address for 'bitcoin-testnet3' (NETWORK_MISMATCH)."
     )
   })
 
@@ -94,15 +94,13 @@ describe('validateRecipient', () => {
   })
 
   it('rejects a mismatched address on a custom Bitcoin network', () => {
-    jest.spyOn(configService, 'get').mockImplementation((key) => {
-      if (key === 'customNetworks.mybtc.chainId') return 'bip122:000000000019d6689c085ae165831e93'
-      if (key === 'customNetworks.mybtc.config.network') return 'testnet'
-      return undefined
-    })
-
-    expect(() => validateRecipient('mybtc', BTC_MAINNET)).toThrow(
-      "Invalid recipient address for 'mybtc' (NETWORK_MISMATCH: mainnet address)."
+    jest.spyOn(configService, 'get').mockImplementation((key) =>
+      key === 'customNetworks.mybtc.chainId' ? 'bip122:000000000019d6689c085ae165831e93' : undefined
     )
-    expect(configService.get).toHaveBeenCalledWith('customNetworks.mybtc.config.network')
+
+    expect(() => validateRecipient('mybtc', BTC_TESTNET)).toThrow(
+      "Invalid recipient address for 'mybtc' (NETWORK_MISMATCH)."
+    )
+    expect(configService.get).toHaveBeenCalledWith('customNetworks.mybtc.chainId')
   })
 })

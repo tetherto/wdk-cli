@@ -45,7 +45,7 @@
     "@tetherto/wdk": "1.0.0-beta.6",
     "@tetherto/wdk-asset-registry": "github:tetherto/wdk-asset-registry#7d01181aa5b1dfaa3900b7e72ce5fff29dd9373f",
     "@tetherto/wdk-protocol-fiat-moonpay": "1.0.0-beta.2",
-    "@tetherto/wdk-utils": "github:tetherto/wdk-utils#c3b188190c3cfa63d3fc68e861d23ec8e80a7597",
+    "@tetherto/wdk-utils": "github:tetherto/wdk-utils#632cfdca854307172f2fcabf87d950505bb4e56d",
     "@tetherto/wdk-wallet": "1.0.0-beta.7",
     "bignumber.js": "11.1.1",
     "bip39": "3.1.0",
