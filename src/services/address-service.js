@@ -12,55 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {
-  validateBitcoinAddress,
-  validateEVMAddress,
-  validateSolanaAddress,
-  validateSparkAddress,
-  validateTronAddress
-} from '@tetherto/wdk-utils'
+import { validateAddress } from '@tetherto/wdk-utils'
 
 import { getChainId } from '../config/networks.js'
-import { walletsFile } from '../config/wdk-config.js'
-import { configService } from './config-service.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
-
-/** Address validators by CAIP-2 chain namespace. */
-const VALIDATORS = {
-  bip122: validateBitcoinAddress,
-  eip155: validateEVMAddress,
-  solana: validateSolanaAddress,
-  spark: validateSparkAddress,
-  tron: validateTronAddress
-}
-
-/**
- * Returns the Bitcoin network label the wallet module is configured for,
- * translated to the validator's vocabulary (bitcoinjs calls mainnet "bitcoin").
- *
- * @param {string} network - The CLI network name.
- * @returns {string | undefined}
- */
-function bitcoinNetworkLabel (network) {
-  const raw = /** @type {string | undefined} */ (
-    walletsFile.networks[network]?.config?.network ??
-    configService.get(`customNetworks.${network}.config.network`)
-  )
-  return raw === 'bitcoin' ? 'mainnet' : raw
-}
-
-/**
- * @param {string} network
- * @param {string} reason
- * @returns {WdkCliError}
- */
-function invalidAddress (network, reason) {
-  return new WdkCliError(
-    `Invalid recipient address for '${network}' (${reason}).`,
-    ErrorCode.INVALID_ADDRESS,
-    'Double-check the address and the selected --network.'
-  )
-}
 
 /**
  * Validates a recipient address against the network's address format, so
@@ -74,21 +29,13 @@ function invalidAddress (network, reason) {
  * @throws {WdkCliError} INVALID_ADDRESS when the address fails validation.
  */
 export function validateRecipient (network, address) {
-  const namespace = getChainId(network).split(':')[0]
-  const validate = VALIDATORS[namespace]
-  if (!validate) return
+  const result = validateAddress(getChainId(network), address)
 
-  const result = validate(address)
-  if (!result.success) {
-    throw invalidAddress(network, /** @type {{ reason: string }} */ (result).reason)
-  }
-
-  // Bitcoin addresses encode their network; it must match the configured one.
-  if (namespace === 'bip122') {
-    const expected = bitcoinNetworkLabel(network)
-    const actual = /** @type {{ network?: string }} */ (result).network
-    if (expected && actual !== expected) {
-      throw invalidAddress(network, `NETWORK_MISMATCH: ${actual} address`)
-    }
+  if (result.success === false && result.reason !== 'UNSUPPORTED_CHAIN') {
+    throw new WdkCliError(
+      `Invalid recipient address for '${network}' (${result.reason}).`,
+      ErrorCode.INVALID_ADDRESS,
+      'Double-check the address and the selected --network.'
+    )
   }
 }
