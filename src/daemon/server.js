@@ -25,7 +25,7 @@ import {
   DAEMON_MAX_REQUEST_BYTES
 } from '../config/constants.js'
 import { configService } from '../services/config-service.js'
-import { deriveKey, decryptWithKey } from '../security/encryption.js'
+import { deriveKey, decryptWithKey } from '@tetherto/wdk-utils'
 import { WdkService } from '../services/wdk-service.js'
 import { isValidNetwork, getNetworkConfig } from '../config/networks.js'
 import { getTokenByAddress } from '../services/token-service.js'
@@ -137,7 +137,7 @@ export class WalletDaemon {
     const data = readFileSync(walletPath, 'utf8')
     const payload = JSON.parse(data)
     const salt = Buffer.from(payload.salt, 'hex')
-    const key = deriveKey(passphrase, salt)
+    const key = deriveKey(passphrase, salt, payload)
     try {
       let seedPhrase
       try {
