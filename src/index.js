@@ -14,7 +14,7 @@
 
 import { createRequire } from 'node:module'
 import { Command } from 'commander'
-import { APP_NAME, APP_VERSION } from './config/constants.js'
+import { PACKAGE_NAME, APP_VERSION } from './config/constants.js'
 import { walletsFile } from './config/wdk-config.js'
 import { parseModuleName } from './config/networks.js'
 import { registerConfigCommand } from './commands/config.js'
@@ -52,7 +52,7 @@ function buildVersionString () {
   }
 
   /** @type {{ label: string, version: string }[]} */
-  const rows = [{ label: APP_NAME, version: `v${APP_VERSION}` }]
+  const rows = [{ label: PACKAGE_NAME, version: `v${APP_VERSION}` }]
   for (const name of [...versions.keys()].sort()) {
     rows.push({ label: `  ${name}`, version: `v${versions.get(name)}` })
   }
