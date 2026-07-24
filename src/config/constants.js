@@ -31,7 +31,8 @@ export const CONFIG_DEFAULTS = {
   networks: networkDefaults
 }
 
-export const APP_NAME = pkg.name
+export const PACKAGE_NAME = pkg.name
+export const APP_NAME = 'wdk-cli'
 export const APP_VERSION = pkg.version
 export const CONFIG_DIR = APP_NAME
 const WALLETS_DIR = 'wallets'

@@ -8,7 +8,7 @@ metadata:
     install:
       - id: wdk-cli
         kind: node
-        package: wdk-cli
+        package: "@tetherto/wdk-cli"
         bins: [wdk]
         label: "Install WDK Wallet CLI (npm)"
 ---
