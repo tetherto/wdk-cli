@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import { jest } from '@jest/globals'
+import chalk from 'chalk'
 import { WdkCliError, ErrorCode } from '../../../src/errors/index.js'
 
 describe('WdkCliError', () => {
@@ -37,10 +38,13 @@ describe('WdkCliError', () => {
 
   it('display prints the message and hint to stderr', () => {
     const spy = jest.spyOn(console, 'error').mockImplementation(() => {})
+    const colorLevel = chalk.level
+    chalk.level = 0
 
     new WdkCliError('boom', ErrorCode.UNKNOWN_ERROR, 'try again').display()
 
     expect(spy.mock.calls).toEqual([['Error: boom'], ['Hint: try again']])
+    chalk.level = colorLevel
     spy.mockRestore()
   })
 })
