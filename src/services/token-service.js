@@ -47,6 +47,10 @@ import { humanToBaseUnits } from '../ui/parsers.js'
  */
 class CliTokenAssetRegistry extends WdkBaseAssetRegistry {
   /**
+   * Validates an asset definition against the token schema, substituting an
+   * empty-string address placeholder for native assets, and returns a copy
+   * with the CLI-specific extra fields preserved.
+   *
    * @protected
    * @param {CliTokenAsset} asset - Asset definition to validate.
    * @returns {CliTokenAsset} The validated asset, extra fields included.
@@ -120,16 +124,18 @@ function toTokenEntry (asset) {
   }
 }
 
-/** @type {CliTokenAssetRegistry | null} */
-let cachedRegistry = null
-/** @type {string | null} */
-let cachedCustomSnapshot = null
+/** @type {CliTokenAssetRegistry | undefined} */
+let cachedRegistry
+/** @type {string | undefined} */
+let cachedCustomSnapshot
 
 /**
  * Returns the token registry with built-in assets plus the user's custom
  * tokens from config (custom entries override built-in ones by id). The
  * registry is rebuilt whenever the persisted custom tokens change, so
  * long-running processes (daemon) observe `wdk token add/remove` live.
+ * Custom entries that fail schema validation are skipped with a warning on
+ * stderr, so one malformed entry cannot break every command.
  *
  * @returns {CliTokenAssetRegistry}
  */
@@ -144,7 +150,16 @@ function getRegistry () {
   if (custom) {
     for (const [network, entries] of Object.entries(custom)) {
       for (const [slug, entry] of Object.entries(entries)) {
-        registry.registerAsset(customEntryToAsset(network, slug, entry), true)
+        try {
+          registry.registerAsset(customEntryToAsset(network, slug, entry), true)
+        } catch (error) {
+          const issue = error.issues?.[0]
+          const detail = issue ? `${issue.path.join('.') || 'entry'}: ${issue.message}` : error.message
+          console.error(
+            `Warning: ignoring invalid custom token '${network}/${slug}' (${detail}). ` +
+            `Fix it or run 'wdk token delete --network ${network} --token ${slug}'.`
+          )
+        }
       }
     }
   }

@@ -144,6 +144,7 @@ wdk wallet unlock --name <name> [--ttl <minutes>]     # Unlock a wallet for sign
 wdk wallet lock --name <name>                         # Lock a single wallet
 wdk wallet lock --all                                 # Lock all wallets (stops daemon)
 wdk wallet delete --name <name>                       # Delete a wallet (requires passphrase)
+wdk wallet change-passphrase --name <name>            # Change the wallet passphrase (requires current passphrase)
 wdk wallet default --name <name>                      # Set the default wallet
 wdk wallet rename --name <old> --new-name <new>       # Rename a wallet
 ```

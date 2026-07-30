@@ -197,6 +197,21 @@ describe('token-service', () => {
     expect(tokens.mytok).toEqual(CUSTOM_ENTRY)
   })
 
+  it('skips invalid custom token entries with a warning instead of throwing', () => {
+    const spy = jest.spyOn(console, 'error').mockImplementation(() => {})
+    store.customTokens = { ethereum: { bad: { symbol: 'BAD' }, mytok: CUSTOM_ENTRY } }
+
+    const tokens = getTokensForNetwork('ethereum')
+
+    expect(Object.keys(tokens)).toEqual(['eth', 'usdt', 'xaut', 'mytok'])
+    expect(tokens.mytok).toEqual(CUSTOM_ENTRY)
+    expect(spy.mock.calls).toEqual([[
+      "Warning: ignoring invalid custom token 'ethereum/bad' (decimals: Invalid input: expected number, received undefined). " +
+      "Fix it or run 'wdk token delete --network ethereum --token bad'."
+    ]])
+    spy.mockRestore()
+  })
+
   it('deleteCustomToken removes the entry', () => {
     store.customTokens = { ethereum: { mytok: CUSTOM_ENTRY } }
 
