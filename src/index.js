@@ -13,7 +13,8 @@
 // limitations under the License.
 
 import { createRequire } from 'node:module'
-import { Command } from 'commander'
+import { Command, CommanderError } from 'commander'
+import { ErrorCode } from './errors/index.js'
 import { PACKAGE_NAME, APP_VERSION } from './config/constants.js'
 import { walletsFile } from './config/wdk-config.js'
 import { parseModuleName } from './config/networks.js'
@@ -63,9 +64,14 @@ function buildVersionString () {
 /**
  * Creates and configures the root Commander program with all subcommands registered.
  *
+ * With `jsonErrors`, argument-parsing failures throw a `CommanderError` instead
+ * of exiting, and Commander's own plain-text error output is suppressed so the
+ * caller can emit a JSON error object instead.
+ *
+ * @param {{ jsonErrors?: boolean }} [options] - Program behavior options.
  * @returns {Command} The configured Commander program.
  */
-export function createProgram () {
+export function createProgram ({ jsonErrors = false } = {}) {
   const program = new Command()
   program
     .name('wdk')
@@ -73,7 +79,14 @@ export function createProgram () {
     .version(buildVersionString())
     .option('--json', 'Output as JSON')
     .option('--verbose', 'Show error stack traces')
-    .showHelpAfterError()
+
+  if (jsonErrors) {
+    program
+      .exitOverride()
+      .configureOutput({ writeErr: () => {} })
+  } else {
+    program.showHelpAfterError()
+  }
 
   registerWalletCommand(program)
   registerGetCommand(program)
@@ -93,10 +106,25 @@ export { startDaemon } from './daemon/server.js'
 /**
  * Parses CLI arguments and runs the appropriate command.
  *
+ * When `--json` is present, argument-parsing errors are emitted as a JSON
+ * error object on stdout (exit code 1) instead of Commander's plain text.
+ *
  * @param {string[]} argv - Process argument vector (typically `process.argv`).
  * @returns {Promise<void>}
  */
 export async function run (argv) {
-  const program = createProgram()
-  await program.parseAsync(argv)
+  const jsonErrors = argv.includes('--json')
+  const program = createProgram({ jsonErrors })
+  try {
+    await program.parseAsync(argv)
+  } catch (error) {
+    if (!(error instanceof CommanderError)) throw error
+    if (error.exitCode === 0) return
+    console.log(JSON.stringify({
+      error: error.message.replace(/^error: /, ''),
+      code: ErrorCode.INVALID_ARGUMENT,
+      suggestion: 'Run the command with --help to see usage.'
+    }))
+    process.exit(1)
+  }
 }
