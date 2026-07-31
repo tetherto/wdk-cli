@@ -21,11 +21,12 @@ let envPassphraseNoticeShown = false
  * Prompts the user for a passphrase, or reads it from the WDK_PASSPHRASE environment variable.
  *
  * @param {string} [message] - Prompt message. Defaults to `'Enter passphrase:'`.
+ * @param {{ allowEnv?: boolean }} [options] - Set `allowEnv` to `false` to always prompt, ignoring WDK_PASSPHRASE.
  * @returns {Promise<string>} The entered passphrase.
  */
-export async function promptPassphrase (message = 'Enter passphrase:') {
+export async function promptPassphrase (message = 'Enter passphrase:', { allowEnv = true } = {}) {
   const envPassphrase = process.env.WDK_PASSPHRASE
-  if (envPassphrase) {
+  if (allowEnv && envPassphrase) {
     if (!envPassphraseNoticeShown) {
       console.error(chalk.dim('Note: using passphrase from WDK_PASSPHRASE env var.'))
       envPassphraseNoticeShown = true

@@ -630,7 +630,7 @@ export function registerWalletCommand (program) {
         )
         console.log()
       }
-      const newPassphrase = await promptPassphrase('New passphrase (empty for none):')
+      const newPassphrase = await promptPassphrase('New passphrase (empty for none):', { allowEnv: false })
       if (newPassphrase === '' && !program.opts().json) {
         console.log()
         console.log(
@@ -640,7 +640,7 @@ export function registerWalletCommand (program) {
         )
         console.log()
       }
-      const confirmPw = await promptPassphrase('Confirm new passphrase:')
+      const confirmPw = await promptPassphrase('Confirm new passphrase:', { allowEnv: false })
       if (newPassphrase !== confirmPw) {
         throw new WdkCliError('Passphrases do not match.', ErrorCode.PASSPHRASE_MISMATCH)
       }
