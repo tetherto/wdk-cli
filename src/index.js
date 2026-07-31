@@ -72,7 +72,7 @@ export function createProgram () {
     .description('CLI tool for Wallet Development Kit (WDK)')
     .version(buildVersionString())
     .option('--json', 'Output as JSON')
-    .option('--verbose', 'Enable debug logging')
+    .option('--verbose', 'Show error stack traces')
     .showHelpAfterError()
 
   registerWalletCommand(program)

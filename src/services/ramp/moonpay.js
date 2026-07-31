@@ -49,7 +49,7 @@ function loadConfig () {
   if (!env) missing.push('ramp.moonpay.environment')
 
   if (missing.length > 0) {
-    const commands = missing.map((k) => `  wdk config set ${k} <value>`).join('\n')
+    const commands = missing.map((k) => `  wdk config set --key ${k} --value <value>`).join('\n')
     throw new WdkCliError(
       `MoonPay not configured. Missing: ${missing.join(', ')}`,
       ErrorCode.MISSING_CONFIG,

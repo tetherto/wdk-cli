@@ -66,7 +66,7 @@ wdk get address --network ethereum --json
 wdk get address --all --json
 # {"index":0,"type":"mainnet","addresses":[{"network":"ethereum","address":"0x..."},{"network":"bitcoin","address":"1A1z..."},...]}
 
-# All addresses including testnets
+# All testnet addresses (testnets only)
 wdk get address --all --testnet --json
 ```
 
@@ -84,7 +84,7 @@ wdk get balance --network ethereum --token usdt --json
 wdk get balance --all --json
 # {"index":0,"type":"mainnet","balances":[{"network":"ethereum","address":"0x...","balance":"...","symbol":"ETH","decimals":18,"formatted":"1.00 ETH","usd":2100.50},...],"totalUsd":2500.75}
 
-# All balances including testnets
+# All testnet balances (testnets only, instead of mainnets)
 wdk get balance --all --testnet --json
 ```
 
@@ -122,20 +122,20 @@ wdk get history --network ethereum --from-date 2026-01-01 --to-date 2026-03-31 -
 
 ### Buy / Sell (On/Off Ramp)
 
-Buy crypto with fiat or sell crypto for fiat via MoonPay. Opens the MoonPay widget in the browser.
+Buy crypto with fiat or sell crypto for fiat via MoonPay. Prints a signed MoonPay URL for the user to open in a browser.
 
 ```bash
 # Buy crypto
-wdk buy --network ethereum --token eth --json
+wdk buy --network ethereum --token eth --fiat-amount 50 --json
 wdk buy --network ethereum --token usdt --fiat-amount 100 --json
 wdk buy --network bitcoin --token btc --crypto-amount 0.05 --json
 
 # Sell crypto
-wdk sell --network ethereum --token eth --json
+wdk sell --network ethereum --token eth --crypto-amount 0.5 --json
 wdk sell --network polygon --token usdt --crypto-amount 50 --json
 ```
 
-`--token` is required (registered ticker). `--fiat-amount` and `--crypto-amount` are mutually exclusive — both accept decimal values. Supported tokens per network are derived from the token registry's `metadata.moonpaySlug` field (see `wdk token list`). Requires `ramp.moonpay.apiKey` / `ramp.moonpay.signUrl` / `ramp.moonpay.environment` to be configured.
+`--token` is required (registered ticker). Provide exactly one of `--fiat-amount` or `--crypto-amount` — both accept decimal values. Supported tokens per network are derived from the token registry's `metadata.moonpaySlug` field (see `wdk token list`). Requires `ramp.moonpay.apiKey` / `ramp.moonpay.signUrl` / `ramp.moonpay.environment` to be configured.
 
 ### Token Registry
 

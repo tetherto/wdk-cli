@@ -147,7 +147,7 @@ export async function getTokenTransfers (network, token, address, options = {}) 
 
   if (!baseUrl) {
     throw new WdkCliError(
-      'Indexer base URL not configured. Set indexer.baseUrl or WDK_INDEXER_BASE_URL.',
+      'Indexer base URL not configured. Set it with: wdk config set --key indexer.baseUrl --value <url>',
       ErrorCode.MISSING_CONFIG
     )
   }
@@ -199,7 +199,7 @@ export async function getTokenTransfersBatch (items) {
 
   if (!baseUrl) {
     throw new WdkCliError(
-      'Indexer base URL not configured. Set indexer.baseUrl or WDK_INDEXER_BASE_URL.',
+      'Indexer base URL not configured. Set it with: wdk config set --key indexer.baseUrl --value <url>',
       ErrorCode.MISSING_CONFIG
     )
   }
