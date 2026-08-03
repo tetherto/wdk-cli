@@ -14,9 +14,11 @@
 
 import { jest } from '@jest/globals'
 
+const DUMMY_SEED = 'dummy-seed'
+
 const state = {
   list: async () => [],
-  unlock: async () => 'seed',
+  unlock: async () => DUMMY_SEED,
   getDefaultWallet: () => '',
   promptPassphrase: async () => '',
   promptArgs: [],
@@ -58,7 +60,7 @@ const { requirePassphraseConfirmation } = await import('../../../src/ui/auth.js'
 describe('requirePassphraseConfirmation', () => {
   beforeEach(() => {
     state.list = async () => []
-    state.unlock = async () => 'seed'
+    state.unlock = async () => DUMMY_SEED
     state.getDefaultWallet = () => ''
     state.promptPassphrase = async () => ''
     state.promptArgs = []
@@ -79,13 +81,12 @@ describe('requirePassphraseConfirmation', () => {
     state.list = async () => ['wallet-a', 'wallet-b']
     state.getDefaultWallet = () => 'wallet-b'
     state.promptPassphrase = async () => 'pass-b'
-    state.unlock = async () => 'seed-b'
+    state.unlock = async () => DUMMY_SEED
 
     await requirePassphraseConfirmation()
 
-    expect(state.promptArgs.length).toBe(1)
-    expect(state.promptArgs[0][0]).toContain("'wallet-b'")
-    expect(state.unlockArgs[0]).toEqual(['pass-b', 'wallet-b'])
+    expect(state.promptArgs).toEqual([["Enter passphrase of 'wallet-b' wallet to confirm:"]])
+    expect(state.unlockArgs).toEqual([['pass-b', 'wallet-b']])
   })
 
   it('throws when wallets exist but defaultWallet is empty', async () => {

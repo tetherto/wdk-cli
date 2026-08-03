@@ -48,7 +48,7 @@ export function registerGetCommand (program) {
     .option('--network <network>', 'Blockchain network')
     .option('--all', 'Show address for every network')
     .option('--index <n>', 'Account index', nonNegativeInt)
-    .option('--testnet', 'Include testnet networks (when --all)')
+    .option('--testnet', 'Show testnets instead of mainnets (when --all)')
 
   configureHelp(address, {
     params: [
@@ -58,7 +58,7 @@ export function registerGetCommand (program) {
     options: [
       { flags: '--wallet <name>', description: 'Wallet name (default: default wallet)' },
       { flags: '--index <n>', description: 'Account index (default: 0)' },
-      { flags: '--testnet', description: 'Include testnet networks (when --all)' }
+      { flags: '--testnet', description: 'Show testnets instead of mainnets (when --all)' }
     ]
   })
 
@@ -141,7 +141,7 @@ export function registerGetCommand (program) {
     .option('--all', 'Show balances for every network')
     .option('--index <n>', 'Account index', nonNegativeInt)
     .option('--token <token>', 'Registered token (e.g. usdt); omit for native. See `wdk token list`')
-    .option('--testnet', 'Include testnet networks (when --all)')
+    .option('--testnet', 'Show testnets instead of mainnets (when --all)')
 
   configureHelp(balance, {
     params: [
@@ -156,7 +156,7 @@ export function registerGetCommand (program) {
     options: [
       { flags: '--wallet <name>', description: 'Wallet name (default: default wallet)' },
       { flags: '--index <n>', description: 'Account index (default: 0)' },
-      { flags: '--testnet', description: 'Include testnet networks (when --all)' }
+      { flags: '--testnet', description: 'Show testnets instead of mainnets (when --all)' }
     ]
   })
 

@@ -27,23 +27,30 @@ const tokensFileRaw = createRequire(import.meta.url)('../../wdk.tokens.json')
  */
 
 /**
- * A single token entry in the registry.
+ * A token asset entry, following the `@tetherto/wdk-asset-registry` TokenAsset
+ * shape plus the CLI-specific fields (`network`, `slug`, `testnet`, `metadata`).
  *
- * @typedef {Object} TokenEntry
+ * @typedef {Object} CliTokenAsset
+ * @property {string} id - Unique asset id, `<network>/<slug>` (e.g. "ethereum/usdt").
+ * @property {string} chainId - CAIP-2 chain id (e.g. "eip155:1", "tron:mainnet").
+ * @property {string} network - The CLI network name the asset belongs to.
+ * @property {string} slug - The lower-case token key used by `--token <token>`.
  * @property {string} symbol - The display symbol (e.g. "USDT", "ETH").
+ * @property {string} name - The token name.
  * @property {number} decimals - The number of decimal places.
- * @property {boolean} isNative - True when this token is the chain's native asset (use native transfer path).
- * @property {string} [address] - Contract/mint address. Required for non-native sends; optional for native (wrapped/protocol representation).
+ * @property {boolean} isNative - True when this token is the chain's native asset.
+ * @property {string} [address] - Contract/mint address. Absent for native assets.
+ * @property {boolean} testnet - True when the asset belongs to a testnet network.
  * @property {TokenMetadata} [metadata] - Optional provider-specific mappings.
  */
 
 /**
- * The top-level shape of `wdk.tokens.json`. Tokens are grouped first by network
- * name, then by token (lower-case key used to invoke the token by `--token <token>`).
+ * The top-level shape of `wdk.tokens.json`. Version 2: a flat list of token
+ * assets in registry format (version 1 was a network-keyed map).
  *
  * @typedef {Object} WdkTokensFile
  * @property {number} version - The tokens file format version.
- * @property {Record<string, Record<string, TokenEntry>>} tokens - Tokens keyed by network, then by token.
+ * @property {CliTokenAsset[]} assets - The built-in token assets.
  */
 
 /** @type {WdkTokensFile} */

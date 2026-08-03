@@ -31,7 +31,7 @@ import { formatAddress } from '../ui/formatters.js'
 import { loadJson } from '../ui/parsers.js'
 
 /** @typedef {import('commander').Command} Command */
-/** @typedef {import('../config/wdk-tokens.js').TokenEntry} TokenEntry */
+/** @typedef {import('../services/token-service.js').TokenEntry} TokenEntry */
 
 /**
  * Renders a token entry as aligned key/value lines (used by `info`).

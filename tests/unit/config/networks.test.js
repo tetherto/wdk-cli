@@ -25,9 +25,18 @@ import {
   isBuiltinNetwork,
   getCustomNetworks,
   saveCustomNetwork,
-  deleteCustomNetwork
+  deleteCustomNetwork,
+  getChainId
 } from '../../../src/config/networks.js'
 import { configService } from '../../../src/services/config-service.js'
+
+const BUILT_IN_NETWORK_NAMES = [
+  'bitcoin', 'bitcoin-testnet3', 'ethereum', 'sepolia', 'polygon', 'arbitrum',
+  'base', 'bsc', 'avalanche', 'solana', 'solana-testnet', 'solana-devnet',
+  'spark', 'spark-regtest', 'tron', 'tron-testnet', 'smart-account-ethereum',
+  'smart-account-sepolia', 'smart-account-polygon', 'smart-account-arbitrum',
+  'smart-account-base', 'smart-account-plasma'
+]
 
 describe('networks', () => {
   it('validates network names', () => {
@@ -53,17 +62,29 @@ describe('networks', () => {
     expect(isTestnet('smart-account-ethereum')).toBe(false)
   })
 
-  it('all built-in networks have required fields', () => {
-    for (const network of NETWORK_NAMES) {
-      const config = NETWORKS[network]
-      expect(config.name).toBe(network)
-      expect(config.displayName).toBeTruthy()
-      expect(config.module).toMatch(
-        /^@tetherto\/wdk-wallet-(evm|btc|solana|spark|evm-erc-4337|tron)(@.+)?$/
-      )
-      expect(config.nativeSymbol).toBeTruthy()
-      expect(config.decimals).toBeGreaterThan(0)
-    }
+  it('exposes the built-in network list', () => {
+    expect(NETWORK_NAMES).toEqual(BUILT_IN_NETWORK_NAMES)
+  })
+
+  it('builds complete configs for built-in networks', () => {
+    expect(NETWORKS.ethereum).toEqual({
+      name: 'ethereum',
+      displayName: 'Ethereum',
+      type: '@tetherto/wdk-wallet-evm',
+      module: '@tetherto/wdk-wallet-evm@1.0.0-beta.11',
+      nativeSymbol: 'ETH',
+      decimals: 18,
+      testnet: false
+    })
+    expect(NETWORKS.bitcoin).toEqual({
+      name: 'bitcoin',
+      displayName: 'Bitcoin',
+      type: '@tetherto/wdk-wallet-btc',
+      module: '@tetherto/wdk-wallet-btc@1.0.0-beta.8',
+      nativeSymbol: 'BTC',
+      decimals: 8,
+      testnet: false
+    })
   })
 
   it('identifies built-in networks', () => {
@@ -73,8 +94,34 @@ describe('networks', () => {
   })
 })
 
+describe('getChainId', () => {
+  afterEach(() => {
+    jest.restoreAllMocks()
+  })
+
+  it('returns the chain id for built-in networks', () => {
+    expect(getChainId('ethereum')).toBe('eip155:1')
+    expect(getChainId('tron')).toBe('tron:mainnet')
+    expect(getChainId('bitcoin')).toBe('bip122:000000000019d6689c085ae165831e93')
+  })
+
+  it('returns the configured chain id for custom networks', () => {
+    jest.spyOn(configService, 'get').mockImplementation((key) =>
+      key === 'customNetworks.linea.chainId' ? 'eip155:59144' : undefined
+    )
+
+    expect(getChainId('linea')).toBe('eip155:59144')
+  })
+
+  it('falls back to a synthetic id for networks without one', () => {
+    jest.spyOn(configService, 'get').mockImplementation(() => undefined)
+
+    expect(getChainId('mystery-net')).toBe('wdk:mystery-net')
+  })
+})
+
 describe('custom networks', () => {
-  const mockCustomNetwork = {
+  const DUMMY_CUSTOM_NETWORK = {
     name: 'optimism',
     displayName: 'Optimism',
     type: '@tetherto/wdk-wallet-evm',
@@ -88,7 +135,7 @@ describe('custom networks', () => {
   beforeEach(() => {
     jest.spyOn(configService, 'get').mockImplementation((key) => {
       if (key === 'customNetworks') {
-        return { optimism: mockCustomNetwork }
+        return { optimism: DUMMY_CUSTOM_NETWORK }
       }
       return undefined
     })
@@ -99,22 +146,17 @@ describe('custom networks', () => {
   })
 
   it('returns custom networks from config', () => {
-    const custom = getCustomNetworks()
-    expect(Object.prototype.hasOwnProperty.call(custom, 'optimism')).toBe(true)
-    expect(custom.optimism.displayName).toBe('Optimism')
-    expect(custom.optimism.custom).toBe(true)
+    expect(getCustomNetworks()).toEqual({
+      optimism: { ...DUMMY_CUSTOM_NETWORK, nativeSymbol: undefined, decimals: undefined }
+    })
   })
 
   it('getAllNetworks merges built-in and custom', () => {
-    const all = getAllNetworks()
-    expect(Object.prototype.hasOwnProperty.call(all, 'ethereum')).toBe(true)
-    expect(Object.prototype.hasOwnProperty.call(all, 'optimism')).toBe(true)
+    expect(Object.keys(getAllNetworks())).toEqual([...BUILT_IN_NETWORK_NAMES, 'optimism'])
   })
 
   it('getAllNetworkNames includes custom networks', () => {
-    const names = getAllNetworkNames()
-    expect(names).toContain('ethereum')
-    expect(names).toContain('optimism')
+    expect(getAllNetworkNames()).toEqual([...BUILT_IN_NETWORK_NAMES, 'optimism'])
   })
 
   it('isValidNetwork accepts custom networks', () => {
@@ -128,10 +170,9 @@ describe('custom networks', () => {
   })
 
   it('getNetworkConfig returns custom network config', () => {
-    const config = getNetworkConfig('optimism')
-    expect(config.displayName).toBe('Optimism')
-    expect(config.module).toBe('@tetherto/wdk-wallet-evm')
-    expect(config.custom).toBe(true)
+    expect(getNetworkConfig('optimism')).toEqual({
+      ...DUMMY_CUSTOM_NETWORK, nativeSymbol: undefined, decimals: undefined
+    })
   })
 
   it('isTestnet works with custom networks', () => {
@@ -141,7 +182,7 @@ describe('custom networks', () => {
     jest.spyOn(configService, 'get').mockImplementation((key) => {
       if (key === 'customNetworks') {
         return {
-          'optimism-testnet': { ...mockCustomNetwork, name: 'optimism-testnet', testnet: true }
+          'optimism-testnet': { ...DUMMY_CUSTOM_NETWORK, name: 'optimism-testnet', testnet: true }
         }
       }
       return undefined
@@ -152,9 +193,9 @@ describe('custom networks', () => {
 
   it('saveCustomNetwork stores to config', () => {
     const setMock = jest.spyOn(configService, 'set').mockImplementation(() => {})
-    saveCustomNetwork('linea', mockCustomNetwork)
+    saveCustomNetwork('linea', DUMMY_CUSTOM_NETWORK)
     expect(setMock).toHaveBeenCalledTimes(1)
-    expect(setMock.mock.calls[0]).toEqual(['customNetworks.linea', mockCustomNetwork])
+    expect(setMock.mock.calls[0]).toEqual(['customNetworks.linea', DUMMY_CUSTOM_NETWORK])
   })
 
   it('deleteCustomNetwork removes from config', () => {

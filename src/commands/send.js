@@ -103,12 +103,12 @@ export function registerSendCommand (program) {
       }
 
       if (options.dryRun) {
-        const spinner = ora('Estimating fee...').start()
+        const spinner = program.opts().json ? null : ora('Estimating fee...').start()
         let preview
         try {
           preview = await previewSend(sendInput)
         } finally {
-          spinner.stop()
+          spinner?.stop()
         }
 
         if (program.opts().json) {
@@ -132,10 +132,10 @@ export function registerSendCommand (program) {
         return
       }
 
-      const sendSpinner = ora('Broadcasting transaction...').start()
+      const sendSpinner = program.opts().json ? null : ora('Broadcasting transaction...').start()
       try {
         const result = await executeSend(sendInput)
-        sendSpinner.succeed('Transaction sent!')
+        sendSpinner?.succeed('Transaction sent!')
 
         if (program.opts().json) {
           console.log(JSON.stringify(result))
@@ -152,7 +152,7 @@ export function registerSendCommand (program) {
           console.log()
         }
       } catch (error) {
-        sendSpinner.fail('Transaction failed.')
+        sendSpinner?.fail('Transaction failed.')
         throw error
       }
     } catch (error) {

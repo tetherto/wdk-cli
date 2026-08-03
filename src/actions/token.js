@@ -23,7 +23,7 @@ import {
 } from '../services/token-service.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 
-/** @typedef {import('../config/wdk-tokens.js').TokenEntry} TokenEntry */
+/** @typedef {import('../services/token-service.js').TokenEntry} TokenEntry */
 /** @typedef {import('../config/wdk-tokens.js').TokenMetadata} TokenMetadata */
 
 /**

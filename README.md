@@ -133,17 +133,18 @@ wdk wallet lock --all
 
 ### Wallet
 
-Wallet commands that require passphrase input (create, import, unlock, export, delete) are interactive by default. Set `WDK_PASSPHRASE` env var to skip the interactive prompt for automation and `--json` output.
+Wallet commands that require passphrase input (create, import, unlock, export, delete) are interactive by default. Set `WDK_PASSPHRASE` env var to skip the interactive prompt for automation and `--json` output. Two commands take an extra flag for non-interactive use: `import` reads the seed phrase from stdin with `--seed-stdin`, and `change-passphrase` reads the new passphrase from stdin with `--new-passphrase-stdin` (`WDK_PASSPHRASE` supplies only the current passphrase, never the new one).
 
 ```bash
 wdk wallet create --name <name> [--words 12|24]       # Create a new wallet with a generated seed phrase
-wdk wallet import --name <name>                       # Import a wallet from an existing seed phrase
+wdk wallet import --name <name> [--seed-stdin]        # Import a wallet from an existing seed phrase
 wdk wallet export --name <name>                       # Display the seed phrase of an existing wallet
 wdk wallet list                                       # List all wallets with lock/default status
 wdk wallet unlock --name <name> [--ttl <minutes>]     # Unlock a wallet for signing transactions
 wdk wallet lock --name <name>                         # Lock a single wallet
 wdk wallet lock --all                                 # Lock all wallets (stops daemon)
 wdk wallet delete --name <name>                       # Delete a wallet (requires passphrase)
+wdk wallet change-passphrase --name <name> [--new-passphrase-stdin]  # Change the wallet passphrase (requires current passphrase)
 wdk wallet default --name <name>                      # Set the default wallet
 wdk wallet rename --name <old> --new-name <new>       # Rename a wallet
 ```
@@ -393,7 +394,7 @@ Additional networks can be added with `wdk network create`. See [Adding Custom N
 
 ## Non-Interactive Mode
 
-All commands support `--json` for machine-parseable output. Commands that require passphrase input (wallet create, import, unlock, export, delete, and config set/reset) can be run non-interactively by setting the `WDK_PASSPHRASE` environment variable.
+All commands support `--json` for machine-parseable output. Commands that require passphrase input (wallet create, unlock, export, delete, and config set/reset) can be run non-interactively by setting the `WDK_PASSPHRASE` environment variable. `wallet import` additionally reads the seed phrase from stdin with `--seed-stdin`, and `wallet change-passphrase` reads the new passphrase from stdin with `--new-passphrase-stdin`.
 
 ```bash
 # CI/CD: create and unlock a wallet without interactive prompts
@@ -402,6 +403,13 @@ WDK_PASSPHRASE=mypass wdk wallet unlock --name ci-wallet --ttl 0 --json
 
 # Docker: unlock at container start
 WDK_PASSPHRASE=$WALLET_PASS wdk wallet unlock --name default --ttl 0 --json
+
+# Import a seed from a secret manager or file — never echo a real seed
+op read "op://vault/wallet/seed" | WDK_PASSPHRASE=mypass wdk wallet import --name restored --seed-stdin --json
+wdk wallet import --name restored --seed-stdin --json < /run/secrets/seed
+
+# Rotate a wallet passphrase
+printf '%s\n' "$NEW_PASS" | WDK_PASSPHRASE=$OLD_PASS wdk wallet change-passphrase --name ci-wallet --new-passphrase-stdin --json
 
 # Scripting: check balance and parse output
 wdk get balance --network ethereum --json | jq '.balance'

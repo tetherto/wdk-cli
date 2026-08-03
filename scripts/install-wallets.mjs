@@ -33,15 +33,37 @@ if (modules.length === 0) {
   process.exit(0)
 }
 
+// A wallet module must match one of two forms, both locked to Tether-owned namespaces:
+//   @tetherto/<name>[@<version>]                            npm registry package
+//   git+https://github.com/tetherto/<repo>[.git][#<ref>]    GitHub repo (pin a commit SHA for reproducible installs)
+// The character classes exclude all shell metacharacters, so a matching
+// specifier is safe to place on a command line.
+const MODULE_SPEC_RE = /^@tetherto\/[a-z0-9~-][a-z0-9._~-]*(@[a-zA-Z0-9.+-]+)?$/
+const GITHUB_SPEC_RE = /^git\+https:\/\/github\.com\/tetherto\/[a-z0-9._~-]+(\.git)?(#[a-zA-Z0-9._/-]+)?$/
+
+const invalid = modules.filter(
+  (m) => typeof m !== 'string' || !(MODULE_SPEC_RE.test(m) || GITHUB_SPEC_RE.test(m))
+)
+if (invalid.length > 0) {
+  console.error(`Invalid module specifier(s) in wdk.config.json: ${invalid.join(', ')}`)
+  process.exit(1)
+}
+
 console.log(`Installing ${modules.length} wallet modules from wdk.config.json...`)
 console.log(modules.map((m) => `  - ${m}`).join('\n'))
 
 try {
-  execFileSync('npm', ['install', '--no-save', ...modules], {
-    cwd: join(__dirname, '..'),
-    stdio: 'inherit',
-    shell: true
-  })
+  // Node refuses to spawn npm.cmd without a shell (CVE-2024-27980), so Windows
+  // must go through cmd.exe; macOS and Linux run npm directly, with no shell.
+  execFileSync(
+    process.platform === 'win32' ? 'npm.cmd' : 'npm',
+    ['install', '--no-save', ...modules],
+    {
+      cwd: join(__dirname, '..'),
+      stdio: 'inherit',
+      shell: process.platform === 'win32'
+    }
+  )
   console.log('\nAll wallet modules installed successfully.')
 } catch (err) {
   console.error('\nFailed to install wallet modules.')

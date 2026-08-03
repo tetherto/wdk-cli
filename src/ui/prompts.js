@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import { createInterface } from 'node:readline'
 import { input, password } from '@inquirer/prompts'
 import chalk from 'chalk'
 
@@ -21,11 +22,12 @@ let envPassphraseNoticeShown = false
  * Prompts the user for a passphrase, or reads it from the WDK_PASSPHRASE environment variable.
  *
  * @param {string} [message] - Prompt message. Defaults to `'Enter passphrase:'`.
+ * @param {{ allowEnv?: boolean }} [options] - Set `allowEnv` to `false` to always prompt, ignoring WDK_PASSPHRASE.
  * @returns {Promise<string>} The entered passphrase.
  */
-export async function promptPassphrase (message = 'Enter passphrase:') {
+export async function promptPassphrase (message = 'Enter passphrase:', { allowEnv = true } = {}) {
   const envPassphrase = process.env.WDK_PASSPHRASE
-  if (envPassphrase) {
+  if (allowEnv && envPassphrase) {
     if (!envPassphraseNoticeShown) {
       console.error(chalk.dim('Note: using passphrase from WDK_PASSPHRASE env var.'))
       envPassphraseNoticeShown = true
@@ -42,4 +44,21 @@ export async function promptPassphrase (message = 'Enter passphrase:') {
  */
 export async function promptSeedPhrase () {
   return input({ message: 'Enter your seed phrase:' })
+}
+
+/**
+ * Reads a single line from stdin without rendering a prompt or echoing the
+ * value back to stdout. Works with piped input, file redirection, and a
+ * terminal (type the value and press Enter).
+ *
+ * @returns {Promise<string>} The first line of stdin, trimmed.
+ */
+export async function readLineFromStdin () {
+  const rl = createInterface({ input: process.stdin })
+  try {
+    const { value } = await rl[Symbol.asyncIterator]().next()
+    return (value ?? '').trim()
+  } finally {
+    rl.close()
+  }
 }

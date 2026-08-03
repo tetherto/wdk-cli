@@ -147,6 +147,21 @@ export function isValidNetwork (name) {
 }
 
 /**
+ * Returns the CAIP-2 chain id for a network (e.g. "eip155:1", "tron:mainnet").
+ * Custom networks without a configured chain id get a synthetic `wdk:<name>` id.
+ *
+ * @param {string} name - Network name.
+ * @returns {string} The chain id.
+ */
+export function getChainId (name) {
+  return (
+    walletsFile.networks[name]?.chainId ??
+    /** @type {string | undefined} */ (configService.get(`customNetworks.${name}.chainId`)) ??
+    `wdk:${name}`
+  )
+}
+
+/**
  * Returns whether a network is a testnet.
  *
  * @param {string} name - Network name to check.

@@ -15,19 +15,24 @@
 import { jest } from '@jest/globals'
 
 const USDT_ETH = '0xdAC17F958D2ee523a2206206994597C13D831ec7'
-const DEFAULT_PRICES = { tETHUSD: 2000, tUSTUSD: 1 }
+const DUMMY_PRICES = { tETHUSD: 2000, tUSTUSD: 1 }
 
 function tickerResponse (prices) {
   return Object.entries(prices).map(([sym, price]) => [sym, 0, 0, 0, 0, 0, 0, price, 0, 0, 0])
 }
 
-function makeFetchMock (prices = DEFAULT_PRICES) {
-  const state = { calls: 0 }
-  const fn = async () => {
+const TICKERS_URL =
+  'https://api-pub.bitfinex.com/v2/tickers?symbols=tBTCUSD,tETHUSD,tUSTUSD,tXAUT:USD,tPOLUSD,tAVAX:USD,tSOLUSD,tTRXUSD'
+
+function makeFetchMock (prices = DUMMY_PRICES) {
+  const state = { calls: 0, urls: [] }
+  const fn = async (url) => {
     state.calls++
+    state.urls.push(url)
     return { ok: true, status: 200, statusText: 'OK', json: async () => tickerResponse(prices) }
   }
   fn.callCount = () => state.calls
+  fn.urls = state.urls
   return fn
 }
 
@@ -46,11 +51,13 @@ describe('price-service', () => {
   })
 
   it('converts 1 ETH to USD', async () => {
-    globalThis.fetch = makeFetchMock()
+    const fetchFn = makeFetchMock()
+    globalThis.fetch = fetchFn
     try {
       const { convertToUsd } = await loadService()
       const usd = await convertToUsd('ethereum', 1_000_000_000_000_000_000n)
       expect(usd).toBe(2000)
+      expect(fetchFn.urls).toEqual([TICKERS_URL])
     } finally {
       globalThis.fetch = originalFetch
     }
@@ -68,13 +75,12 @@ describe('price-service', () => {
   })
 
   it('handles bigint above Number.MAX_SAFE_INTEGER (rounded to 2 dp)', async () => {
-    globalThis.fetch = makeFetchMock({ ...DEFAULT_PRICES, tETHUSD: 1 })
+    globalThis.fetch = makeFetchMock({ ...DUMMY_PRICES, tETHUSD: 1 })
     try {
       const { convertToUsd } = await loadService()
       // 1.234567890123456789 ETH @ $1 → rounds to $1.23
       const amount = 1_234_567_890_123_456_789n
       const usd = await convertToUsd('ethereum', amount)
-      expect(Number.isFinite(usd)).toBe(true)
       expect(usd).toBe(1.23)
     } finally {
       globalThis.fetch = originalFetch
