@@ -186,7 +186,7 @@ Errors are returned as structured JSON: `{"error": "...", "code": "...", "sugges
 
 These actions are **strictly forbidden** for AI agents. Do not attempt them under any circumstances:
 
-1. **NEVER create or import wallets** — `wdk wallet create` and `wdk wallet import` require passphrase input. Tell the user to do it themselves.
+1. **NEVER create or import wallets** — not under any circumstances. The `--seed-stdin` and `--new-passphrase-stdin` flags exist for human-operated scripts only (provisioning, CI, backup tooling) — agents must never invoke them, even with secrets provided by the user in chat. Tell the user to do it themselves.
 2. **NEVER unlock the wallet** — `wdk wallet unlock` requires passphrase input. If the wallet is locked, tell the user to unlock it.
 3. **NEVER export or ask for seed phrases or passphrases** — this is sensitive data that must never be logged, stored, or transmitted.
 4. **NEVER mutate the network or token registry** — `wdk network create / delete`, `wdk token add / delete`. These modify persistent user config and are user-driven decisions. If a command needs a registry change, surface the suggestion to the user and let them run it.

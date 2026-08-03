@@ -26,10 +26,11 @@ const CLI_BIN = join(__dirname, '..', '..', 'bin', 'wdk.mjs')
 
 let configDir
 
-function runCli (args) {
+function runCli (args, { input, env } = {}) {
   return spawnSync(process.execPath, [CLI_BIN, ...args], {
     encoding: 'utf8',
-    env: { ...process.env, XDG_CONFIG_HOME: configDir, WDK_PASSPHRASE: '' }
+    input,
+    env: { ...process.env, XDG_CONFIG_HOME: configDir, WDK_PASSPHRASE: '', ...env }
   })
 }
 
@@ -127,5 +128,81 @@ describe('send spinner output', () => {
 
     expect(result.status).toBe(1)
     expect(result.stderr).toContain('Transaction failed.')
+  })
+})
+
+describe('stdin secret flags', () => {
+  const DUMMY_SEED =
+    'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'
+  const DUMMY_PASSPHRASE = 'dummy-stdin-pass'
+  const DUMMY_NEW_PASSPHRASE = 'dummy-stdin-pass-2'
+
+  it('imports a wallet from stdin with --seed-stdin and WDK_PASSPHRASE', () => {
+    const result = runCli(['wallet', 'import', '--name', 'stdintest', '--seed-stdin', '--json'], {
+      input: `${DUMMY_SEED}\n`,
+      env: { WDK_PASSPHRASE: DUMMY_PASSPHRASE }
+    })
+
+    expect(result.status).toBe(0)
+    expect(JSON.parse(result.stdout)).toEqual({
+      wallet: 'stdintest',
+      imported: true,
+      setAsDefault: true
+    })
+    expect(result.stdout).not.toContain('abandon')
+    expect(result.stderr).not.toContain('abandon')
+  })
+
+  it('fails cleanly with --seed-stdin when stdin is piped and WDK_PASSPHRASE is unset', () => {
+    const result = runCli(['wallet', 'import', '--name', 'other', '--seed-stdin', '--json'], {
+      input: `${DUMMY_SEED}\n`
+    })
+
+    expect(result.status).toBe(1)
+    expect(JSON.parse(result.stdout)).toEqual({
+      error: 'Cannot prompt for a passphrase when stdin is piped.',
+      code: 'INVALID_ARGUMENT',
+      suggestion: 'Set WDK_PASSPHRASE, or run from a terminal.'
+    })
+  })
+
+  it('rejects an invalid seed phrase from stdin', () => {
+    const result = runCli(['wallet', 'import', '--name', 'other', '--seed-stdin', '--json'], {
+      input: 'not a valid seed phrase\n',
+      env: { WDK_PASSPHRASE: DUMMY_PASSPHRASE }
+    })
+
+    expect(result.status).toBe(1)
+    expect(JSON.parse(result.stdout).code).toBe('INVALID_ARGUMENT')
+    expect(JSON.parse(result.stdout).error).toBe('Invalid seed phrase. Must be 12 or 24 valid BIP-39 words.')
+  })
+
+  it('changes the passphrase from stdin with --new-passphrase-stdin', () => {
+    const result = runCli(
+      ['wallet', 'change-passphrase', '--name', 'stdintest', '--new-passphrase-stdin', '--json'],
+      { input: `${DUMMY_NEW_PASSPHRASE}\n`, env: { WDK_PASSPHRASE: DUMMY_PASSPHRASE } }
+    )
+
+    expect(result.status).toBe(0)
+    expect(JSON.parse(result.stdout)).toEqual({ wallet: 'stdintest', changed: true })
+
+    const exported = runCli(['wallet', 'export', '--name', 'stdintest', '--json'], {
+      env: { WDK_PASSPHRASE: DUMMY_NEW_PASSPHRASE }
+    })
+    expect(exported.status).toBe(0)
+    expect(JSON.parse(exported.stdout)).toEqual({ wallet: 'stdintest', seedPhrase: DUMMY_SEED })
+  })
+
+  it('rejects an empty new passphrase from stdin', () => {
+    const result = runCli(
+      ['wallet', 'change-passphrase', '--name', 'stdintest', '--new-passphrase-stdin', '--json'],
+      { input: '\n', env: { WDK_PASSPHRASE: DUMMY_NEW_PASSPHRASE } }
+    )
+
+    expect(result.status).toBe(1)
+    expect(JSON.parse(result.stdout)).toEqual({
+      error: 'Empty new passphrase is not allowed with --new-passphrase-stdin.',
+      code: 'INVALID_ARGUMENT'
+    })
   })
 })

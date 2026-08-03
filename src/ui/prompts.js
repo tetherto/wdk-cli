@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import { createInterface } from 'node:readline'
 import { input, password } from '@inquirer/prompts'
 import chalk from 'chalk'
 
@@ -43,4 +44,21 @@ export async function promptPassphrase (message = 'Enter passphrase:', { allowEn
  */
 export async function promptSeedPhrase () {
   return input({ message: 'Enter your seed phrase:' })
+}
+
+/**
+ * Reads a single line from stdin without rendering a prompt or echoing the
+ * value back to stdout. Works with piped input, file redirection, and a
+ * terminal (type the value and press Enter).
+ *
+ * @returns {Promise<string>} The first line of stdin, trimmed.
+ */
+export async function readLineFromStdin () {
+  const rl = createInterface({ input: process.stdin })
+  try {
+    const { value } = await rl[Symbol.asyncIterator]().next()
+    return (value ?? '').trim()
+  } finally {
+    rl.close()
+  }
 }

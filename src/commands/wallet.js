@@ -21,7 +21,7 @@ import { daemonClient } from '../daemon/client.js'
 import { configService } from '../services/config-service.js'
 import { SESSION_TTL_MINUTES, getWalletDir } from '../config/constants.js'
 import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
-import { promptPassphrase, promptSeedPhrase } from '../ui/prompts.js'
+import { promptPassphrase, promptSeedPhrase, readLineFromStdin } from '../ui/prompts.js'
 import { requirePassphraseConfirmation } from '../ui/auth.js'
 import { configureHelp } from '../ui/help.js'
 import { createTable } from '../ui/tables.js'
@@ -132,9 +132,11 @@ export function registerWalletCommand (program) {
     .command('import')
     .description('Import a wallet from an existing seed phrase')
     .requiredOption('--name <name>', 'Wallet name')
+    .option('--seed-stdin', 'Read the seed phrase from stdin instead of prompting')
 
   configureHelp(importCmd, {
-    params: [{ flags: '--name <name>', description: 'Wallet name', required: true }]
+    params: [{ flags: '--name <name>', description: 'Wallet name', required: true }],
+    options: [{ flags: '--seed-stdin', description: 'Read the seed phrase from stdin instead of prompting' }]
   })
 
   importCmd.action(async (options) => {
@@ -146,8 +148,20 @@ export function registerWalletCommand (program) {
         throw new WdkCliError(`Wallet '${name}' already exists.`, ErrorCode.WALLET_EXISTS)
       }
 
-      if (!program.opts().json) console.log(chalk.dim('Enter your BIP-39 seed phrase (12 or 24 words).'))
-      const seedPhrase = (await promptSeedPhrase()).trim()
+      let seedPhrase
+      if (options.seedStdin) {
+        if (!process.env.WDK_PASSPHRASE && !process.stdin.isTTY) {
+          throw new WdkCliError(
+            'Cannot prompt for a passphrase when stdin is piped.',
+            ErrorCode.INVALID_ARGUMENT,
+            'Set WDK_PASSPHRASE, or run from a terminal.'
+          )
+        }
+        seedPhrase = await readLineFromStdin()
+      } else {
+        if (!program.opts().json) console.log(chalk.dim('Enter your BIP-39 seed phrase (12 or 24 words).'))
+        seedPhrase = (await promptSeedPhrase()).trim()
+      }
 
       if (!keyService.validate(seedPhrase)) {
         throw new WdkCliError(
@@ -602,9 +616,11 @@ export function registerWalletCommand (program) {
     .command('change-passphrase')
     .description('Change the wallet passphrase')
     .requiredOption('--name <name>', 'Wallet name')
+    .option('--new-passphrase-stdin', 'Read the new passphrase from stdin instead of prompting')
 
   configureHelp(changePassphraseCmd, {
-    params: [{ flags: '--name <name>', description: 'Wallet name', required: true }]
+    params: [{ flags: '--name <name>', description: 'Wallet name', required: true }],
+    options: [{ flags: '--new-passphrase-stdin', description: 'Read the new passphrase from stdin instead of prompting' }]
   })
 
   changePassphraseCmd.action(async (options) => {
@@ -616,33 +632,52 @@ export function registerWalletCommand (program) {
         throw new WdkCliError(`Wallet '${name}' not found.`, ErrorCode.KEY_NOT_FOUND)
       }
 
+      if (options.newPassphraseStdin && !process.env.WDK_PASSPHRASE && !process.stdin.isTTY) {
+        throw new WdkCliError(
+          'Cannot prompt for the current passphrase when stdin is piped.',
+          ErrorCode.INVALID_ARGUMENT,
+          'Set WDK_PASSPHRASE, or run from a terminal.'
+        )
+      }
+
       const currentPassphrase = await promptPassphrase(
         `Enter current passphrase of '${name}' wallet:`
       )
       const seedPhrase = await keyService.unlock(currentPassphrase, name)
 
-      if (!program.opts().json) {
-        console.log()
-        console.log(
-          chalk.dim(
-            'Enter a new passphrase to encrypt your seed phrase. Remember the passphrase to unlock this wallet in the future.'
+      let newPassphrase
+      if (options.newPassphraseStdin) {
+        newPassphrase = await readLineFromStdin()
+        if (newPassphrase === '') {
+          throw new WdkCliError(
+            'Empty new passphrase is not allowed with --new-passphrase-stdin.',
+            ErrorCode.INVALID_ARGUMENT
           )
-        )
-        console.log()
-      }
-      const newPassphrase = await promptPassphrase('New passphrase (empty for none):', { allowEnv: false })
-      if (newPassphrase === '' && !program.opts().json) {
-        console.log()
-        console.log(
-          chalk.bold.yellow(
-            'WARNING: Empty passphrase. Seed phrase will be stored unencrypted, anyone with access to this machine can read it.'
+        }
+      } else {
+        if (!program.opts().json) {
+          console.log()
+          console.log(
+            chalk.dim(
+              'Enter a new passphrase to encrypt your seed phrase. Remember the passphrase to unlock this wallet in the future.'
+            )
           )
-        )
-        console.log()
-      }
-      const confirmPw = await promptPassphrase('Confirm new passphrase:', { allowEnv: false })
-      if (newPassphrase !== confirmPw) {
-        throw new WdkCliError('Passphrases do not match.', ErrorCode.PASSPHRASE_MISMATCH)
+          console.log()
+        }
+        newPassphrase = await promptPassphrase('New passphrase (empty for none):', { allowEnv: false })
+        if (newPassphrase === '' && !program.opts().json) {
+          console.log()
+          console.log(
+            chalk.bold.yellow(
+              'WARNING: Empty passphrase. Seed phrase will be stored unencrypted, anyone with access to this machine can read it.'
+            )
+          )
+          console.log()
+        }
+        const confirmPw = await promptPassphrase('Confirm new passphrase:', { allowEnv: false })
+        if (newPassphrase !== confirmPw) {
+          throw new WdkCliError('Passphrases do not match.', ErrorCode.PASSPHRASE_MISMATCH)
+        }
       }
 
       const spinner = program.opts().json ? null : ora('Re-encrypting seed phrase...').start()
