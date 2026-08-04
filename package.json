@@ -54,7 +54,7 @@
   },
   "dependencies": {
     "@inquirer/prompts": "8.2.0",
-    "@modelcontextprotocol/sdk": "1.27.1",
+    "@modelcontextprotocol/sdk": "1.30.0",
     "@tetherto/wdk": "1.0.0-beta.6",
     "@tetherto/wdk-asset-registry": "1.0.0-beta.2",
     "@tetherto/wdk-protocol-fiat-moonpay": "1.0.0-beta.2",
