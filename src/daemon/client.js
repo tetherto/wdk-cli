@@ -201,6 +201,14 @@ export class DaemonClient {
         reject(new Error(`Cannot connect to wallet daemon: ${err.message}`))
       })
 
+      socket.on('close', () => {
+        reject(new WdkCliError(
+          'Lost connection to the wallet daemon.',
+          ErrorCode.NETWORK_ERROR,
+          'The daemon stopped and wallet sessions were lost. Run: wdk wallet unlock --name <name>'
+        ))
+      })
+
       socket.setTimeout(timeoutMs, () => {
         socket.destroy()
         reject(new Error('Daemon request timed out'))
