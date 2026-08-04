@@ -174,7 +174,7 @@
       }
     },
     "tron": {
-      "module": "@tetherto/wdk-wallet-tron@1.0.0-beta.4",
+      "module": "@tetherto/wdk-wallet-tron@1.0.0-beta.9",
       "displayName": "Tron",
       "chainId": "tron:mainnet",
       "indexerSlug": "tron",
@@ -184,7 +184,7 @@
       }
     },
     "tron-testnet": {
-      "module": "@tetherto/wdk-wallet-tron@1.0.0-beta.4",
+      "module": "@tetherto/wdk-wallet-tron@1.0.0-beta.9",
       "displayName": "Tron Testnet (Shasta)",
       "chainId": "tron:shasta",
       "testnet": true,
