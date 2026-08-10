@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /**
- * @typedef {'get_address' | 'get_balance' | 'estimate_fee' | 'send' | 'list_wallets' | 'status' | 'unlock_wallet' | 'lock_wallet' | 'lock'} DaemonAction
+ * @typedef {'get_address' | 'get_balance' | 'estimate_fee' | 'send' | 'list_wallets' | 'status' | 'unlock_wallet' | 'lock_wallet' | 'lock' | 'call_method'} DaemonAction
  */
 
 /**
@@ -27,6 +27,8 @@
  * @property {string} [token] - The token symbol.
  * @property {string} [to] - The recipient address.
  * @property {string} [amount] - The transfer amount in base units.
+ * @property {string} [method] - The module method name (only for call_method).
+ * @property {Record<string, string>} [args] - Raw method argument strings (only for call_method).
  */
 
 /**

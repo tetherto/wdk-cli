@@ -29,9 +29,32 @@ const walletsFileRaw = createRequire(import.meta.url)('../../wdk.config.json')
  */
 
 /**
+ * @typedef {string | Record<string, unknown> | unknown[]} MethodParamType
+ * A parameter type: a scalar type string (`string`, `bigint`, `number`, `boolean`,
+ * or their `[]` array forms, with a trailing `?` marking it optional), a nested
+ * object schema, or a single-element array holding the element schema. Structured
+ * parameters are passed as JSON strings and are always required.
+ */
+
+/**
+ * @typedef {Object} MethodEntry
+ * @property {'read' | 'write'} kind - Whether the method mutates state.
+ * @property {'positional' | 'object'} [style] - How params are passed to the module method:
+ *   one argument per param in declaration order (default), or a single options object.
+ * @property {Record<string, MethodParamType>} params - Parameter name to type.
+ */
+
+/**
+ * @typedef {Object} WdkModuleEntry
+ * @property {string} version - The pinned module version.
+ * @property {Record<string, MethodEntry>} [methods] - The invocable module methods keyed by method name.
+ */
+
+/**
  * @typedef {Object} WdkConfigFile
  * @property {number} version - The config file format version.
  * @property {Record<string, unknown>} defaults - The default global configuration.
+ * @property {Record<string, WdkModuleEntry>} modules - The WDK module registry keyed by package name.
  * @property {Record<string, WdkNetworkEntry>} networks - The network definitions keyed by network name.
  */
 

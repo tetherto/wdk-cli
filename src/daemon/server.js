@@ -29,6 +29,7 @@ import { deriveKey, decryptWithKey } from '@tetherto/wdk-utils'
 import { WdkService } from '../services/wdk-service.js'
 import { isValidNetwork, getNetworkConfig } from '../config/networks.js'
 import { getTokenByAddress } from '../services/token-service.js'
+import { getMethod, convertMethodArgs, bigintReplacer } from '../services/methods.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 import { formatAmount } from '../ui/formatters.js'
 
@@ -336,6 +337,30 @@ export class WalletDaemon {
           const account = await wdk.getAccount(req.network, req.index ?? 0)
           const address = await account.getAddress()
           return { ok: true, data: { address } }
+        } catch (e) {
+          return errorResponse(e)
+        }
+      }
+
+      case 'call_method': {
+        if (!req.network || !isValidNetwork(req.network)) {
+          return { ok: false, error: `Invalid network: ${req.network}` }
+        }
+        if (!req.method) {
+          return { ok: false, error: 'Missing required field: method' }
+        }
+        try {
+          const wdk = this.#requireWallet(wallet)
+          // Re-validate against the daemon's own catalog copy: only declared
+          // methods are invocable, regardless of what the client sent.
+          const method = getMethod(req.network, req.method)
+          const values = convertMethodArgs(method, req.args || {})
+          const account = await wdk.getAccount(req.network, req.index ?? 0)
+          const result = await account[req.method](...values)
+          const safe = result === undefined
+            ? null
+            : JSON.parse(JSON.stringify({ v: result }, bigintReplacer)).v
+          return { ok: true, data: { result: safe } }
         } catch (e) {
           return errorResponse(e)
         }

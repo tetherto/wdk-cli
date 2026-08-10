@@ -14,7 +14,7 @@
 // limitations under the License.
 
 /**
- * Reads wdk.config.json and installs all wallet modules listed in it.
+ * Reads wdk.config.json and installs all WDK modules listed in it.
  * Run: node scripts/install-wallets.mjs
  */
 import { readFileSync } from 'node:fs'
@@ -26,7 +26,15 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const walletsPath = join(__dirname, '..', 'wdk.config.json')
 const wallets = JSON.parse(readFileSync(walletsPath, 'utf8'))
 
-const modules = [...new Set(Object.values(wallets.networks).map((w) => w.module))]
+const registry = wallets.modules || {}
+const referenced = Object.values(wallets.networks).map((w) => w.module)
+const names = [...new Set([...Object.keys(registry), ...referenced])]
+
+const modules = names.map((m) => {
+  const hasInlineVersion = m.lastIndexOf('@') > 0 || m.startsWith('git+')
+  const version = registry[m]?.version
+  return !hasInlineVersion && version ? `${m}@${version}` : m
+})
 
 if (modules.length === 0) {
   console.log('No wallet modules to install.')

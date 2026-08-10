@@ -71,7 +71,7 @@ describe('networks', () => {
       name: 'ethereum',
       displayName: 'Ethereum',
       type: '@tetherto/wdk-wallet-evm',
-      module: '@tetherto/wdk-wallet-evm@1.0.0-beta.11',
+      module: '@tetherto/wdk-wallet-evm',
       nativeSymbol: 'ETH',
       decimals: 18,
       testnet: false
@@ -80,7 +80,7 @@ describe('networks', () => {
       name: 'bitcoin',
       displayName: 'Bitcoin',
       type: '@tetherto/wdk-wallet-btc',
-      module: '@tetherto/wdk-wallet-btc@1.0.0-beta.8',
+      module: '@tetherto/wdk-wallet-btc',
       nativeSymbol: 'BTC',
       decimals: 8,
       testnet: false
