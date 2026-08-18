@@ -29,8 +29,6 @@
     "wdk-daemon": "./bin/wdk-daemon.mjs"
   },
   "scripts": {
-    "postinstall": "node scripts/install-wallets.mjs",
-    "install-wallets": "node scripts/install-wallets.mjs",
     "lint": "standard",
     "lint:fix": "standard --fix",
     "typecheck": "tsc --noEmit -p jsconfig.json",
@@ -60,6 +58,12 @@
     "@tetherto/wdk-protocol-fiat-moonpay": "1.0.0-beta.2",
     "@tetherto/wdk-utils": "1.0.0-beta.11",
     "@tetherto/wdk-wallet": "1.0.0-beta.7",
+    "@tetherto/wdk-wallet-btc": "1.0.0-beta.8",
+    "@tetherto/wdk-wallet-evm": "1.0.0-beta.11",
+    "@tetherto/wdk-wallet-evm-erc-4337": "1.0.0-beta.6",
+    "@tetherto/wdk-wallet-solana": "1.0.0-beta.7",
+    "@tetherto/wdk-wallet-spark": "1.0.0-beta.17",
+    "@tetherto/wdk-wallet-tron": "1.0.0-beta.9",
     "bignumber.js": "11.1.1",
     "bip39": "3.1.0",
     "chalk": "5.6.2",

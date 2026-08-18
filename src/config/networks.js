@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import { configService } from '../services/config-service.js'
+import { getCustomModules } from '../services/module-service.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 import { walletsFile } from './wdk-config.js'
 import { getNativeToken } from '../services/token-service.js'
@@ -63,15 +64,20 @@ export { NETWORKS }
 export const NETWORK_NAMES = Object.keys(NETWORKS)
 
 /**
- * The set of wallet module names that built-in networks use. Custom networks
- * created via `wdk network create` must pick one of these so they bind to a
- * supported SDK.
+ * Returns the wallet module names a custom network may bind to: the modules
+ * built-in networks use, plus any custom modules added via `wdk module add`.
+ * Computed per call so freshly added modules count without a restart.
  *
- * @type {readonly string[]}
+ * @returns {string[]} The valid wallet module names.
  */
-export const VALID_WALLET_TYPES = [
-  ...new Set(Object.values(walletsFile.networks).map((w) => parseModuleName(w.module).name))
-]
+export function getValidWalletTypes () {
+  return [
+    ...new Set([
+      ...Object.values(walletsFile.networks).map((w) => parseModuleName(w.module).name),
+      ...Object.keys(getCustomModules())
+    ])
+  ]
+}
 
 /**
  * Returns all user-defined custom networks from config, each marked with `custom: true`.

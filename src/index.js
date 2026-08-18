@@ -26,6 +26,7 @@ import { registerTokenCommand } from './commands/token.js'
 import { registerMcpCommand } from './commands/mcp.js'
 import { registerRampCommands } from './commands/ramp.js'
 import { registerMethodCommand } from './commands/method.js'
+import { registerModuleCommand } from './commands/module.js'
 
 const cliRequire = createRequire(import.meta.url)
 
@@ -96,6 +97,7 @@ export function createProgram ({ jsonErrors = false } = {}) {
   registerTokenCommand(program)
   registerMcpCommand(program)
   registerMethodCommand(program)
+  registerModuleCommand(program)
 
   return program
 }

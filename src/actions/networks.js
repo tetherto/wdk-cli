@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { getAllNetworks, getAllNetworkNames, isTestnet, VALID_WALLET_TYPES } from '../config/networks.js'
+import { getAllNetworks, getAllNetworkNames, isTestnet, getValidWalletTypes } from '../config/networks.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 import { validateTokenEntry, validateTokenName } from './token.js'
 
@@ -83,7 +83,7 @@ export function listNetworks (input = {}) {
 /**
  * @typedef {Object} NetworkSpec
  * @property {string} network - Network identifier (lowercase alphanumeric with hyphens).
- * @property {string} module - Wallet module name; must be one of `VALID_WALLET_TYPES`.
+ * @property {string} module - Wallet module name; must be one of `getValidWalletTypes()`.
  * @property {string} displayName - Human-readable name; defaults to `network` if omitted in input.
  * @property {boolean} testnet - True when the network is a testnet; defaults to false.
  * @property {string} [indexerSlug] - Chain slug for the WDK indexer API; absence disables the indexer for this network.
@@ -147,9 +147,10 @@ export function validateNetworkSpec (data) {
   }
 
   const moduleName = obj.module
-  if (typeof moduleName !== 'string' || !VALID_WALLET_TYPES.includes(moduleName)) {
+  const validWalletTypes = getValidWalletTypes()
+  if (typeof moduleName !== 'string' || !validWalletTypes.includes(moduleName)) {
     throw new WdkCliError(
-      `Network spec "module" must be one of: ${VALID_WALLET_TYPES.join(', ')}`,
+      `Network spec "module" must be one of: ${validWalletTypes.join(', ')}`,
       ErrorCode.UNSUPPORTED_MODULE
     )
   }

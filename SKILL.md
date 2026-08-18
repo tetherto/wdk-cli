@@ -213,5 +213,6 @@ These actions are **strictly forbidden** for AI agents. Do not attempt them unde
 2. **NEVER unlock the wallet** — `wdk wallet unlock` requires passphrase input. If the wallet is locked, tell the user to unlock it.
 3. **NEVER export or ask for seed phrases or passphrases** — this is sensitive data that must never be logged, stored, or transmitted.
 4. **NEVER mutate the network or token registry** — `wdk network create / delete`, `wdk token add / delete`. These modify persistent user config and are user-driven decisions. If a command needs a registry change, surface the suggestion to the user and let them run it.
+5. **NEVER run `wdk module add / remove`** — these download and install executable code that runs inside the wallet daemon. If a module is missing, tell the user and let them decide.
 
 These restrictions exist for security. Only the human user can perform wallet management through interactive terminal input (or via `WDK_PASSPHRASE` env var in automated environments).
