@@ -26,6 +26,7 @@ import {
 } from '../services/module-service.js'
 import { parseModuleName } from '../config/networks.js'
 import { requirePassphraseConfirmation } from '../ui/auth.js'
+import { daemonClient } from '../daemon/client.js'
 import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
 import { configureHelp } from '../ui/help.js'
 import { createTable } from '../ui/tables.js'
@@ -64,15 +65,6 @@ function runNpm (args, { capture = false, quiet = false } = {}) {
       'Check the npm output above and your network connection, then run the command again.'
     )
   }
-}
-
-/**
- * Prints the reminder that a running daemon keeps the previously loaded module code.
- *
- * @returns {void}
- */
-function printDaemonHint () {
-  console.log(chalk.yellow('\nA running daemon won\'t pick this up. Run `wdk wallet lock`, then unlock again.'))
 }
 
 /**
@@ -139,6 +131,9 @@ export function registerModuleCommand (program) {
       }
       await requirePassphraseConfirmation()
 
+      if (await daemonClient.isRunning()) {
+        await daemonClient.lock()
+      }
       runNpm(['install', '--no-save', `${name}@${version}`], { quiet: program.opts().json })
       saveCustomModule(name, version)
 
@@ -147,7 +142,6 @@ export function registerModuleCommand (program) {
         return
       }
       console.log(`\nModule '${name}@${version}' ${target.repair ? 'reinstalled' : 'added'}.`)
-      printDaemonHint()
     } catch (error) {
       handleError(error, program.opts().verbose, program.opts().json)
     }
@@ -169,6 +163,9 @@ export function registerModuleCommand (program) {
       const name = options.name
       assertRemovable(name)
       await requirePassphraseConfirmation()
+      if (await daemonClient.isRunning()) {
+        await daemonClient.lock()
+      }
       removeCustomModule(name)
       runNpm(['uninstall', '--no-save', name], { quiet: program.opts().json })
 
@@ -177,7 +174,6 @@ export function registerModuleCommand (program) {
         return
       }
       console.log(`Module '${name}' removed.`)
-      printDaemonHint()
     } catch (error) {
       handleError(error, program.opts().verbose, program.opts().json)
     }
