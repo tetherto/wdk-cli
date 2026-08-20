@@ -193,6 +193,7 @@ export class WdkService {
       this.wdk = null
       this.registeredNetworks.clear()
       this.accountCache.clear()
+      walletManagerCache.clear()
     }
   }
 }
