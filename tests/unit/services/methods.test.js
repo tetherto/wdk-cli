@@ -17,6 +17,7 @@ import {
   parseMethodArgs,
   paramToFlag,
   describeParams,
+  splitParamUsage,
   bigintReplacer
 } from '../../../src/services/methods.js'
 
@@ -226,6 +227,26 @@ describe('describeParams', () => {
 
   it('renders structured parameters as json', () => {
     expect(describeParams(NESTED_METHOD)).toBe('Params: --invoices <json> [--fast <boolean>]')
+  })
+})
+
+describe('splitParamUsage', () => {
+  it('buckets required and optional parameters into separate flag usages', () => {
+    expect(splitParamUsage(METHOD)).toEqual({
+      required: ['--txid <string>', '--amount <bigint>'],
+      optional: ['--max-fee <bigint>', '--fast <boolean>']
+    })
+  })
+
+  it('returns empty groups for a method without parameters', () => {
+    expect(splitParamUsage({ kind: 'read', params: {} })).toEqual({ required: [], optional: [] })
+  })
+
+  it('treats structured parameters as required json', () => {
+    expect(splitParamUsage(NESTED_METHOD)).toEqual({
+      required: ['--invoices <json>'],
+      optional: ['--fast <boolean>']
+    })
   })
 })
 

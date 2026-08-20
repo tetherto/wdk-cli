@@ -394,6 +394,29 @@ export function describeParams (method) {
 }
 
 /**
+ * Splits a method's parameters into required and optional CLI flag usages,
+ * so a listing can show each group in its own column. Structured (JSON)
+ * parameters are always required.
+ *
+ * @param {MethodEntry} method - The method entry.
+ * @returns {{ required: string[], optional: string[] }} Flag usage strings by group.
+ */
+export function splitParamUsage (method) {
+  /** @type {{ required: string[], optional: string[] }} */
+  const groups = { required: [], optional: [] }
+  for (const [param, type] of Object.entries(method.params)) {
+    if (typeof type !== 'string') {
+      groups.required.push(`--${paramToFlag(param)} <json>`)
+      continue
+    }
+    const { base, optional } = parseType(type)
+    const usage = `--${paramToFlag(param)} <${base}>`
+    groups[optional ? 'optional' : 'required'].push(usage)
+  }
+  return groups
+}
+
+/**
  * JSON.stringify replacer that serializes BigInt values as decimal strings,
  * so module results survive the JSON IPC boundary.
  *

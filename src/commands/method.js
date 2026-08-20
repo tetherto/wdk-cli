@@ -15,7 +15,7 @@
 import ora from 'ora'
 import { listMethods, listAllMethods, callMethod } from '../actions/method.js'
 import { resolveIndex } from '../services/config-service.js'
-import { describeParams, parseMethodArgs } from '../services/methods.js'
+import { splitParamUsage, parseMethodArgs } from '../services/methods.js'
 import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
 import { configureHelp } from '../ui/help.js'
 import { createTable } from '../ui/tables.js'
@@ -34,8 +34,13 @@ import { nonNegativeInt } from '../ui/parsers.js'
  */
 function pushMethodRows (table, methods, modulePkg) {
   for (const method of methods) {
-    const params = describeParams(method).replace('Params: ', '')
-    const row = [method.name, method.kind, params]
+    const { required, optional } = splitParamUsage(method)
+    const row = [
+      method.name,
+      method.kind,
+      required.join('\n') || '-',
+      optional.join('\n') || '-'
+    ]
     table.push(modulePkg ? [modulePkg, ...row] : row)
   }
 }
@@ -81,7 +86,7 @@ export function registerMethodCommand (program) {
           return
         }
         console.log()
-        const table = createTable(['Module', 'Method', 'Kind', 'Params'])
+        const table = createTable(['Module', 'Method', 'Kind', 'Required', 'Optional'])
         for (const entry of result.modules) {
           pushMethodRows(table, entry.methods, entry.module)
         }
@@ -100,7 +105,7 @@ export function registerMethodCommand (program) {
         return
       }
       console.log()
-      const table = createTable(['Method', 'Kind', 'Params'])
+      const table = createTable(['Method', 'Kind', 'Required', 'Optional'])
       pushMethodRows(table, result.methods)
       console.log(table.toString())
       console.log()

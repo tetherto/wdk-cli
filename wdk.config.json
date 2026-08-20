@@ -46,7 +46,10 @@
         "getLightningReceiveRequest": { "kind": "read", "params": { "invoiceId": "string" } },
         "getLightningSendRequest": { "kind": "read", "params": { "requestId": "string" } },
         "claimStaticDeposit": { "kind": "write", "params": { "txid": "string" } },
-        "claimDeposit": { "kind": "write", "params": { "txid": "string" } }
+        "claimDeposit": { "kind": "write", "params": { "txid": "string" } },
+        "createLightningInvoice": { "kind": "write", "style": "object", "params": { "amountSats": "number", "memo": "string?", "expirySeconds": "number?", "includeSparkAddress": "boolean?", "includeSparkInvoice": "boolean?", "receiverIdentityPubkey": "string?", "descriptionHash": "string?" } },
+        "payLightningInvoice": { "kind": "write", "style": "object", "params": { "invoice": "string", "maxFeeSats": "number", "preferSpark": "boolean?", "amountSatsToSend": "number?", "idempotencyKey": "string?" } },
+        "quotePayLightningInvoice": { "kind": "read", "style": "object", "params": { "encodedInvoice": "string", "amountSats": "number?" } }
       }
     },
     "@tetherto/wdk-wallet-tron": { "version": "1.0.0-beta.9" }
