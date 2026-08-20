@@ -14,6 +14,7 @@
 
 import {
   convertMethodArgs,
+  parseMethodArgs,
   paramToFlag,
   describeParams,
   bigintReplacer
@@ -158,6 +159,50 @@ describe('convertMethodArgs', () => {
     expect(() => convertMethodArgs(NESTED_METHOD, { invoices: '[{"id":"a","amount":5000}]' })).toThrow(
       'Invalid --invoices: expected bigint.'
     )
+  })
+})
+
+describe('parseMethodArgs', () => {
+  it('maps value-taking flags to their values and kebab flags to camelCase params', () => {
+    const args = parseMethodArgs(['--txid', 'abc123', '--max-fee', '100'])
+
+    expect(args).toEqual({ txid: 'abc123', maxFee: '100' })
+  })
+
+  it('requires an explicit value for a boolean flag', () => {
+    const args = parseMethodArgs(['--fast', 'false'])
+
+    expect(args).toEqual({ fast: 'false' })
+  })
+
+  it('throws when an optional boolean flag (boolean?) is missing its value', () => {
+    expect(() => parseMethodArgs(['--txid', 'abc123', '--fast'])).toThrow(
+      'Missing value for --fast.'
+    )
+  })
+
+  it('throws when a required boolean flag (boolean) is missing its value', () => {
+    expect(() => parseMethodArgs(['--enabled'])).toThrow('Missing value for --enabled.')
+  })
+
+  it('throws when a flag is missing its value before another flag', () => {
+    expect(() => parseMethodArgs(['--txid', '--amount', '1000'])).toThrow(
+      'Missing value for --txid.'
+    )
+  })
+
+  it('throws when a flag is missing its value at the end', () => {
+    expect(() => parseMethodArgs(['--amount', '1000', '--txid'])).toThrow(
+      'Missing value for --txid.'
+    )
+  })
+
+  it('throws when a token is not a flag', () => {
+    expect(() => parseMethodArgs(['abc123'])).toThrow("Unexpected argument 'abc123'.")
+  })
+
+  it('returns no args for empty tokens', () => {
+    expect(parseMethodArgs([])).toEqual({})
   })
 })
 

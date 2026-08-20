@@ -104,6 +104,45 @@ export function paramToFlag (param) {
 }
 
 /**
+ * Converts a kebab-case CLI flag name to its camelCase parameter name.
+ *
+ * @param {string} flag - The flag name without dashes (e.g. "max-fee").
+ * @returns {string} The parameter name (e.g. "maxFee").
+ */
+function flagToParam (flag) {
+  return flag.replace(/-([a-z0-9])/g, (_, c) => c.toUpperCase())
+}
+
+/**
+ * Parses leftover CLI tokens into raw method-argument strings. Every flag must
+ * be followed by a value (booleans included: pass `--fast true` / `--fast false`);
+ * a flag with no value is a mistake and throws. Whether a param may be omitted
+ * is decided later, by its declared optionality, not here.
+ *
+ * @param {string[]} tokens - Unparsed CLI tokens (e.g. ["--txid", "abc"]).
+ * @returns {Record<string, string>} Raw argument strings keyed by parameter name.
+ * @throws {WdkCliError} When a token is not a flag, or a flag has no value.
+ */
+export function parseMethodArgs (tokens) {
+  /** @type {Record<string, string>} */
+  const args = {}
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i]
+    if (!token.startsWith('--')) {
+      throw new WdkCliError(`Unexpected argument '${token}'.`, ErrorCode.INVALID_ARGUMENT)
+    }
+    const flag = token.slice(2)
+    const next = tokens[i + 1]
+    if (next === undefined || next.startsWith('--')) {
+      throw new WdkCliError(`Missing value for --${flag}.`, ErrorCode.INVALID_ARGUMENT)
+    }
+    args[flagToParam(flag)] = next
+    i++
+  }
+  return args
+}
+
+/**
  * Splits a catalog param type into its base type and optionality.
  *
  * @param {string} type - The declared type (e.g. "bigint?").

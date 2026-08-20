@@ -15,7 +15,7 @@
 import ora from 'ora'
 import { listMethods, listAllMethods, callMethod } from '../actions/method.js'
 import { resolveIndex } from '../services/config-service.js'
-import { describeParams } from '../services/methods.js'
+import { describeParams, parseMethodArgs } from '../services/methods.js'
 import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
 import { configureHelp } from '../ui/help.js'
 import { createTable } from '../ui/tables.js'
@@ -23,45 +23,6 @@ import { nonNegativeInt } from '../ui/parsers.js'
 
 /** @typedef {import('commander').Command} Command */
 /** @typedef {import('../actions/method.js').MethodInfo} MethodInfo */
-
-/**
- * Converts a kebab-case CLI flag name to its camelCase parameter name.
- *
- * @param {string} flag - The flag name without dashes (e.g. "max-fee").
- * @returns {string} The parameter name (e.g. "maxFee").
- */
-function flagToParam (flag) {
-  return flag.replace(/-([a-z0-9])/g, (_, c) => c.toUpperCase())
-}
-
-/**
- * Parses leftover CLI tokens into raw method arguments.
- * A flag followed by a value maps to that value; a flag followed by another
- * flag (or nothing) is treated as a boolean set to "true".
- *
- * @param {string[]} tokens - Unparsed CLI tokens (e.g. ["--txid", "abc"]).
- * @returns {Record<string, string>} Raw argument strings keyed by parameter name.
- * @throws {WdkCliError} When a token is not a flag.
- */
-function parseMethodArgs (tokens) {
-  /** @type {Record<string, string>} */
-  const args = {}
-  for (let i = 0; i < tokens.length; i++) {
-    const token = tokens[i]
-    if (!token.startsWith('--')) {
-      throw new WdkCliError(`Unexpected argument '${token}'.`, ErrorCode.INVALID_ARGUMENT)
-    }
-    const param = flagToParam(token.slice(2))
-    const next = tokens[i + 1]
-    if (next === undefined || next.startsWith('--')) {
-      args[param] = 'true'
-    } else {
-      args[param] = next
-      i++
-    }
-  }
-  return args
-}
 
 /**
  * Appends one table row per method.
