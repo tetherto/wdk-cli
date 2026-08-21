@@ -35,7 +35,7 @@ A multi-chain crypto wallet for AI agents, built on [Wallet Development Kit (WDK
 - Starts empty — wallets unlocked individually via socket requests
 - Holds WDK instances in memory — owns all cryptographic operations
 - Listens on a Unix socket (`daemon.sock`, 0600 permissions)
-- Exposes: `unlock_wallet`, `lock_wallet`, `get_address`, `get_balance`, `estimate_fee`, `send`, `list_wallets`, `status`, `lock`
+- Exposes: `unlock_wallet`, `lock_wallet`, `get_address`, `get_balance`, `estimate_fee`, `send`, `call_method`, `list_wallets`, `status`, `lock`
 - Per-wallet TTL — each wallet has its own timeout (default: 5 min, `--ttl 0` for unlimited)
 - Auto-exits when last wallet is locked
 
@@ -310,6 +310,19 @@ wdk send --to <address> --amount <decimal> --network ethereum --dry-run         
 
 `--amount` is decimal by default (e.g. `1.5` for 1.5 ETH, `0.001` for 0.001 BTC, `1.23456789012345678` for full 18-decimal ETH precision). The CLI converts using the token's registered decimals. If the value has more decimal places than the token allows (e.g. `1.12345678` with 6-decimal USDT), it's rejected with `INVALID_AMOUNT`. Pass `--base-units` to interpret the value as raw base units (wei/satoshi/lamport) — useful for scripts that already have BigInt amounts. Fee estimation runs before confirmation; use `--dry-run` to preview the transaction with fee and USD estimates without sending.
 
+### Method
+
+```bash
+wdk method list --network spark                                   # Methods declared by the network's module
+wdk method list --all                                             # Every module's declared methods
+wdk method call --network spark --name getStaticDepositAddress    # Invoke a read method
+wdk method call --network spark-regtest --name claimStaticDeposit --txid <btc-txid>  # Invoke a write method
+wdk method call --network ethereum --name getAllowance --token <address> --spender <address>
+wdk method call --network ethereum --name approve --token <address> --spender <address> --amount <baseUnits>
+```
+
+Wallet modules expose chain-specific methods beyond the generic interface (address, balance, send). `wdk method` invokes the ones declared in the catalog (`wdk.config.json`) under the module's `methods` entry — each with a `read`/`write` kind and a typed parameter schema. Method parameters are passed as flags: camelCase parameter names map to kebab-case flags (`maxFee` → `--max-fee`), `bigint` parameters take integer strings in base units (e.g. sats), `string[]` parameters take comma-separated values, and structured parameters (nested objects or arrays of them) take a JSON string — with `bigint` fields inside the JSON given as strings so amounts never lose precision. Only declared methods are invocable — the daemon re-validates every call against its own catalog copy.
+
 ### Buy / Sell (On/Off Ramp)
 
 ```bash
@@ -479,6 +492,8 @@ Setup auto-detects the Node.js path, validates the MCP server, and writes the co
 | `send_token` | `to`, `amount`, `baseUnits?`, `network`, `token?`, `index?`, `dryRun?`, `wallet?` | Send tokens. `amount` is decimal by default; set `baseUnits=true` to interpret as base units. Returns dry-run preview by default; set `dryRun=false` to execute |
 | `buy_crypto` | `network`, `token`, `fiatCurrency?`, `fiatAmount?`, `cryptoAmount?`, `index?`, `wallet?` | Buy crypto with fiat. Returns a signed MoonPay URL. |
 | `sell_crypto` | `network`, `token`, `fiatCurrency?`, `fiatAmount?`, `cryptoAmount?`, `index?`, `wallet?` | Sell crypto for fiat. Returns a signed MoonPay URL. |
+| `list_methods` | `network?` | List a wallet module's chain-specific methods (omit network for all modules). Each entry includes its kind (read/write) and parameter schema. |
+| `call_method` | `network`, `name`, `args?`, `index?`, `wallet?` | Invoke a declared module method. `args` maps parameter names to string values, using the declared camelCase name — `{"maxFee": "1000"}`, not the CLI flag `--max-fee`. A structured parameter's value is a JSON-encoded string. |
 
 All wallet-dependent tools accept an optional `wallet` parameter (uses default wallet if omitted).
 
@@ -486,6 +501,8 @@ All wallet-dependent tools accept an optional `wallet` parameter (uses default w
 1. Call `send_token` first to get a fee/amount preview
 2. Show the preview to the user and wait for confirmation
 3. Call `send_token` again with `dryRun=false` only after the user confirms
+
+**Important: `call_method` write methods require user confirmation.** Only methods declared in the catalog are invocable. Methods with kind `write` move funds or mutate on-chain state and have no preview mode — AI agents must show the exact method and args to the user and call `call_method` only after the user explicitly confirms. `read` methods can be called freely.
 
 The AI model interacts exclusively through these structured tools — it cannot run shell commands, access the filesystem, or read private keys. All operations route through the daemon over a Unix socket.
 

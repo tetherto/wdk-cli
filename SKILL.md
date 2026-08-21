@@ -1,6 +1,6 @@
 ---
 name: wdk-wallet
-description: "Manage a multi-chain crypto wallet via the wdk CLI. Supports multiple named wallets. Use when: user asks to check wallet balance, get wallet address, send tokens, check transaction history, or buy/sell crypto. Supports Bitcoin, Ethereum, Polygon, Arbitrum, Base, BSC, Avalanche, Solana, Tron, Spark, and Smart Accounts (ERC-4337). Triggers on: 'check balance', 'wallet address', 'send tokens', 'transfer tokens', 'transaction history', 'buy crypto', 'sell crypto', 'get address'."
+description: "Manage a multi-chain crypto wallet via the wdk CLI. Supports multiple named wallets. Use when: user asks to check wallet balance, get wallet address, send tokens, check transaction history, buy/sell crypto, or invoke chain-specific wallet module methods (discover them with `wdk method list`). Supports Bitcoin, Ethereum, Polygon, Arbitrum, Base, BSC, Avalanche, Solana, Tron, Spark, and Smart Accounts (ERC-4337). Triggers on: 'check balance', 'wallet address', 'send tokens', 'transfer tokens', 'transaction history', 'buy crypto', 'sell crypto', 'get address'."
 metadata:
   openclaw:
     requires:
@@ -119,6 +119,29 @@ wdk get history --network ethereum --json
 wdk get history --network ethereum --token usdt --limit 20 --json
 wdk get history --network ethereum --from-date 2026-01-01 --to-date 2026-03-31 --json
 ```
+
+### Module Methods
+
+Chain-specific methods beyond the generic interface (address, balance, send), declared per wallet module in the catalog (`wdk.config.json`). Discover first, then call.
+
+```bash
+# Discover declared methods (no unlocked wallet needed)
+wdk method list --network spark --json
+# {"network":"spark","methods":[{"name":"getStaticDepositAddress","kind":"read","params":{}},{"name":"claimStaticDeposit","kind":"write","params":{"txid":"string"}},...]}
+wdk method list --all --json
+
+# Invoke: each declared param is a flag; camelCase params map to kebab-case flags (maxFee → --max-fee)
+wdk method call --network spark --name getStaticDepositAddress --json
+# {"network":"spark","method":"getStaticDepositAddress","result":"bc1p..."}
+wdk method call --network ethereum --name getAllowance --token 0xTOKEN --spender 0xSPENDER --json
+# {"network":"ethereum","method":"getAllowance","result":"0"}
+```
+
+Rules:
+
+1. Check the `kind` field from `method list`: `read` methods can be called freely; **`write` methods move funds or mutate on-chain state — show the exact method and args to the user and wait for confirmation in chat before calling** (same rule as Send, but there is no dry-run for methods).
+2. Value formats: `bigint` params take integer strings in base units (e.g. sats); `string[]` params take comma-separated values; structured params (objects/arrays) take a JSON string with `bigint` fields as strings.
+3. Only catalog-declared methods are invocable. An unknown method returns `INVALID_ARGUMENT` with an `Available methods: ...` suggestion — never retry with guessed names.
 
 ### Buy / Sell (On/Off Ramp)
 

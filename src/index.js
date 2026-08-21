@@ -17,7 +17,6 @@ import { Command, CommanderError } from 'commander'
 import { ErrorCode } from './errors/index.js'
 import { PACKAGE_NAME, APP_VERSION } from './config/constants.js'
 import { walletsFile } from './config/wdk-config.js'
-import { parseModuleName } from './config/networks.js'
 import { registerConfigCommand } from './commands/config.js'
 import { registerWalletCommand } from './commands/wallet.js'
 import { registerGetCommand } from './commands/get.js'
@@ -26,6 +25,7 @@ import { registerNetworkCommand } from './commands/network.js'
 import { registerTokenCommand } from './commands/token.js'
 import { registerMcpCommand } from './commands/mcp.js'
 import { registerRampCommands } from './commands/ramp.js'
+import { registerMethodCommand } from './commands/method.js'
 
 const cliRequire = createRequire(import.meta.url)
 
@@ -33,7 +33,7 @@ const cliRequire = createRequire(import.meta.url)
  * Builds the `--version` output: the CLI version followed by each WDK
  * package's declared version, in aligned columns. Sources:
  *   - `package.json` top-level deps → top-level packages (e.g. `@tetherto/wdk`)
- *   - `wdk.config.json` network modules → per-network wallet packages (pinned)
+ *   - `wdk.config.json` modules registry → pinned WDK module packages
  *
  * @returns {string}
  */
@@ -46,10 +46,9 @@ function buildVersionString () {
   for (const [name, version] of Object.entries(deps)) {
     if (name.startsWith('@tetherto/wdk')) versions.set(name, version)
   }
-  // Per-network module names from wdk.config.json
-  for (const entry of Object.values(walletsFile.networks)) {
-    const { name, version } = parseModuleName(entry.module)
-    if (name.startsWith('@tetherto/wdk') && version) versions.set(name, version)
+  // Pinned module versions from the wdk.config.json registry
+  for (const [name, entry] of Object.entries(walletsFile.modules || {})) {
+    if (name.startsWith('@tetherto/wdk') && entry.version) versions.set(name, entry.version)
   }
 
   /** @type {{ label: string, version: string }[]} */
@@ -96,6 +95,7 @@ export function createProgram ({ jsonErrors = false } = {}) {
   registerNetworkCommand(program)
   registerTokenCommand(program)
   registerMcpCommand(program)
+  registerMethodCommand(program)
 
   return program
 }

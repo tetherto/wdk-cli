@@ -24,6 +24,7 @@ import { getHistory } from '../actions/history.js'
 import { previewSend, executeSend } from '../actions/send.js'
 import { createRampUrl } from '../actions/ramp.js'
 import { listTokens, getToken } from '../actions/token.js'
+import { listMethods, listAllMethods, callMethod } from '../actions/method.js'
 import { resolveTokenIdentifier, toBaseUnits } from '../services/token-service.js'
 
 /** @typedef {{ content: { type: 'text', text: string }[], isError?: boolean }} ToolResult */
@@ -209,6 +210,58 @@ export async function startMcpServer () {
     async ({ network, token, limit, index, fromDate, toDate, wallet }) => {
       try {
         const result = await getHistory({ network, index, token, limit, fromDate, toDate, wallet })
+        return jsonResult(result)
+      } catch (e) {
+        return errorResult(e)
+      }
+    }
+  )
+
+  server.registerTool(
+    'list_methods',
+    {
+      description:
+        'List a wallet module\'s chain-specific methods. Prefer a dedicated tool when one exists. Omit network to list every module\'s methods. Each entry includes its kind (read or write) and parameter schema.',
+      inputSchema: {
+        network: z
+          .string()
+          .optional()
+          .describe('Network name (e.g. spark). Omit for all modules.')
+      }
+    },
+    async ({ network }) => {
+      try {
+        if (network) {
+          return jsonResult(listMethods({ network }))
+        }
+        return jsonResult(listAllMethods())
+      } catch (e) {
+        return errorResult(e)
+      }
+    }
+  )
+
+  server.registerTool(
+    'call_method',
+    {
+      description:
+        'Invoke a declared method of a network\'s wallet module. Use list_methods first to discover names and parameter schemas. IMPORTANT: methods with kind "write" move funds or mutate state — show the exact method and args to the user and only call after they explicitly confirm.',
+      inputSchema: {
+        network: z.string().describe('Network name (e.g. spark)'),
+        name: z.string().describe('Method name (e.g. claimStaticDeposit)'),
+        args: z
+          .record(z.string())
+          .optional()
+          .describe(
+            'Method parameters as strings keyed by the declared camelCase name (e.g. {"maxFee": "1000"}, not the kebab-case CLI flag). bigint params take integer strings in base units; a structured param\'s value is a JSON-encoded string.'
+          ),
+        index: z.number().optional().default(0).describe('Account index (default: 0)'),
+        wallet: z.string().optional().describe('Wallet name (uses default wallet if omitted)')
+      }
+    },
+    async ({ network, name, args, index, wallet }) => {
+      try {
+        const result = await callMethod({ network, name, args, index, wallet })
         return jsonResult(result)
       } catch (e) {
         return errorResult(e)

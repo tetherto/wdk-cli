@@ -306,6 +306,26 @@ export class DaemonClient {
   }
 
   /**
+   * Invokes a catalog-declared module method via the daemon.
+   *
+   * @param {string} network - The network name.
+   * @param {string} method - The method name.
+   * @param {Record<string, string>} args - Raw method argument strings keyed by parameter name.
+   * @param {number} [index] - The BIP-44 account index.
+   * @param {string} [wallet] - The wallet name.
+   * @returns {Promise<unknown>} The method result (BigInt values serialized as strings, undefined as null).
+   */
+  async callMethod (network, method, args, index = 0, wallet) {
+    const resp = await this.request(
+      { action: 'call_method', network, method, args, index, wallet },
+      60000
+    )
+    this.#assertOk(resp, `Failed to call ${method}`)
+    const data = /** @type {{ result: unknown }} */ (resp.data)
+    return data.result
+  }
+
+  /**
    * Unlocks a wallet in the daemon session with the given passphrase and TTL.
    *
    * @param {string} name - The wallet name.

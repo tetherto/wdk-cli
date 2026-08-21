@@ -15,6 +15,7 @@
 import WDK from '@tetherto/wdk'
 import chalk from 'chalk'
 import { getNetworkConfig, parseModuleName } from '../config/networks.js'
+import { walletsFile } from '../config/wdk-config.js'
 import { configService } from './config-service.js'
 import { CONFIG_DEFAULTS } from '../config/constants.js'
 import { WdkCliError, ErrorCode, isNetworkError } from '../errors/index.js'
@@ -35,7 +36,9 @@ async function loadWalletManager (moduleSpec) {
   const cached = walletManagerCache.get(moduleSpec)
   if (cached) return cached
 
-  const { name, version } = parseModuleName(moduleSpec)
+  const parsed = parseModuleName(moduleSpec)
+  const name = parsed.name
+  const version = parsed.version || walletsFile.modules?.[name]?.version
 
   try {
     const mod = await import(name)
@@ -50,7 +53,7 @@ async function loadWalletManager (moduleSpec) {
         if (pkg.version && pkg.version !== version) {
           console.error(
             chalk.yellow(
-              `Warning: ${name} installed ${pkg.version}, config expects ${version}. Run: npm install ${moduleSpec}`
+              `Warning: ${name} installed ${pkg.version}, config expects ${version}. Run: npm install ${name}@${version}`
             )
           )
         }
@@ -63,10 +66,11 @@ async function loadWalletManager (moduleSpec) {
     return Manager
   } catch (err) {
     if (err?.code === 'ERR_MODULE_NOT_FOUND' || err?.code === 'MODULE_NOT_FOUND') {
+      const installSpec = version ? `${name}@${version}` : name
       throw new WdkCliError(
-        `Wallet module '${moduleSpec}' is not installed.`,
+        `Wallet module '${name}' is not installed.`,
         ErrorCode.UNSUPPORTED_MODULE,
-        `Install it with: npm install ${moduleSpec}`
+        `Install it with: npm install ${installSpec}`
       )
     }
     throw err
