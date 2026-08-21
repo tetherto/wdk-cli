@@ -16,6 +16,7 @@ import WDK from '@tetherto/wdk'
 import chalk from 'chalk'
 import { getNetworkConfig, parseModuleName } from '../config/networks.js'
 import { walletsFile } from '../config/wdk-config.js'
+import { getAllModules, getInstalledVersion } from './module-service.js'
 import { configService } from './config-service.js'
 import { CONFIG_DEFAULTS } from '../config/constants.js'
 import { WdkCliError, ErrorCode, isNetworkError } from '../errors/index.js'
@@ -38,7 +39,7 @@ async function loadWalletManager (moduleSpec) {
 
   const parsed = parseModuleName(moduleSpec)
   const name = parsed.name
-  const version = parsed.version || walletsFile.modules?.[name]?.version
+  const version = parsed.version || getAllModules()[name]?.version
 
   try {
     const mod = await import(name)
@@ -46,19 +47,16 @@ async function loadWalletManager (moduleSpec) {
     const Manager = mod.default || mod
 
     if (version) {
-      try {
-        const { createRequire } = await import('node:module')
-        const require = createRequire(import.meta.url)
-        const pkg = require(`${name}/package.json`)
-        if (pkg.version && pkg.version !== version) {
-          console.error(
-            chalk.yellow(
-              `Warning: ${name} installed ${pkg.version}, config expects ${version}. Run: npm install ${name}@${version}`
-            )
+      const installed = getInstalledVersion(name)
+      if (installed && installed !== version) {
+        const repair = walletsFile.modules?.[name]
+          ? 'npm install'
+          : `wdk module add --name ${name}`
+        console.error(
+          chalk.yellow(
+            `Warning: ${name} installed ${installed}, config expects ${version}. Run: ${repair}`
           )
-        }
-      } catch {
-        /* skip check if package.json not readable */
+        )
       }
     }
 
@@ -66,11 +64,13 @@ async function loadWalletManager (moduleSpec) {
     return Manager
   } catch (err) {
     if (err?.code === 'ERR_MODULE_NOT_FOUND' || err?.code === 'MODULE_NOT_FOUND') {
-      const installSpec = version ? `${name}@${version}` : name
+      const suggestion = walletsFile.modules?.[name]
+        ? 'Reinstall the CLI dependencies with: npm install'
+        : `Install it with: wdk module add --name ${name}`
       throw new WdkCliError(
         `Wallet module '${name}' is not installed.`,
         ErrorCode.UNSUPPORTED_MODULE,
-        `Install it with: npm install ${installSpec}`
+        suggestion
       )
     }
     throw err
@@ -193,6 +193,7 @@ export class WdkService {
       this.wdk = null
       this.registeredNetworks.clear()
       this.accountCache.clear()
+      walletManagerCache.clear()
     }
   }
 }

@@ -360,6 +360,21 @@ Supported tokens are derived from the registry — any token with `metadata.moon
 
 Configure via `wdk config set --key ramp.moonpay.apiKey --value <key>`, `ramp.moonpay.signUrl`, and `ramp.moonpay.environment`.
 
+### Module
+
+```bash
+wdk module list                                            # Built-in and custom modules: pinned vs installed
+wdk module add --name @tetherto/wdk-wallet-ton             # Add a custom module (latest, pinned once)
+wdk module add --name @tetherto/wdk-wallet-ton@1.0.0-beta.12   # Pin a specific version
+wdk module remove --name @tetherto/wdk-wallet-ton          # Remove a custom module
+```
+
+Built-in modules ship as regular npm dependencies of the CLI — installing the CLI installs them, with no lifecycle scripts. `wdk module add` registers an *additional* package (stored in user config, pinned to an exact version) and installs it; because module code runs inside the wallet daemon, adding or removing one requires the default wallet's passphrase to confirm (set `WDK_PASSPHRASE` for non-interactive use), same as `network create` and `token add`. After adding, the module can back a custom network — `wdk network create '{"network":"ton","module":"@tetherto/wdk-wallet-ton",...}'` — and a running daemon keeps the previously loaded code, so lock and unlock again to pick up module changes.
+
+Custom modules are not package.json dependencies, so a plain `npm install` prunes them from `node_modules`. `wdk module list` shows them as `not installed`; re-running `wdk module add --name <pkg>` reinstalls them at their registered pin.
+
+For maintainers: module pins live in the `modules` registry of `wdk.config.json`. After adding, removing, or bumping a module, run `npm run sync-modules` to reconcile the `package.json` dependencies (adds and updates catalog modules, removes redundant `wdk-wallet-*` / `wdk-protocol-*` deps no longer in the catalog), then `npm install` to refresh the lockfile — a unit test fails if they disagree.
+
 ### Configuration
 
 Config read commands (`get`, `path`) work without a wallet. Write operations (`set`, `reset`) require an unlocked wallet. All config commands support `--json`.
