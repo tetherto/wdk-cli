@@ -52,7 +52,8 @@
         "quotePayLightningInvoice": { "kind": "read", "style": "object", "params": { "encodedInvoice": "string", "amountSats": "number?" } }
       }
     },
-    "@tetherto/wdk-wallet-tron": { "version": "1.0.0-beta.9" }
+    "@tetherto/wdk-wallet-tron": { "version": "1.0.0-beta.9" },
+    "@tetherto/wdk-protocol-fiat-moonpay": { "version": "1.0.0-beta.2" }
   },
   "networks": {
     "bitcoin": {

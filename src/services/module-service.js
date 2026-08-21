@@ -33,6 +33,20 @@ const CLI_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
  */
 
 /**
+ * Returns whether a package name is a WDK wallet or protocol module
+ * (`wdk-wallet-*` or `wdk-protocol-*`, any scope). These are the packages the
+ * catalog manages as dependencies; core packages (`@tetherto/wdk`, `-utils`,
+ * `-wallet`, `-asset-registry`) and unrelated deps do not match.
+ *
+ * @param {string} name - The npm package name (optionally scoped).
+ * @returns {boolean} True when the name is a WDK module package.
+ */
+export function isWdkModulePackage (name) {
+  const bare = name.includes('/') ? name.slice(name.indexOf('/') + 1) : name
+  return /^wdk-wallet-.+/.test(bare) || /^wdk-protocol-.+/.test(bare)
+}
+
+/**
  * Reads the installed version of a package from its package.json on disk.
  * Read directly (not via require): packages with an `exports` map do not
  * expose `./package.json` as an importable subpath.

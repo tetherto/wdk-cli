@@ -31,6 +31,7 @@
   "scripts": {
     "lint": "standard",
     "lint:fix": "standard --fix",
+    "sync-modules": "node scripts/sync-module-deps.mjs",
     "typecheck": "tsc --noEmit -p jsconfig.json",
     "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest",
     "test:coverage": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --coverage"

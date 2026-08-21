@@ -373,7 +373,7 @@ Built-in modules ship as regular npm dependencies of the CLI — installing the 
 
 Custom modules are not package.json dependencies, so a plain `npm install` prunes them from `node_modules`. `wdk module list` shows them as `not installed`; re-running `wdk module add --name <pkg>` reinstalls them at their registered pin.
 
-For maintainers: module pins live in the `modules` registry of `wdk.config.json`. After changing a pin, run `node scripts/sync-module-deps.mjs` to regenerate the `package.json` dependencies and `npm install` to refresh the lockfile — a unit test fails if they disagree.
+For maintainers: module pins live in the `modules` registry of `wdk.config.json`. After adding, removing, or bumping a module, run `npm run sync-modules` to reconcile the `package.json` dependencies (adds and updates catalog modules, removes redundant `wdk-wallet-*` / `wdk-protocol-*` deps no longer in the catalog), then `npm install` to refresh the lockfile — a unit test fails if they disagree.
 
 ### Configuration
 

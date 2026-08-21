@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import { createRequire } from 'node:module'
+import { isWdkModulePackage } from '../../../src/services/module-service.js'
 
 const require = createRequire(import.meta.url)
 const catalog = require('../../../wdk.config.json')
@@ -27,8 +28,15 @@ describe('module dependency sync', () => {
       '@tetherto/wdk-wallet-evm-erc-4337',
       '@tetherto/wdk-wallet-solana',
       '@tetherto/wdk-wallet-spark',
-      '@tetherto/wdk-wallet-tron'
+      '@tetherto/wdk-wallet-tron',
+      '@tetherto/wdk-protocol-fiat-moonpay'
     ])
+  })
+
+  it('only registers WDK module packages (wdk-wallet-* / wdk-protocol-*)', () => {
+    for (const name of Object.keys(catalog.modules)) {
+      expect(isWdkModulePackage(name)).toBe(true)
+    }
   })
 
   it('pins every catalog module in package.json dependencies at the same version', () => {
@@ -40,6 +48,14 @@ describe('module dependency sync', () => {
   it('pins every catalog module in package-lock.json at the same version', () => {
     for (const [name, entry] of Object.entries(catalog.modules)) {
       expect(lock.packages[''].dependencies[name]).toBe(entry.version)
+    }
+  })
+
+  it('has no stale WDK module dep absent from the catalog', () => {
+    for (const name of Object.keys(pkg.dependencies)) {
+      if (isWdkModulePackage(name)) {
+        expect(catalog.modules[name]).toBeDefined()
+      }
     }
   })
 })
