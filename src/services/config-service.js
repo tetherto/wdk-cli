@@ -142,7 +142,8 @@ class ConfigService {
   }
 
   /**
-   * Sets a value at a nested dot-separated path within an object.
+   * Sets a value at a nested dot-separated path within an object. Keys that
+   * could pollute the prototype chain are rejected.
    *
    * @param {Record<string, unknown>} obj - The object to mutate.
    * @param {string} path - The dot-separated path.
@@ -151,6 +152,7 @@ class ConfigService {
    */
   #setNestedValue (obj, path, value) {
     const keys = path.split('.')
+    if (keys.some((k) => k === '__proto__' || k === 'constructor' || k === 'prototype')) return
     let current = obj
     for (let i = 0; i < keys.length - 1; i++) {
       if (!(keys[i] in current)) current[keys[i]] = {}
