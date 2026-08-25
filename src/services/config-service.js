@@ -152,13 +152,16 @@ class ConfigService {
    */
   #setNestedValue (obj, path, value) {
     const keys = path.split('.')
-    if (keys.some((k) => k === '__proto__' || k === 'constructor' || k === 'prototype')) return
     let current = obj
     for (let i = 0; i < keys.length - 1; i++) {
-      if (!(keys[i] in current)) current[keys[i]] = {}
-      current = /** @type {Record<string, unknown>} */ (current[keys[i]])
+      const key = keys[i]
+      if (key === '__proto__' || key === 'constructor' || key === 'prototype') return
+      if (!(key in current)) current[key] = {}
+      current = /** @type {Record<string, unknown>} */ (current[key])
     }
-    current[keys[keys.length - 1]] = value
+    const last = keys[keys.length - 1]
+    if (last === '__proto__' || last === 'constructor' || last === 'prototype') return
+    current[last] = value
   }
 }
 
