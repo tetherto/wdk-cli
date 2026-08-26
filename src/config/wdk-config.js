@@ -26,6 +26,8 @@ const walletsFileRaw = createRequire(import.meta.url)('../../wdk.config.json')
  *   Per-token indexer slugs live in `wdk.tokens.json` under `metadata.indexerSlug`.
  * @property {string} [chainId] - The CAIP-2 chain id (e.g. "eip155:1", "tron:mainnet").
  * @property {Record<string, unknown>} [config] - The per-network module configuration (RPC URL, chainId, etc.).
+ * @property {Record<string, Record<string, unknown>>} [protocols] - Per-network protocol config overrides,
+ *   keyed by protocol short name; shallow-merged over the protocol's general `config`.
  */
 
 /**
