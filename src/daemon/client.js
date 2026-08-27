@@ -34,6 +34,8 @@ import { WalletKeyring } from '../security/keyring.js'
 /** @typedef {import('./protocol.js').GetBalanceResult} GetBalanceResult */
 /** @typedef {import('./protocol.js').EstimateFeeResult} EstimateFeeResult */
 /** @typedef {import('./protocol.js').SendResult} SendResult */
+/** @typedef {import('./protocol.js').QuoteRequest} QuoteRequest */
+/** @typedef {import('./protocol.js').QuoteResult} QuoteResult */
 /** @typedef {import('./protocol.js').WalletStatus} WalletStatus */
 /** @typedef {import('./protocol.js').ListWalletsResult} ListWalletsResult */
 /** @typedef {import('./protocol.js').StatusResult} StatusResult */
@@ -323,6 +325,27 @@ export class DaemonClient {
     this.#assertOk(resp, `Failed to call ${method}`)
     const data = /** @type {{ result: unknown }} */ (resp.data)
     return data.result
+  }
+
+  /**
+   * Requests a best-route swap or bridge quote via the daemon.
+   *
+   * @param {'swap' | 'bridge'} kind - Whether to quote a swap or a bridge.
+   * @param {string} network - The source network name.
+   * @param {number} index - The BIP-44 account index.
+   * @param {QuoteRequest} request - The quote request (amounts as base-unit strings).
+   * @param {string} [protocol] - Force a specific protocol; omit for best-route.
+   * @param {string} [wallet] - The wallet name.
+   * @returns {Promise<QuoteResult>} The winning quote.
+   */
+  async quote (kind, network, index, request, protocol, wallet) {
+    const action = kind === 'bridge' ? 'quote_bridge' : 'quote_swap'
+    const resp = await this.request(
+      { action, network, index, request, protocol, wallet },
+      60000
+    )
+    this.#assertOk(resp, `Failed to quote ${kind}`)
+    return /** @type {QuoteResult} */ (resp.data)
   }
 
   /**

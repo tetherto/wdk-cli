@@ -17,6 +17,7 @@ import { WdkCliError, ErrorCode } from '../errors/index.js'
 /**
  * @typedef {Object} ProtocolQuote
  * @property {string} protocol - The protocol name that produced the quote.
+ * @property {bigint} [inputAmount] - The source token spent (base units); computed for exact-out.
  * @property {bigint} outputAmount - The estimated amount of destination token received (base units).
  * @property {unknown} [fees] - The provider's itemised fee breakdown.
  * @property {unknown} raw - The provider's raw quote, for downstream use.
@@ -34,38 +35,48 @@ export function pickBest (quotes) {
 }
 
 /**
+ * @typedef {Object} ProtocolFailure
+ * @property {string} protocol - The protocol that failed.
+ * @property {string} reason - A short human reason for the failure.
+ */
+
+/**
  * @typedef {Object} RouteContext
  * @property {string} fromToken - Source token symbol (for the no-route message).
  * @property {string} toToken - Destination token symbol.
  * @property {string} network - Source network name.
  * @property {string} [toNetwork] - Destination network name, when cross-network.
- * @property {number} checked - How many protocols were attempted.
+ * @property {ProtocolFailure[]} failures - Each attempted protocol's failure reason.
  */
 
 /**
- * Selects the best quote from a set of settled quote attempts. Failed or
- * unsupported attempts are dropped; when none succeed, one aggregate error is
- * raised naming the request rather than surfacing each protocol's failure.
+ * Builds the error raised when no protocol produced a usable quote. Rather than
+ * claiming "no route" (which implies routing succeeded and found nothing), it
+ * reports that the protocols failed to quote and lists each one's reason — so a
+ * config problem (missing key, missing chain) reads as such, not as an absent
+ * market.
  *
- * @param {PromiseSettledResult<ProtocolQuote | null>[]} settled - Results of quoting each capable protocol.
- * @param {RouteContext} context - Request context for the no-route error.
- * @returns {ProtocolQuote} The best quote.
- * @throws {WdkCliError} When no protocol returned a usable quote.
+ * @param {RouteContext} context - Request context plus the per-protocol failures.
+ * @returns {WdkCliError} The error to throw.
  */
-export function selectBestQuote (settled, context) {
-  const quotes = settled
-    .filter((r) => r.status === 'fulfilled' && r.value)
-    .map((r) => /** @type {PromiseFulfilledResult<ProtocolQuote>} */ (r).value)
+export function buildNoRouteError (context) {
+  const route = context.toNetwork && context.toNetwork !== context.network
+    ? `${context.fromToken} (${context.network}) → ${context.toToken} (${context.toNetwork})`
+    : `${context.fromToken} → ${context.toToken} on ${context.network}`
 
-  if (quotes.length === 0) {
-    const route = context.toNetwork && context.toNetwork !== context.network
-      ? `${context.fromToken} (${context.network}) → ${context.toToken} (${context.toNetwork})`
-      : `${context.fromToken} → ${context.toToken} on ${context.network}`
-    throw new WdkCliError(
-      `No route found for ${route}. Checked ${context.checked} protocol(s).`,
+  const failures = context.failures || []
+  if (failures.length === 0) {
+    return new WdkCliError(
+      `Could not get a quote for ${route}.`,
       ErrorCode.QUOTE_REJECTED,
-      'Try a different amount or token pair, or add a protocol that supports this route.'
+      'Try a different token pair or amount, or add a protocol that supports this route.'
     )
   }
-  return pickBest(quotes)
+
+  const lines = failures.map((f) => `  • ${f.protocol} — ${f.reason}`).join('\n')
+  return new WdkCliError(
+    `Could not get a quote for ${route}. Tried ${failures.length} protocol(s):\n${lines}`,
+    ErrorCode.QUOTE_REJECTED,
+    'Fix the per-protocol issues above, or try a different token pair or amount.'
+  )
 }

@@ -29,7 +29,11 @@ describe('module dependency sync', () => {
       '@tetherto/wdk-wallet-solana',
       '@tetherto/wdk-wallet-spark',
       '@tetherto/wdk-wallet-tron',
-      '@tetherto/wdk-protocol-fiat-moonpay'
+      '@tetherto/wdk-protocol-fiat-moonpay',
+      '@tetherto/wdk-protocol-swap-velora-evm',
+      '@tetherto/wdk-protocol-bridge-usdt0-evm',
+      '@rhino.fi/wdk-protocol-swidge-rhinofi',
+      '@symbiosis-finance/wdk-protocol-swidge-symbiosis'
     ])
   })
 

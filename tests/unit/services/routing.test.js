@@ -12,12 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { pickBest, selectBestQuote } from '../../../src/services/routing.js'
-
-const fulfilled = (value) => ({ status: 'fulfilled', value })
-const rejected = (reason) => ({ status: 'rejected', reason })
-
-const CONTEXT = { fromToken: 'usdt', toToken: 'eth', network: 'ethereum', checked: 3 }
+import { pickBest, buildNoRouteError } from '../../../src/services/routing.js'
 
 describe('pickBest', () => {
   it('returns the quote with the highest output amount', () => {
@@ -40,40 +35,38 @@ describe('pickBest', () => {
   })
 })
 
-describe('selectBestQuote', () => {
-  it('returns the best of the successful quotes, ignoring failures', () => {
-    const settled = [
-      fulfilled({ protocol: 'velora', outputAmount: 4700n, raw: {} }),
-      rejected(new Error('no route')),
-      fulfilled({ protocol: 'lifi', outputAmount: 4830n, raw: {} })
-    ]
+describe('buildNoRouteError', () => {
+  it('lists each protocol and its reason under a neutral headline', () => {
+    const err = buildNoRouteError({
+      fromToken: 'usdt',
+      toToken: 'eth',
+      network: 'ethereum',
+      failures: [
+        { protocol: 'velora', reason: 'insufficient funds' },
+        { protocol: 'rhinofi', reason: 'apiKey required' }
+      ]
+    })
 
-    expect(selectBestQuote(settled, CONTEXT).protocol).toBe('lifi')
+    expect(err.message).toContain('Could not get a quote for usdt → eth on ethereum. Tried 2 protocol(s):')
+    expect(err.message).toContain('• velora — insufficient funds')
+    expect(err.message).toContain('• rhinofi — apiKey required')
   })
 
-  it('ignores fulfilled-but-null results', () => {
-    const settled = [
-      fulfilled(null),
-      fulfilled({ protocol: 'velora', outputAmount: 4700n, raw: {} })
-    ]
+  it('names both chains in the cross-network headline', () => {
+    const err = buildNoRouteError({
+      fromToken: 'usdt',
+      toToken: 'eth',
+      network: 'ethereum',
+      toNetwork: 'base',
+      failures: [{ protocol: 'usdt0', reason: 'x' }]
+    })
 
-    expect(selectBestQuote(settled, CONTEXT).protocol).toBe('velora')
+    expect(err.message).toContain('usdt (ethereum) → eth (base)')
   })
 
-  it('raises one aggregate same-network error when nothing succeeds', () => {
-    const settled = [rejected(new Error('a')), rejected(new Error('b'))]
+  it('falls back to a plain message when there are no failures', () => {
+    const err = buildNoRouteError({ fromToken: 'usdt', toToken: 'eth', network: 'ethereum', failures: [] })
 
-    expect(() => selectBestQuote(settled, CONTEXT)).toThrow(
-      'No route found for usdt → eth on ethereum. Checked 3 protocol(s).'
-    )
-  })
-
-  it('names both chains in the cross-network no-route error', () => {
-    const settled = [rejected(new Error('a'))]
-    const ctx = { fromToken: 'usdt', toToken: 'eth', network: 'ethereum', toNetwork: 'base', checked: 1 }
-
-    expect(() => selectBestQuote(settled, ctx)).toThrow(
-      'No route found for usdt (ethereum) → eth (base). Checked 1 protocol(s).'
-    )
+    expect(err.message).toBe('Could not get a quote for usdt → eth on ethereum.')
   })
 })
