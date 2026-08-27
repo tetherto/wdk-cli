@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /**
- * @typedef {'get_address' | 'get_balance' | 'estimate_fee' | 'send' | 'list_wallets' | 'status' | 'unlock_wallet' | 'lock_wallet' | 'lock' | 'call_method' | 'quote_swap' | 'quote_bridge'} DaemonAction
+ * @typedef {'get_address' | 'get_balance' | 'estimate_fee' | 'send' | 'list_wallets' | 'status' | 'unlock_wallet' | 'lock_wallet' | 'lock' | 'call_method' | 'quote_swap' | 'quote_bridge' | 'execute_swap' | 'execute_bridge'} DaemonAction
  */
 
 /**
@@ -76,6 +76,7 @@
 /** @typedef {{ txHash: string, network: string, from: string, to: string, amount: string, fee?: string }} SendResult */
 /** @typedef {{ name: string, ttlMs: number, ttlRemaining: number }} WalletStatus */
 /** @typedef {{ protocol: string, inputAmount?: string, outputAmount: string, fees: unknown, skipped?: Array<{ protocol: string, reason: string }> }} QuoteResult */
+/** @typedef {{ protocol: string, result: unknown, skipped?: Array<{ protocol: string, reason: string }> }} ExecuteResult */
 /** @typedef {{ wallets: WalletStatus[] }} ListWalletsResult */
 /** @typedef {{ unlocked: boolean, wallets: WalletStatus[], pid: number }} StatusResult */
 

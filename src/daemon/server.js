@@ -30,7 +30,7 @@ import { WdkService } from '../services/wdk-service.js'
 import { isValidNetwork, getNetworkConfig } from '../config/networks.js'
 import { getTokenByAddress } from '../services/token-service.js'
 import { getMethod, convertMethodArgs, bigintReplacer } from '../services/methods.js'
-import { quoteBest } from '../services/swap-orchestrator.js'
+import { quoteBest, executeBest } from '../services/swap-orchestrator.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 import { formatAmount } from '../ui/formatters.js'
 
@@ -508,6 +508,12 @@ export class WalletDaemon {
       case 'quote_bridge':
         return this.#handleQuote(req, 'bridge', wallet)
 
+      case 'execute_swap':
+        return this.#handleExecute(req, 'swap', wallet)
+
+      case 'execute_bridge':
+        return this.#handleExecute(req, 'bridge', wallet)
+
       case 'list_wallets': {
         return { ok: true, data: { wallets: this.#getWalletStatusList() } }
       }
@@ -552,24 +558,7 @@ export class WalletDaemon {
       return { ok: false, error: 'Missing required field: request' }
     }
     try {
-      const wdk = this.#requireWallet(wallet)
-      const account = await wdk.getAccount(req.network, req.index ?? 0)
-
-      const r = req.request
-      // Default the recipient to the account's own address — bridge requires one
-      // (swap's `to` is optional), and it's valid on these EVM destination chains.
-      const recipient = r.recipient || await account.getAddress()
-      const request = {
-        fromToken: r.fromToken,
-        toToken: r.toToken,
-        toChain: r.toChain,
-        amountIn: r.amountIn !== undefined ? BigInt(r.amountIn) : undefined,
-        amountOut: r.amountOut !== undefined ? BigInt(r.amountOut) : undefined,
-        recipient,
-        slippage: r.slippage
-      }
-      const context = { fromToken: r.fromSymbol, toToken: r.toSymbol, toNetwork: r.toNetwork }
-
+      const { account, request, context } = await this.#resolveQuoteInputs(req, wallet)
       const { quote: best, failures } = await quoteBest({
         account,
         requestKind,
@@ -592,6 +581,76 @@ export class WalletDaemon {
     } catch (e) {
       return errorResponse(e)
     }
+  }
+
+  /**
+   * Handles a best-route execution request (swap or bridge): quotes every
+   * capable protocol to pick the winner, executes only the winner as a single
+   * transaction, and returns its result plus the protocols that were skipped.
+   *
+   * @param {DaemonRequest} req - The parsed request object.
+   * @param {'swap' | 'bridge'} requestKind - Which kind of transaction to run.
+   * @param {string} wallet - The resolved wallet name.
+   * @returns {Promise<DaemonResponse>} The response with the execution result.
+   */
+  async #handleExecute (req, requestKind, wallet) {
+    if (!req.network || !isValidNetwork(req.network)) {
+      return { ok: false, error: `Invalid network: ${req.network}` }
+    }
+    if (!req.request) {
+      return { ok: false, error: 'Missing required field: request' }
+    }
+    try {
+      const { account, request, context } = await this.#resolveQuoteInputs(req, wallet)
+      const { protocol, result, failures } = await executeBest({
+        account,
+        requestKind,
+        network: req.network,
+        request,
+        context,
+        protocol: req.protocol
+      })
+
+      return {
+        ok: true,
+        data: {
+          protocol,
+          result: JSON.parse(JSON.stringify({ v: result }, bigintReplacer)).v,
+          skipped: failures
+        }
+      }
+    } catch (e) {
+      return errorResponse(e)
+    }
+  }
+
+  /**
+   * Builds the account, normalized request, and display context shared by the
+   * quote and execute handlers. Converts the string amounts back to BigInt and
+   * defaults the recipient to the account's own address — bridge requires one
+   * (swap's `to` is optional), and it's valid on these EVM destination chains.
+   *
+   * @param {DaemonRequest} req - The parsed request object (with `req.request` set).
+   * @param {string} wallet - The resolved wallet name.
+   * @returns {Promise<{ account: any, request: object, context: object }>}
+   */
+  async #resolveQuoteInputs (req, wallet) {
+    const wdk = this.#requireWallet(wallet)
+    const account = await wdk.getAccount(req.network, req.index ?? 0)
+
+    const r = /** @type {import('./protocol.js').QuoteRequest} */ (req.request)
+    const recipient = r.recipient || await account.getAddress()
+    const request = {
+      fromToken: r.fromToken,
+      toToken: r.toToken,
+      toChain: r.toChain,
+      amountIn: r.amountIn !== undefined ? BigInt(r.amountIn) : undefined,
+      amountOut: r.amountOut !== undefined ? BigInt(r.amountOut) : undefined,
+      recipient,
+      slippage: r.slippage
+    }
+    const context = { fromToken: r.fromSymbol, toToken: r.toSymbol, toNetwork: r.toNetwork }
+    return { account, request, context }
   }
 
   /**

@@ -16,6 +16,23 @@ import chalk from 'chalk'
 import { formatNetworkLabel } from './formatters.js'
 
 /** @typedef {import('../actions/swap.js').SwapPreview} SwapPreview */
+/** @typedef {import('../actions/swap.js').SwapResult} SwapResult */
+
+/**
+ * Prints the "N protocol(s) skipped" note for the protocols that were tried but
+ * did not quote. No-op when nothing was skipped.
+ *
+ * @param {Array<{ protocol: string, reason: string }>} skipped - The skipped protocols.
+ * @returns {void}
+ */
+function printSkipped (skipped) {
+  if (!skipped || skipped.length === 0) return
+  console.log()
+  console.log(chalk.yellow(`  ⚠ ${skipped.length} protocol(s) skipped — a better route may exist once fixed:`))
+  for (const s of skipped) {
+    console.log(chalk.yellow(`     • ${s.protocol} — ${s.reason}`))
+  }
+}
 
 /**
  * Prints a best-route swap/bridge quote. The estimated side (the one the user
@@ -43,14 +60,30 @@ export function printSwapPreview (preview) {
   console.log(`  Protocol:  ${chalk.cyan(preview.protocol)}`)
   console.log(`  You pay:   ${pay}`)
   console.log(`  You get:   ${receive}`)
+  printSkipped(preview.skipped)
+  console.log()
+}
 
-  const skipped = preview.skipped || []
-  if (skipped.length > 0) {
-    console.log()
-    console.log(chalk.yellow(`  ⚠ ${skipped.length} protocol(s) skipped — a better route may exist once fixed:`))
-    for (const s of skipped) {
-      console.log(chalk.yellow(`     • ${s.protocol} — ${s.reason}`))
-    }
-  }
+/**
+ * Prints the result of an executed swap/bridge — the protocol used, amounts,
+ * and transaction hash, plus any protocols that were skipped.
+ *
+ * @param {SwapResult} result - The execution result.
+ * @returns {void}
+ */
+export function printSwapResult (result) {
+  const label = result.kind === 'bridge' ? 'Bridge' : 'Swap'
+  const route = result.toNetwork
+    ? `${result.fromToken} (${formatNetworkLabel(result.network)}) → ${result.toToken} (${formatNetworkLabel(result.toNetwork)})`
+    : `${result.fromToken} → ${result.toToken} on ${formatNetworkLabel(result.network)}`
+
+  console.log()
+  console.log(chalk.bold(`${label} submitted:`))
+  console.log(`  Route:     ${route}`)
+  console.log(`  Protocol:  ${chalk.cyan(result.protocol)}`)
+  if (result.payFormatted) console.log(`  You paid:  ${result.payFormatted}`)
+  if (result.receiveFormatted) console.log(`  You got:   ${result.receiveFormatted}`)
+  if (result.txHash) console.log(`  Tx:        ${chalk.cyan(result.txHash)}`)
+  printSkipped(result.skipped)
   console.log()
 }

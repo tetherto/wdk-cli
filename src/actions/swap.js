@@ -59,6 +59,20 @@ const NATIVE_SENTINEL = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
  */
 
 /**
+ * @typedef {Object} SwapResult
+ * @property {'swap' | 'bridge'} kind - The transaction kind.
+ * @property {string} network - The source network name.
+ * @property {string} [toNetwork] - The destination network, when cross-network.
+ * @property {string} protocol - The protocol that executed the transaction.
+ * @property {string} txHash - The transaction hash (or swidge execution id).
+ * @property {string} fromToken - Source token symbol.
+ * @property {string} toToken - Destination token symbol.
+ * @property {string} [payFormatted] - Human-readable amount paid.
+ * @property {string} [receiveFormatted] - Human-readable amount received.
+ * @property {Array<{ protocol: string, reason: string }>} skipped - Protocols that were tried but did not quote.
+ */
+
+/**
  * Resolves a token name to the address (native sentinel for native assets),
  * decimals, and symbol used to build a quote request.
  *
@@ -80,14 +94,14 @@ function resolveToken (network, token) {
 }
 
 /**
- * Quotes a best-route swap or bridge without executing it: resolves both
- * tokens, converts the human amount to base units, asks the daemon to quote
- * every capable protocol, and formats the winning quote for display.
+ * Validates the amounts, resolves both tokens, converts the human amounts to
+ * base units, and builds the request sent to the daemon. Shared by the preview
+ * and execute paths.
  *
- * @param {SwapActionInput} input - The quote parameters.
- * @returns {Promise<SwapPreview>} The formatted best-route preview.
+ * @param {SwapActionInput} input - The swap/bridge parameters.
+ * @returns {Promise<{ wallet: string, request: object, from: ReturnType<typeof resolveToken>, to: ReturnType<typeof resolveToken>, destNetwork: string, crossNetwork: boolean, amountIn: string | undefined }>}
  */
-export async function previewSwap (input) {
+async function prepareRequest (input) {
   if (input.amountIn && input.amountOut) {
     throw new WdkCliError('Cannot specify both --amount-in and --amount-out.', ErrorCode.INVALID_ARGUMENT)
   }
@@ -124,6 +138,18 @@ export async function previewSwap (input) {
     toNetwork: crossNetwork ? destNetwork : undefined
   }
 
+  return { wallet, request, from, to, destNetwork, crossNetwork, amountIn }
+}
+
+/**
+ * Quotes a best-route swap or bridge without executing it, and formats the
+ * winning quote for display.
+ *
+ * @param {SwapActionInput} input - The quote parameters.
+ * @returns {Promise<SwapPreview>} The formatted best-route preview.
+ */
+export async function previewSwap (input) {
+  const { wallet, request, from, to, destNetwork, crossNetwork, amountIn } = await prepareRequest(input)
   const quote = await daemonClient.quote(input.kind, input.network, input.index, request, input.protocol, wallet)
 
   const exactSide = amountIn ? /** @type {const} */ ('in') : /** @type {const} */ ('out')
@@ -147,6 +173,35 @@ export async function previewSwap (input) {
     receiveUsd,
     fees: quote.fees,
     skipped: quote.skipped || []
+  }
+}
+
+/**
+ * Executes a best-route swap or bridge: quotes every capable protocol, executes
+ * the winner as a single transaction, and formats the result for display.
+ *
+ * @param {SwapActionInput} input - The swap/bridge parameters.
+ * @returns {Promise<SwapResult>} The formatted execution result.
+ */
+export async function executeSwap (input) {
+  const { wallet, request, from, to, destNetwork, crossNetwork, amountIn } = await prepareRequest(input)
+  const { protocol, result, skipped } = await daemonClient.execute(input.kind, input.network, input.index, request, input.protocol, wallet)
+
+  const r = /** @type {Record<string, string | undefined>} */ (result || {})
+  const inBase = r.tokenInAmount ?? r.fromTokenAmount ?? amountIn
+  const outBase = r.tokenOutAmount ?? r.toTokenAmount
+
+  return {
+    kind: input.kind,
+    network: input.network,
+    toNetwork: crossNetwork ? destNetwork : undefined,
+    protocol,
+    txHash: r.hash ?? r.id ?? '',
+    fromToken: from.symbol,
+    toToken: to.symbol,
+    payFormatted: inBase !== undefined ? formatAmount(BigInt(inBase), from.decimals, from.symbol) : undefined,
+    receiveFormatted: outBase !== undefined ? formatAmount(BigInt(outBase), to.decimals, to.symbol) : undefined,
+    skipped: skipped || []
   }
 }
 

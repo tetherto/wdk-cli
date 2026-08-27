@@ -40,6 +40,17 @@ const QUOTE_METHOD = {
 }
 
 /**
+ * The execute method exposed by each protocol kind.
+ *
+ * @type {Record<ProtocolKind, 'swap' | 'bridge' | 'swidge'>}
+ */
+const EXECUTE_METHOD = {
+  swap: 'swap',
+  bridge: 'bridge',
+  swidge: 'swidge'
+}
+
+/**
  * Caches the constructed protocol instance per `(account, protocol)` for the
  * session. Keyed by the account object, so entries clear when the wallet locks
  * and the account is garbage-collected.
@@ -302,4 +313,73 @@ export async function quoteCandidates ({ account, network, request, context, can
 export async function quoteBest ({ account, requestKind, network, request, context, protocol }) {
   const candidates = await resolveCandidates(requestKind, protocol)
   return quoteCandidates({ account, network, request, context, candidates })
+}
+
+/**
+ * Executes the winning protocol. Swidge executes against its own prior quote
+ * when the provider returns one (locking the amounts to what was quoted);
+ * swap/bridge re-route internally from the same options.
+ *
+ * @param {any} account - The wallet account.
+ * @param {CapableProtocol} capable - The winning protocol.
+ * @param {SwapRequest} request - The normalized request.
+ * @param {ProtocolQuote} winningQuote - The quote that won, for the swidge quote object.
+ * @param {string} network - The network the account is bound to.
+ * @returns {Promise<any>} The provider's execution result (hash/amounts).
+ */
+async function executeOne (account, capable, request, winningQuote, network) {
+  const instance = getProtocolInstance(account, capable, network)
+  const options = buildOptions(capable.kind, request)
+  if (capable.kind === 'swidge') {
+    const raw = /** @type {{ quote?: unknown }} */ (winningQuote.raw)
+    const config = raw && raw.quote !== undefined ? { quote: raw.quote } : undefined
+    return instance[EXECUTE_METHOD.swidge](options, config)
+  }
+  return instance[EXECUTE_METHOD[capable.kind]](options)
+}
+
+/**
+ * @typedef {Object} ExecuteBestResult
+ * @property {string} protocol - The protocol that executed the transaction.
+ * @property {any} result - The provider's execution result (hash/id and amounts).
+ * @property {ProtocolFailure[]} failures - The other protocols that were tried but did not quote.
+ */
+
+/**
+ * Quotes the candidate protocols to find the winner, then executes only the
+ * winner as a single transaction. The losing quotes are discarded; the failures
+ * are returned so the caller can disclose which protocols were skipped.
+ *
+ * @param {Object} params
+ * @param {any} params.account - The wallet account.
+ * @param {string} params.network - The source network name.
+ * @param {SwapRequest} params.request - The normalized request.
+ * @param {RouteRequestContext} params.context - Display context for the no-route message.
+ * @param {CapableProtocol[]} params.candidates - The protocols to quote.
+ * @returns {Promise<ExecuteBestResult>} The execution result plus per-protocol failures.
+ */
+export async function executeCandidates ({ account, network, request, context, candidates }) {
+  const { quote, failures } = await quoteCandidates({ account, network, request, context, candidates })
+
+  const winner = /** @type {CapableProtocol} */ (candidates.find((c) => c.name === quote.protocol))
+  const result = await executeOne(account, winner, request, quote, network)
+  return { protocol: quote.protocol, result, failures }
+}
+
+/**
+ * Best-route execution: resolves the capable protocols, quotes them to find the
+ * winner, and executes only the winner.
+ *
+ * @param {Object} params
+ * @param {any} params.account - The wallet account.
+ * @param {'swap' | 'bridge'} params.requestKind - The request kind.
+ * @param {string} params.network - The source network name.
+ * @param {SwapRequest} params.request - The normalized request.
+ * @param {RouteRequestContext} params.context - Display context for the no-route message.
+ * @param {string} [params.protocol] - Optional protocol short name to force.
+ * @returns {Promise<ExecuteBestResult>} The execution result plus per-protocol failures.
+ */
+export async function executeBest ({ account, requestKind, network, request, context, protocol }) {
+  const candidates = await resolveCandidates(requestKind, protocol)
+  return executeCandidates({ account, network, request, context, candidates })
 }

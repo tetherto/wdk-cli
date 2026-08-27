@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { quoteCandidates, normalizeQuote } from '../../../src/services/swap-orchestrator.js'
+import { quoteCandidates, executeCandidates, normalizeQuote } from '../../../src/services/swap-orchestrator.js'
 
 const FROM = { address: '0xUSDT', decimals: 6 }
 const TO = { address: '0xETH', decimals: 18 }
@@ -29,8 +29,8 @@ const CONTEXT = { fromToken: 'usdt', toToken: 'eth' }
  * @param {{ quote?: any, fail?: Error }} behavior
  */
 function protocolClass (kind, behavior) {
-  const method = kind === 'swap' ? 'quoteSwap' : kind === 'bridge' ? 'quoteBridge' : 'quoteSwidge'
-  const stats = { constructed: 0 }
+  const quoteMethod = kind === 'swap' ? 'quoteSwap' : kind === 'bridge' ? 'quoteBridge' : 'quoteSwidge'
+  const stats = { constructed: 0, executed: null }
   const Cls = class {
     constructor (account, config) {
       stats.constructed++
@@ -38,9 +38,13 @@ function protocolClass (kind, behavior) {
       this.config = config
     }
   }
-  Cls.prototype[method] = async function () {
+  Cls.prototype[quoteMethod] = async function () {
     if (behavior.fail) throw behavior.fail
     return behavior.quote
+  }
+  Cls.prototype[kind] = async function (options) {
+    stats.executed = options
+    return behavior.executeResult
   }
   Cls.stats = stats
   return Cls
@@ -150,5 +154,39 @@ describe('quoteCandidates', () => {
     await quoteCandidates(args)
 
     expect(velora.ProtocolClass.stats.constructed).toBe(1)
+  })
+})
+
+describe('executeCandidates', () => {
+  it('executes only the winning protocol and returns its result plus skipped', async () => {
+    const account = {}
+    const velora = candidate('velora', 'swap', {
+      quote: { fee: 1n, tokenInAmount: 100n, tokenOutAmount: 4700n },
+      executeResult: { hash: '0xabc', tokenInAmount: 100n, tokenOutAmount: 4700n }
+    })
+    const rhinofi = candidate('rhinofi', 'swidge', { fail: new Error('apiKey required') })
+    const request = { fromToken: FROM, toToken: TO, amountIn: 100n }
+
+    const { protocol, result, failures } = await executeCandidates({
+      account, network: 'ethereum', request, context: CONTEXT, candidates: [velora, rhinofi]
+    })
+
+    expect(protocol).toBe('velora')
+    expect(result).toEqual({ hash: '0xabc', tokenInAmount: 100n, tokenOutAmount: 4700n })
+    expect(failures).toEqual([{ protocol: 'rhinofi', reason: 'apiKey required' }])
+    // the losing protocol is never executed
+    expect(rhinofi.ProtocolClass.stats.executed).toBeNull()
+  })
+
+  it('does not execute anything when no protocol quotes', async () => {
+    const account = {}
+    const velora = candidate('velora', 'swap', { fail: new Error('insufficient funds') })
+    const usdt0 = candidate('usdt0', 'swap', { fail: new Error('provider down') })
+    const request = { fromToken: FROM, toToken: TO, amountIn: 100n }
+
+    await expect(
+      executeCandidates({ account, network: 'ethereum', request, context: CONTEXT, candidates: [velora, usdt0] })
+    ).rejects.toThrow(/Tried 2 protocol\(s\)/)
+    expect(velora.ProtocolClass.stats.executed).toBeNull()
   })
 })

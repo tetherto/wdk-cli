@@ -23,59 +23,52 @@ import { printSwapPreview, printSwapResult } from '../ui/swap.js'
 /** @typedef {import('commander').Command} Command */
 
 /**
- * Registers the `swap` command on the root program.
+ * Registers the `bridge` command on the root program. Bridging moves the same
+ * token to another chain (exact-in only).
  *
  * @param {Command} program - The root Commander program instance.
  * @returns {void}
  */
-export function registerSwapCommand (program) {
-  const swap = program
-    .command('swap')
-    .description('Swap one token for another via the best available protocol')
+export function registerBridgeCommand (program) {
+  const bridge = program
+    .command('bridge')
+    .description('Move a token to another chain via the best available protocol')
     .option('--wallet <name>', 'Wallet name')
     .requiredOption('--network <network>', 'Source network')
     .option('--index <n>', 'Account index', nonNegativeInt)
-    .requiredOption('--from-token <token>', 'Token to sell (e.g. usdt). See `wdk token list`')
-    .requiredOption('--to-token <token>', 'Token to buy (e.g. eth). See `wdk token list`')
-    .option('--to-network <network>', 'Destination network for a cross-chain swap (default: source network)')
-    .option('--amount-in <value>', 'Exact amount to sell (decimal, e.g. 100)')
-    .option('--amount-out <value>', 'Exact amount to receive (decimal, e.g. 0.05)')
-    .option('--slippage <decimal>', 'Max slippage as a decimal (e.g. 0.01 for 1%)', parseFloat)
-    .option('--recipient <address>', 'Address that receives the output (default: your account)')
+    .requiredOption('--token <token>', 'Token to bridge (e.g. usdt). See `wdk token list`')
+    .requiredOption('--to-network <network>', 'Destination network')
+    .requiredOption('--amount <value>', 'Amount to bridge (decimal, e.g. 100)')
+    .option('--recipient <address>', 'Address that receives the tokens (default: your account)')
     .option('--protocol <name>', 'Force a specific protocol; omit to use the best route')
-    .option('--dry-run', 'Quote the best route and show a summary without swapping')
+    .option('--dry-run', 'Quote the best route and show a summary without bridging')
 
-  configureHelp(swap, {
+  configureHelp(bridge, {
     params: [
       { flags: '--network <network>', description: 'Source network', required: true },
-      { flags: '--from-token <token>', description: 'Token to sell (e.g. usdt)', required: true },
-      { flags: '--to-token <token>', description: 'Token to buy (e.g. eth)', required: true },
-      { flags: '--amount-in <value>', description: 'Exact amount to sell (decimal)' },
-      { flags: '--amount-out <value>', description: 'Exact amount to receive (decimal)' }
+      { flags: '--token <token>', description: 'Token to bridge (e.g. usdt)', required: true },
+      { flags: '--to-network <network>', description: 'Destination network', required: true },
+      { flags: '--amount <value>', description: 'Amount to bridge (decimal)', required: true }
     ],
     options: [
       { flags: '--wallet <name>', description: 'Wallet name (default: default wallet)' },
       { flags: '--index <n>', description: 'Account index (default: 0)' },
-      { flags: '--to-network <network>', description: 'Destination network for a cross-chain swap' },
-      { flags: '--slippage <decimal>', description: 'Max slippage as a decimal (e.g. 0.01)' },
-      { flags: '--recipient <address>', description: 'Address that receives the output' },
+      { flags: '--recipient <address>', description: 'Address that receives the tokens' },
       { flags: '--protocol <name>', description: 'Force a specific protocol; omit for best route' },
-      { flags: '--dry-run', description: 'Quote the best route without swapping' }
+      { flags: '--dry-run', description: 'Quote the best route without bridging' }
     ]
   })
 
-  swap.action(async (options) => {
+  bridge.action(async (options) => {
     try {
       const input = {
-        kind: /** @type {const} */ ('swap'),
+        kind: /** @type {const} */ ('bridge'),
         network: options.network,
         index: resolveIndex(options.index),
-        fromToken: options.fromToken,
-        toToken: options.toToken,
+        fromToken: options.token,
+        toToken: options.token,
         toNetwork: options.toNetwork,
-        amountIn: options.amountIn,
-        amountOut: options.amountOut,
-        slippage: options.slippage,
+        amountIn: options.amount,
         recipient: options.recipient,
         protocol: options.protocol,
         wallet: options.wallet
@@ -97,7 +90,7 @@ export function registerSwapCommand (program) {
         return
       }
 
-      const spinner = program.opts().json ? null : ora('Swapping...').start()
+      const spinner = program.opts().json ? null : ora('Bridging...').start()
       let result
       try {
         result = await executeSwap(input)

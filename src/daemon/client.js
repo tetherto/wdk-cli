@@ -36,6 +36,7 @@ import { WalletKeyring } from '../security/keyring.js'
 /** @typedef {import('./protocol.js').SendResult} SendResult */
 /** @typedef {import('./protocol.js').QuoteRequest} QuoteRequest */
 /** @typedef {import('./protocol.js').QuoteResult} QuoteResult */
+/** @typedef {import('./protocol.js').ExecuteResult} ExecuteResult */
 /** @typedef {import('./protocol.js').WalletStatus} WalletStatus */
 /** @typedef {import('./protocol.js').ListWalletsResult} ListWalletsResult */
 /** @typedef {import('./protocol.js').StatusResult} StatusResult */
@@ -346,6 +347,28 @@ export class DaemonClient {
     )
     this.#assertOk(resp, `Failed to quote ${kind}`)
     return /** @type {QuoteResult} */ (resp.data)
+  }
+
+  /**
+   * Executes a best-route swap or bridge via the daemon: quotes every capable
+   * protocol, then executes the winning one as a single transaction.
+   *
+   * @param {'swap' | 'bridge'} kind - Whether to execute a swap or a bridge.
+   * @param {string} network - The source network name.
+   * @param {number} index - The BIP-44 account index.
+   * @param {QuoteRequest} request - The quote request (amounts as base-unit strings).
+   * @param {string} [protocol] - Force a specific protocol; omit for best-route.
+   * @param {string} [wallet] - The wallet name.
+   * @returns {Promise<ExecuteResult>} The execution result.
+   */
+  async execute (kind, network, index, request, protocol, wallet) {
+    const action = kind === 'bridge' ? 'execute_bridge' : 'execute_swap'
+    const resp = await this.request(
+      { action, network, index, request, protocol, wallet },
+      120000
+    )
+    this.#assertOk(resp, `Failed to ${kind}`)
+    return /** @type {ExecuteResult} */ (resp.data)
   }
 
   /**
