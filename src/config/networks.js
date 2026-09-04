@@ -160,11 +160,10 @@ export function isValidNetwork (name) {
  * @returns {string} The chain id.
  */
 export function getChainId (name) {
-  return (
-    walletsFile.networks[name]?.chainId ??
-    /** @type {string | undefined} */ (configService.get(`customNetworks.${name}.chainId`)) ??
-    `wdk:${name}`
+  const customChainId = /** @type {string | undefined} */ (
+    configService.get(`customNetworks.${name}.chainId`)
   )
+  return walletsFile.networks[name]?.chainId ?? customChainId ?? `wdk:${name}`
 }
 
 /**

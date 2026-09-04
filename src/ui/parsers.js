@@ -80,8 +80,9 @@ export function loadJson (value, label) {
     try {
       return JSON.parse(value)
     } catch (err) {
+      const error = /** @type {Error} */ (err)
       throw new WdkCliError(
-        `Invalid JSON in ${label}: ${/** @type {Error} */ (err).message}`,
+        `Invalid JSON in ${label}: ${error.message}`,
         ErrorCode.INVALID_ARGUMENT
       )
     }
@@ -90,16 +91,18 @@ export function loadJson (value, label) {
   try {
     raw = readFileSync(value, 'utf8')
   } catch (err) {
+    const error = /** @type {Error} */ (err)
     throw new WdkCliError(
-      `Cannot read ${label} from '${value}': ${/** @type {Error} */ (err).message}`,
+      `Cannot read ${label} from '${value}': ${error.message}`,
       ErrorCode.INVALID_ARGUMENT
     )
   }
   try {
     return JSON.parse(raw)
   } catch (err) {
+    const error = /** @type {Error} */ (err)
     throw new WdkCliError(
-      `${label} file '${value}' is not valid JSON: ${/** @type {Error} */ (err).message}`,
+      `${label} file '${value}' is not valid JSON: ${error.message}`,
       ErrorCode.INVALID_ARGUMENT
     )
   }

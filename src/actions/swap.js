@@ -159,9 +159,7 @@ export async function previewSwap (input) {
 
   const exactSide = amountIn ? /** @type {const} */ ('in') : /** @type {const} */ ('out')
   const receiveRaw = BigInt(quote.outputAmount)
-  const payRaw = exactSide === 'in'
-    ? BigInt(/** @type {string} */ (amountIn))
-    : BigInt(quote.inputAmount ?? '0')
+  const payRaw = amountIn ? BigInt(amountIn) : BigInt(quote.inputAmount ?? '0')
   const receiveUsd = await outputUsdValue(destNetwork, receiveRaw, to)
 
   return {

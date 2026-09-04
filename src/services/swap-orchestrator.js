@@ -187,6 +187,26 @@ function getProtocolInstance (account, capable, network) {
 }
 
 /**
+ * @typedef {Object} SwapRawQuote
+ * @property {string} tokenInAmount - The source token spent (base units).
+ * @property {string} tokenOutAmount - The destination token received (base units).
+ * @property {string} fee - The gas fee (base units).
+ */
+
+/**
+ * @typedef {Object} BridgeRawQuote
+ * @property {string} fee - The gas fee (base units).
+ * @property {string} bridgeFee - The bridge fee (base units).
+ */
+
+/**
+ * @typedef {Object} SwidgeRawQuote
+ * @property {string} fromTokenAmount - The source token spent (base units).
+ * @property {string} toTokenAmount - The destination token received (base units).
+ * @property {unknown} [fees] - The provider's itemised fee breakdown.
+ */
+
+/**
  * Normalizes a protocol's raw quote into the comparable {@link ProtocolQuote}
  * shape. Swap and swidge report the destination amount directly; bridge is
  * same-token so the received amount equals the input and providers differ only
@@ -200,30 +220,36 @@ function getProtocolInstance (account, capable, network) {
  */
 export function normalizeQuote (kind, name, raw, request) {
   switch (kind) {
-    case 'swap':
+    case 'swap': {
+      const quote = /** @type {SwapRawQuote} */ (raw)
       return {
         protocol: name,
-        inputAmount: BigInt(/** @type {string | number | bigint | boolean} */ (raw.tokenInAmount)),
-        outputAmount: BigInt(/** @type {string | number | bigint | boolean} */ (raw.tokenOutAmount)),
-        fees: { gas: BigInt(/** @type {string | number | bigint | boolean} */ (raw.fee)) },
+        inputAmount: BigInt(quote.tokenInAmount),
+        outputAmount: BigInt(quote.tokenOutAmount),
+        fees: { gas: BigInt(quote.fee) },
         raw
       }
-    case 'bridge':
+    }
+    case 'bridge': {
+      const quote = /** @type {BridgeRawQuote} */ (raw)
       return {
         protocol: name,
         inputAmount: /** @type {bigint} */ (request.amountIn),
         outputAmount: /** @type {bigint} */ (request.amountIn),
-        fees: { gas: BigInt(/** @type {string | number | bigint | boolean} */ (raw.fee)), bridge: BigInt(/** @type {string | number | bigint | boolean} */ (raw.bridgeFee)) },
+        fees: { gas: BigInt(quote.fee), bridge: BigInt(quote.bridgeFee) },
         raw
       }
-    case 'swidge':
+    }
+    case 'swidge': {
+      const quote = /** @type {SwidgeRawQuote} */ (raw)
       return {
         protocol: name,
-        inputAmount: BigInt(/** @type {string | number | bigint | boolean} */ (raw.fromTokenAmount)),
-        outputAmount: BigInt(/** @type {string | number | bigint | boolean} */ (raw.toTokenAmount)),
-        fees: raw.fees,
+        inputAmount: BigInt(quote.fromTokenAmount),
+        outputAmount: BigInt(quote.toTokenAmount),
+        fees: quote.fees,
         raw
       }
+    }
     default:
       throw new WdkCliError(`Unsupported protocol kind '${kind}'.`, ErrorCode.INVALID_ARGUMENT)
   }
