@@ -47,9 +47,11 @@ describe('buildNoRouteError', () => {
       ]
     })
 
-    expect(err.message).toContain('Could not get a quote for usdt → eth on ethereum. Tried 2 protocol(s):')
-    expect(err.message).toContain('• velora — insufficient funds')
-    expect(err.message).toContain('• rhinofi — apiKey required')
+    expect(err.message).toBe(
+      'Could not get a quote for usdt → eth on ethereum. Tried 2 protocol(s):\n' +
+      '  • velora — insufficient funds\n' +
+      '  • rhinofi — apiKey required'
+    )
   })
 
   it('names both chains in the cross-network headline', () => {
@@ -61,7 +63,10 @@ describe('buildNoRouteError', () => {
       failures: [{ protocol: 'usdt0', reason: 'x' }]
     })
 
-    expect(err.message).toContain('usdt (ethereum) → eth (base)')
+    expect(err.message).toBe(
+      'Could not get a quote for usdt (ethereum) → eth (base). Tried 1 protocol(s):\n' +
+      '  • usdt0 — x'
+    )
   })
 
   it('falls back to a plain message when there are no failures', () => {

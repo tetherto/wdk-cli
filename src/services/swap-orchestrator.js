@@ -21,12 +21,14 @@ import {
   loadProtocolClass
 } from './protocol-service.js'
 import { buildOptions } from './protocol-adapter.js'
+import { resolveRequestIdentifiers } from './protocol-identifier-resolver.js'
 import { pickBest, buildNoRouteError } from './routing.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 
 /** @typedef {import('./protocol-service.js').ProtocolKind} ProtocolKind */
 /** @typedef {import('./routing.js').ProtocolQuote} ProtocolQuote */
 /** @typedef {import('./protocol-adapter.js').SwapRequest} SwapRequest */
+/** @typedef {import('@tetherto/wdk').WdkAccount} WalletAccount */
 
 /**
  * The quote method exposed by each protocol kind.
@@ -77,6 +79,25 @@ const instancesByAccount = new WeakMap()
  * @property {string} fromToken - Source token symbol, for the no-route message.
  * @property {string} toToken - Destination token symbol, for the no-route message.
  * @property {string} [toNetwork] - Destination network name, when cross-network.
+ */
+
+/**
+ * @typedef {Object} CandidatesInput
+ * @property {WalletAccount} account - The wallet account (source chain bound to it).
+ * @property {string} network - The source network name.
+ * @property {SwapRequest} request - The normalized request.
+ * @property {RouteRequestContext} context - Display context for the no-route message.
+ * @property {CapableProtocol[]} candidates - The protocols to quote.
+ */
+
+/**
+ * @typedef {Object} BestRouteInput
+ * @property {WalletAccount} account - The wallet account.
+ * @property {'swap' | 'bridge'} requestKind - The request kind.
+ * @property {string} network - The source network name.
+ * @property {SwapRequest} request - The normalized request.
+ * @property {RouteRequestContext} context - Display context for the no-route message.
+ * @property {string} [protocol] - Optional protocol short name to force.
  */
 
 /**
@@ -139,7 +160,7 @@ export async function resolveCandidates (requestKind, protocol) {
  * it directly with the account and its network-effective config on first use
  * and caching it for the rest of the session.
  *
- * @param {any} account - The wallet account.
+ * @param {WalletAccount} account - The wallet account.
  * @param {CapableProtocol} capable - The protocol to instantiate.
  * @param {string} network - The network the account is bound to.
  * @returns {object} The protocol instance, exposing the kind's quote method.
@@ -208,7 +229,7 @@ export function normalizeQuote (kind, name, raw, request) {
  * Quotes a single protocol: gets its instance, builds the kind-specific
  * options, calls its quote method, and normalizes the result.
  *
- * @param {any} account - The wallet account.
+ * @param {WalletAccount} account - The wallet account.
  * @param {CapableProtocol} capable - The protocol to quote.
  * @param {string} network - The network the account is bound to.
  * @param {SwapRequest} request - The normalized request.
@@ -216,7 +237,8 @@ export function normalizeQuote (kind, name, raw, request) {
  */
 async function quoteOne (account, capable, network, request) {
   const instance = getProtocolInstance(account, capable, network)
-  const options = buildOptions(capable.kind, request)
+  const resolved = await resolveRequestIdentifiers(instance, network, request)
+  const options = buildOptions(capable.kind, resolved)
   const raw = await instance[QUOTE_METHOD[capable.kind]](options)
   return normalizeQuote(capable.kind, capable.name, raw, request)
 }
@@ -252,12 +274,7 @@ function shortReason (err) {
  * success the failures are returned (not thrown) so the caller can disclose
  * which protocols were skipped — a better route may exist once they are fixed.
  *
- * @param {Object} params
- * @param {any} params.account - The wallet account (source chain bound to it).
- * @param {string} params.network - The source network name.
- * @param {SwapRequest} params.request - The normalized request.
- * @param {RouteRequestContext} params.context - Display context for the no-route message.
- * @param {CapableProtocol[]} params.candidates - The protocols to quote.
+ * @param {CandidatesInput} params - The account, request, context, and candidate protocols.
  * @returns {Promise<QuoteBestResult>} The winning quote plus per-protocol failures.
  * @throws {WdkCliError} When no candidate returned a usable quote.
  */
@@ -301,13 +318,7 @@ export async function quoteCandidates ({ account, network, request, context, can
  * Best-route entry point: resolves the capable protocols for the request, then
  * quotes them all and returns the winner plus any per-protocol failures.
  *
- * @param {Object} params
- * @param {any} params.account - The wallet account.
- * @param {'swap' | 'bridge'} params.requestKind - The request kind.
- * @param {string} params.network - The source network name.
- * @param {SwapRequest} params.request - The normalized request.
- * @param {RouteRequestContext} params.context - Display context for the no-route message.
- * @param {string} [params.protocol] - Optional protocol short name to force.
+ * @param {BestRouteInput} params - The account, request kind, request, context, and optional forced protocol.
  * @returns {Promise<QuoteBestResult>} The winning quote plus per-protocol failures.
  */
 export async function quoteBest ({ account, requestKind, network, request, context, protocol }) {
@@ -320,7 +331,7 @@ export async function quoteBest ({ account, requestKind, network, request, conte
  * when the provider returns one (locking the amounts to what was quoted);
  * swap/bridge re-route internally from the same options.
  *
- * @param {any} account - The wallet account.
+ * @param {WalletAccount} account - The wallet account.
  * @param {CapableProtocol} capable - The winning protocol.
  * @param {SwapRequest} request - The normalized request.
  * @param {ProtocolQuote} winningQuote - The quote that won, for the swidge quote object.
@@ -329,7 +340,8 @@ export async function quoteBest ({ account, requestKind, network, request, conte
  */
 async function executeOne (account, capable, request, winningQuote, network) {
   const instance = getProtocolInstance(account, capable, network)
-  const options = buildOptions(capable.kind, request)
+  const resolved = await resolveRequestIdentifiers(instance, network, request)
+  const options = buildOptions(capable.kind, resolved)
   if (capable.kind === 'swidge') {
     const raw = /** @type {{ quote?: unknown }} */ (winningQuote.raw)
     const config = raw && raw.quote !== undefined ? { quote: raw.quote } : undefined
@@ -350,12 +362,7 @@ async function executeOne (account, capable, request, winningQuote, network) {
  * winner as a single transaction. The losing quotes are discarded; the failures
  * are returned so the caller can disclose which protocols were skipped.
  *
- * @param {Object} params
- * @param {any} params.account - The wallet account.
- * @param {string} params.network - The source network name.
- * @param {SwapRequest} params.request - The normalized request.
- * @param {RouteRequestContext} params.context - Display context for the no-route message.
- * @param {CapableProtocol[]} params.candidates - The protocols to quote.
+ * @param {CandidatesInput} params - The account, request, context, and candidate protocols.
  * @returns {Promise<ExecuteBestResult>} The execution result plus per-protocol failures.
  */
 export async function executeCandidates ({ account, network, request, context, candidates }) {
@@ -370,13 +377,7 @@ export async function executeCandidates ({ account, network, request, context, c
  * Best-route execution: resolves the capable protocols, quotes them to find the
  * winner, and executes only the winner.
  *
- * @param {Object} params
- * @param {any} params.account - The wallet account.
- * @param {'swap' | 'bridge'} params.requestKind - The request kind.
- * @param {string} params.network - The source network name.
- * @param {SwapRequest} params.request - The normalized request.
- * @param {RouteRequestContext} params.context - Display context for the no-route message.
- * @param {string} [params.protocol] - Optional protocol short name to force.
+ * @param {BestRouteInput} params - The account, request kind, request, context, and optional forced protocol.
  * @returns {Promise<ExecuteBestResult>} The execution result plus per-protocol failures.
  */
 export async function executeBest ({ account, requestKind, network, request, context, protocol }) {

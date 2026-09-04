@@ -86,7 +86,7 @@ describe('detectKind', () => {
   })
 
   it('returns null when no quote method is present', () => {
-    expect(detectKind({ prototype: {} })).toBeNull()
+    expect(detectKind({ prototype: {} })).toBe(null)
   })
 })
 

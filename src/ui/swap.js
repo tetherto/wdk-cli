@@ -17,12 +17,13 @@ import { formatNetworkLabel } from './formatters.js'
 
 /** @typedef {import('../actions/swap.js').SwapPreview} SwapPreview */
 /** @typedef {import('../actions/swap.js').SwapResult} SwapResult */
+/** @typedef {import('../daemon/protocol.js').SkippedProtocol} SkippedProtocol */
 
 /**
  * Prints the "N protocol(s) skipped" note for the protocols that were tried but
  * did not quote. No-op when nothing was skipped.
  *
- * @param {Array<{ protocol: string, reason: string }>} skipped - The skipped protocols.
+ * @param {SkippedProtocol[]} skipped - The skipped protocols with their reasons.
  * @returns {void}
  */
 function printSkipped (skipped) {

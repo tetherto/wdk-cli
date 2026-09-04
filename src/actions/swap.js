@@ -19,6 +19,8 @@ import { convertToUsd } from '../services/price-service.js'
 import { formatAmount } from '../ui/formatters.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 
+/** @typedef {import('../daemon/protocol.js').SkippedProtocol} SkippedProtocol */
+
 /**
  * EIP-7528 native-asset sentinel address. Swap/bridge protocols read this as
  * "the chain's native token" rather than a wrapped ERC-20.
@@ -55,7 +57,7 @@ const NATIVE_SENTINEL = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
  * @property {string} outputAmount - The received amount in base units.
  * @property {number} [receiveUsd] - Approximate USD value of the received amount.
  * @property {unknown} fees - The winning quote's fee breakdown.
- * @property {Array<{ protocol: string, reason: string }>} skipped - Protocols that were tried but did not quote, with reasons.
+ * @property {SkippedProtocol[]} skipped - Protocols that were tried but did not quote, with reasons.
  */
 
 /**
@@ -69,7 +71,7 @@ const NATIVE_SENTINEL = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
  * @property {string} toToken - Destination token symbol.
  * @property {string} [payFormatted] - Human-readable amount paid.
  * @property {string} [receiveFormatted] - Human-readable amount received.
- * @property {Array<{ protocol: string, reason: string }>} skipped - Protocols that were tried but did not quote.
+ * @property {SkippedProtocol[]} skipped - Protocols that were tried but did not quote.
  */
 
 /**
@@ -126,8 +128,8 @@ async function prepareRequest (input) {
     : undefined
 
   const request = {
-    fromToken: { address: from.address, decimals: from.decimals },
-    toToken: { address: to.address, decimals: to.decimals },
+    fromToken: { address: from.address, decimals: from.decimals, symbol: from.symbol, isNative: from.isNative },
+    toToken: { address: to.address, decimals: to.decimals, symbol: to.symbol, isNative: to.isNative },
     toChain: crossNetwork ? destNetwork : undefined,
     amountIn,
     amountOut,

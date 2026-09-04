@@ -54,10 +54,9 @@ const candidate = (name, kind, behavior = {}) => ({ name, kind, ProtocolClass: p
 
 describe('normalizeQuote', () => {
   it('maps a swap quote to tokenIn/tokenOutAmount', () => {
-    const q = normalizeQuote('swap', 'velora', { fee: 10n, tokenInAmount: 100n, tokenOutAmount: 4800n }, {})
-    expect(q).toEqual({
-      protocol: 'velora', inputAmount: 100n, outputAmount: 4800n, fees: { gas: 10n }, raw: expect.anything()
-    })
+    const raw = { fee: 10n, tokenInAmount: 100n, tokenOutAmount: 4800n }
+    const q = normalizeQuote('swap', 'velora', raw, {})
+    expect(q).toEqual({ protocol: 'velora', inputAmount: 100n, outputAmount: 4800n, fees: { gas: 10n }, raw })
   })
 
   it('uses the input amount for both sides of a bridge (same-token) and keeps both fees', () => {
@@ -175,7 +174,7 @@ describe('executeCandidates', () => {
     expect(result).toEqual({ hash: '0xabc', tokenInAmount: 100n, tokenOutAmount: 4700n })
     expect(failures).toEqual([{ protocol: 'rhinofi', reason: 'apiKey required' }])
     // the losing protocol is never executed
-    expect(rhinofi.ProtocolClass.stats.executed).toBeNull()
+    expect(rhinofi.ProtocolClass.stats.executed).toBe(null)
   })
 
   it('does not execute anything when no protocol quotes', async () => {
@@ -187,6 +186,6 @@ describe('executeCandidates', () => {
     await expect(
       executeCandidates({ account, network: 'ethereum', request, context: CONTEXT, candidates: [velora, usdt0] })
     ).rejects.toThrow(/Tried 2 protocol\(s\)/)
-    expect(velora.ProtocolClass.stats.executed).toBeNull()
+    expect(velora.ProtocolClass.stats.executed).toBe(null)
   })
 })

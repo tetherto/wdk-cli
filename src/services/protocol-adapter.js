@@ -17,10 +17,13 @@ import { WdkCliError, ErrorCode } from '../errors/index.js'
 /** @typedef {import('./protocol-service.js').ProtocolKind} ProtocolKind */
 
 /**
+ * @typedef {{ address: string, decimals: number, symbol?: string, isNative?: boolean }} SwapRequestToken
+ *
  * @typedef {Object} SwapRequest
- * @property {{ address: string, decimals: number }} fromToken - The resolved source token.
- * @property {{ address: string, decimals: number }} toToken - The resolved destination token.
+ * @property {SwapRequestToken} fromToken - The resolved source token.
+ * @property {SwapRequestToken} toToken - The resolved destination token.
  * @property {string | number} [toChain] - The destination chain identifier; omit for same-chain.
+ * @property {string} [toNetwork] - Destination network name, when cross-network (for identifier resolution).
  * @property {bigint} [amountIn] - Exact input amount in base units (mutually exclusive with amountOut).
  * @property {bigint} [amountOut] - Exact output amount in base units (mutually exclusive with amountIn).
  * @property {string} [recipient] - The address that receives the output.

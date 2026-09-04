@@ -23,6 +23,8 @@
  * @typedef {Object} QuoteToken
  * @property {string} address - The token contract address (or native sentinel).
  * @property {number} decimals - The token's decimals.
+ * @property {string} symbol - The token symbol (for provider identifier resolution).
+ * @property {boolean} isNative - Whether the token is the chain's native asset.
  */
 
 /**
@@ -75,8 +77,9 @@
 /** @typedef {{ fee: string, feeFormatted: string }} EstimateFeeResult */
 /** @typedef {{ txHash: string, network: string, from: string, to: string, amount: string, fee?: string }} SendResult */
 /** @typedef {{ name: string, ttlMs: number, ttlRemaining: number }} WalletStatus */
-/** @typedef {{ protocol: string, inputAmount?: string, outputAmount: string, fees: unknown, skipped?: Array<{ protocol: string, reason: string }> }} QuoteResult */
-/** @typedef {{ protocol: string, result: unknown, skipped?: Array<{ protocol: string, reason: string }> }} ExecuteResult */
+/** @typedef {{ protocol: string, reason: string }} SkippedProtocol */
+/** @typedef {{ protocol: string, inputAmount?: string, outputAmount: string, fees: unknown, skipped?: SkippedProtocol[] }} QuoteResult */
+/** @typedef {{ protocol: string, result: unknown, skipped?: SkippedProtocol[] }} ExecuteResult */
 /** @typedef {{ wallets: WalletStatus[] }} ListWalletsResult */
 /** @typedef {{ unlocked: boolean, wallets: WalletStatus[], pid: number }} StatusResult */
 
