@@ -49,6 +49,10 @@ describe('resolveProtocolConfig', () => {
   it('returns the protocol general config when there is no per-network override', () => {
     expect(resolveProtocolConfig('velora', 'ethereum')).toEqual(catalog.protocols.velora.config)
   })
+
+  it('merges the per-network protocol override over the general config', () => {
+    expect(resolveProtocolConfig('symbiosis', 'ethereum')).toEqual({ partnerId: 'wdk', chain: 1 })
+  })
 })
 
 describe('detectKind', () => {

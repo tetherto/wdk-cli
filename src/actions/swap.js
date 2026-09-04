@@ -16,6 +16,8 @@ import { daemonClient } from '../daemon/client.js'
 import { validateNetwork } from '../config/networks.js'
 import { resolveTokenIdentifier, getTokenByName, toBaseUnits } from '../services/token-service.js'
 import { convertToUsd } from '../services/price-service.js'
+import { validateRecipient } from '../services/address-service.js'
+import { getProtocol } from '../services/protocol-service.js'
 import { formatAmount } from '../ui/formatters.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 
@@ -116,6 +118,8 @@ async function prepareRequest (input) {
       ErrorCode.INVALID_ARGUMENT
     )
   }
+  if (input.protocol) getProtocol(input.protocol)
+  if (input.recipient) validateRecipient(destNetwork, input.recipient)
 
   const from = resolveToken(input.network, input.fromToken)
   const to = resolveToken(destNetwork, input.toToken)

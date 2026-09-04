@@ -48,6 +48,9 @@ import { formatAmount } from '../ui/formatters.js'
  * @property {number} expiresAt - The Unix timestamp (ms) when the session expires (0 = no expiry).
  */
 
+/** Max length of a summarized third-party error message before truncation. */
+const MAX_ERROR_LEN = 200
+
 /**
  * Builds a failure DaemonResponse that preserves the error code across IPC.
  * Picks up `code` and `suggestion` from WdkCliError, plus `code` from
@@ -68,7 +71,7 @@ function errorResponse (e) {
     error = err.message
   } else {
     const raw = typeof err.shortMessage === 'string' ? err.shortMessage : err.message
-    error = raw.length > 200 ? raw.slice(0, 200) + '…' : raw
+    error = raw.length > MAX_ERROR_LEN ? raw.slice(0, MAX_ERROR_LEN) + '…' : raw
   }
 
   const suggestion = typeof err.suggestion === 'string'

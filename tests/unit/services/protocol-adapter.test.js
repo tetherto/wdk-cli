@@ -45,6 +45,13 @@ describe('buildOptions bridge', () => {
   })
 })
 
+describe('buildOptions errors', () => {
+  it('rejects an unknown protocol kind', () => {
+    expect(() => buildOptions('nope', { fromToken: FROM, toToken: TO }))
+      .toThrow("Unsupported protocol kind 'nope'.")
+  })
+})
+
 describe('buildOptions swidge', () => {
   it('maps a cross-network swap to fromToken/toToken/toChain/fromTokenAmount', () => {
     const options = buildOptions('swidge', {

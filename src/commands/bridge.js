@@ -16,7 +16,7 @@ import ora from 'ora'
 import { resolveIndex } from '../services/config-service.js'
 import { handleError } from '../errors/index.js'
 import { configureHelp } from '../ui/help.js'
-import { nonNegativeInt } from '../ui/parsers.js'
+import { nonNegativeInt, decimalAmount } from '../ui/parsers.js'
 import { previewSwap, executeSwap } from '../actions/swap.js'
 import { printSwapPreview, printSwapResult } from '../ui/swap.js'
 
@@ -38,7 +38,7 @@ export function registerBridgeCommand (program) {
     .option('--index <n>', 'Account index', nonNegativeInt)
     .requiredOption('--token <token>', 'Token to bridge (e.g. usdt). See `wdk token list`')
     .requiredOption('--to-network <network>', 'Destination network')
-    .requiredOption('--amount <value>', 'Amount to bridge (decimal, e.g. 100)')
+    .requiredOption('--amount <value>', 'Amount to bridge (decimal, e.g. 100)', decimalAmount)
     .option('--recipient <address>', 'Address that receives the tokens (default: your account)')
     .option('--protocol <name>', 'Force a specific protocol; omit to use the best route')
     .option('--dry-run', 'Quote the best route and show a summary without bridging')

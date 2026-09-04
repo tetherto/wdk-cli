@@ -29,6 +29,8 @@ import { WdkCliError, ErrorCode } from '../errors/index.js'
 /** @typedef {import('./routing.js').ProtocolQuote} ProtocolQuote */
 /** @typedef {import('./protocol-adapter.js').SwapRequest} SwapRequest */
 /** @typedef {import('@tetherto/wdk').WdkAccount} WalletAccount */
+/** @typedef {Record<string, unknown>} ProtocolInstance - A constructed protocol instance exposing the kind's quote/execute methods. */
+/** @typedef {new (account: WalletAccount, config: Record<string, unknown>) => ProtocolInstance} ProtocolConstructor */
 
 /**
  * The quote method exposed by each protocol kind.
@@ -63,14 +65,14 @@ const EXECUTE_METHOD = {
  * npm nests a separate copy. Direct construction yields the identical instance
  * (all WDK's register step does) without that version-identity coupling.
  *
- * @type {WeakMap<object, Map<string, object>>}
+ * @type {WeakMap<WalletAccount, Map<string, ProtocolInstance>>}
  */
 const instancesByAccount = new WeakMap()
 
 /**
  * @typedef {Object} CapableProtocol
  * @property {string} name - The protocol short name.
- * @property {Function} ProtocolClass - The protocol's class (default export).
+ * @property {ProtocolConstructor} ProtocolClass - The protocol's class (default export).
  * @property {ProtocolKind} kind - The protocol's own detected kind.
  */
 
@@ -124,7 +126,8 @@ export async function resolveCandidates (requestKind, protocol) {
         kind ? `It is a ${kind} protocol.` : 'It exposes no swap, bridge, or swidge quote method.'
       )
     }
-    return [{ name: protocol, ProtocolClass, kind }]
+    const ctor = /** @type {ProtocolConstructor} */ (ProtocolClass)
+    return [{ name: protocol, ProtocolClass: ctor, kind }]
   }
 
   const protocols = getProtocols()
@@ -140,7 +143,8 @@ export async function resolveCandidates (requestKind, protocol) {
       }
       const kind = detectKind(ProtocolClass)
       if (!kind || !servesRequest(kind, requestKind)) return null
-      return { name, ProtocolClass, kind }
+      const ctor = /** @type {ProtocolConstructor} */ (ProtocolClass)
+      return { name, ProtocolClass: ctor, kind }
     })
   )
 
@@ -163,7 +167,7 @@ export async function resolveCandidates (requestKind, protocol) {
  * @param {WalletAccount} account - The wallet account.
  * @param {CapableProtocol} capable - The protocol to instantiate.
  * @param {string} network - The network the account is bound to.
- * @returns {object} The protocol instance, exposing the kind's quote method.
+ * @returns {ProtocolInstance} The protocol instance, exposing the kind's quote method.
  */
 function getProtocolInstance (account, capable, network) {
   let instances = instancesByAccount.get(account)
@@ -175,7 +179,7 @@ function getProtocolInstance (account, capable, network) {
   let instance = instances.get(capable.name)
   if (!instance) {
     const config = resolveProtocolConfig(capable.name, network)
-    const ProtocolClass = /** @type {new (account: any, config: object) => object} */ (capable.ProtocolClass)
+    const ProtocolClass = /** @type {ProtocolConstructor} */ (capable.ProtocolClass)
     instance = new ProtocolClass(account, config)
     instances.set(capable.name, instance)
   }
@@ -190,7 +194,7 @@ function getProtocolInstance (account, capable, network) {
  *
  * @param {ProtocolKind} kind - The protocol's kind.
  * @param {string} name - The protocol short name.
- * @param {any} raw - The provider's raw quote.
+ * @param {Record<string, unknown>} raw - The provider's raw quote.
  * @param {SwapRequest} request - The request, for the bridge input amount.
  * @returns {ProtocolQuote} The normalized quote.
  */
@@ -199,9 +203,9 @@ export function normalizeQuote (kind, name, raw, request) {
     case 'swap':
       return {
         protocol: name,
-        inputAmount: BigInt(raw.tokenInAmount),
-        outputAmount: BigInt(raw.tokenOutAmount),
-        fees: { gas: BigInt(raw.fee) },
+        inputAmount: BigInt(/** @type {string | number | bigint | boolean} */ (raw.tokenInAmount)),
+        outputAmount: BigInt(/** @type {string | number | bigint | boolean} */ (raw.tokenOutAmount)),
+        fees: { gas: BigInt(/** @type {string | number | bigint | boolean} */ (raw.fee)) },
         raw
       }
     case 'bridge':
@@ -209,14 +213,14 @@ export function normalizeQuote (kind, name, raw, request) {
         protocol: name,
         inputAmount: /** @type {bigint} */ (request.amountIn),
         outputAmount: /** @type {bigint} */ (request.amountIn),
-        fees: { gas: BigInt(raw.fee), bridge: BigInt(raw.bridgeFee) },
+        fees: { gas: BigInt(/** @type {string | number | bigint | boolean} */ (raw.fee)), bridge: BigInt(/** @type {string | number | bigint | boolean} */ (raw.bridgeFee)) },
         raw
       }
     case 'swidge':
       return {
         protocol: name,
-        inputAmount: BigInt(raw.fromTokenAmount),
-        outputAmount: BigInt(raw.toTokenAmount),
+        inputAmount: BigInt(/** @type {string | number | bigint | boolean} */ (raw.fromTokenAmount)),
+        outputAmount: BigInt(/** @type {string | number | bigint | boolean} */ (raw.toTokenAmount)),
         fees: raw.fees,
         raw
       }
@@ -239,9 +243,13 @@ async function quoteOne (account, capable, network, request) {
   const instance = getProtocolInstance(account, capable, network)
   const resolved = await resolveRequestIdentifiers(instance, network, request)
   const options = buildOptions(capable.kind, resolved)
-  const raw = await instance[QUOTE_METHOD[capable.kind]](options)
+  const callable = /** @type {Record<string, (...args: unknown[]) => unknown>} */ (/** @type {unknown} */ (instance))
+  const raw = /** @type {Record<string, unknown>} */ (await callable[QUOTE_METHOD[capable.kind]](options))
   return normalizeQuote(capable.kind, capable.name, raw, request)
 }
+
+/** Max length of a per-protocol failure reason before it is truncated. */
+const MAX_REASON_LEN = 140
 
 /**
  * Reduces an error to a short, single-line reason for listing next to a
@@ -253,7 +261,7 @@ async function quoteOne (account, capable, network, request) {
 function shortReason (err) {
   const e = /** @type {{ shortMessage?: string, message?: string }} */ (err)
   const msg = (e && (e.shortMessage || e.message)) || String(err)
-  return msg.length > 140 ? msg.slice(0, 140) + '…' : msg
+  return msg.length > MAX_REASON_LEN ? msg.slice(0, MAX_REASON_LEN) + '…' : msg
 }
 
 /**
@@ -336,24 +344,25 @@ export async function quoteBest ({ account, requestKind, network, request, conte
  * @param {SwapRequest} request - The normalized request.
  * @param {ProtocolQuote} winningQuote - The quote that won, for the swidge quote object.
  * @param {string} network - The network the account is bound to.
- * @returns {Promise<any>} The provider's execution result (hash/amounts).
+ * @returns {Promise<Record<string, unknown>>} The provider's execution result (hash/amounts).
  */
 async function executeOne (account, capable, request, winningQuote, network) {
   const instance = getProtocolInstance(account, capable, network)
   const resolved = await resolveRequestIdentifiers(instance, network, request)
   const options = buildOptions(capable.kind, resolved)
+  const callable = /** @type {Record<string, (...args: unknown[]) => unknown>} */ (/** @type {unknown} */ (instance))
   if (capable.kind === 'swidge') {
     const raw = /** @type {{ quote?: unknown }} */ (winningQuote.raw)
     const config = raw && raw.quote !== undefined ? { quote: raw.quote } : undefined
-    return instance[EXECUTE_METHOD.swidge](options, config)
+    return /** @type {Promise<Record<string, unknown>>} */ (/** @type {unknown} */ (callable[EXECUTE_METHOD.swidge](options, config)))
   }
-  return instance[EXECUTE_METHOD[capable.kind]](options)
+  return /** @type {Promise<Record<string, unknown>>} */ (/** @type {unknown} */ (callable[EXECUTE_METHOD[capable.kind]](options)))
 }
 
 /**
  * @typedef {Object} ExecuteBestResult
  * @property {string} protocol - The protocol that executed the transaction.
- * @property {any} result - The provider's execution result (hash/id and amounts).
+ * @property {Record<string, unknown>} result - The provider's execution result (hash/id and amounts).
  * @property {ProtocolFailure[]} failures - The other protocols that were tried but did not quote.
  */
 

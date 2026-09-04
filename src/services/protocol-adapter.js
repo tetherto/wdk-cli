@@ -15,6 +15,9 @@
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 
 /** @typedef {import('./protocol-service.js').ProtocolKind} ProtocolKind */
+/** @typedef {{ tokenIn: string, tokenOut: string, to?: string, tokenInAmount?: bigint, tokenOutAmount?: bigint }} SwapOptions */
+/** @typedef {{ token: string, targetChain?: string | number, amount?: bigint, recipient?: string }} BridgeOptions */
+/** @typedef {{ fromToken: string, toToken: string, toChain?: string | number, recipient?: string, fromTokenAmount?: bigint, toTokenAmount?: bigint }} SwidgeOptions */
 
 /**
  * @typedef {{ address: string, decimals: number, symbol?: string, isNative?: boolean }} SwapRequestToken
@@ -33,10 +36,10 @@ import { WdkCliError, ErrorCode } from '../errors/index.js'
  * Builds the option object for a swap-kind protocol (`quoteSwap` / `swap`).
  *
  * @param {SwapRequest} req - The normalized request.
- * @returns {Record<string, unknown>} The swap options.
+ * @returns {SwapOptions} The swap options.
  */
 function buildSwapOptions (req) {
-  /** @type {Record<string, unknown>} */
+  /** @type {SwapOptions} */
   const options = { tokenIn: req.fromToken.address, tokenOut: req.toToken.address }
   if (req.recipient) options.to = req.recipient
   if (req.amountIn !== undefined) options.tokenInAmount = req.amountIn
@@ -49,7 +52,7 @@ function buildSwapOptions (req) {
  * Bridge is same-token and exact-in only.
  *
  * @param {SwapRequest} req - The normalized request.
- * @returns {Record<string, unknown>} The bridge options.
+ * @returns {BridgeOptions} The bridge options.
  */
 function buildBridgeOptions (req) {
   return {
@@ -64,10 +67,10 @@ function buildBridgeOptions (req) {
  * Builds the option object for a swidge-kind protocol (`quoteSwidge` / `swidge`).
  *
  * @param {SwapRequest} req - The normalized request.
- * @returns {Record<string, unknown>} The swidge options.
+ * @returns {SwidgeOptions} The swidge options.
  */
 function buildSwidgeOptions (req) {
-  /** @type {Record<string, unknown>} */
+  /** @type {SwidgeOptions} */
   const options = { fromToken: req.fromToken.address, toToken: req.toToken.address }
   if (req.toChain !== undefined) options.toChain = req.toChain
   if (req.recipient) options.recipient = req.recipient
@@ -82,7 +85,7 @@ function buildSwidgeOptions (req) {
  *
  * @param {ProtocolKind} kind - The protocol kind.
  * @param {SwapRequest} req - The normalized request.
- * @returns {Record<string, unknown>} The kind-specific options.
+ * @returns {SwapOptions | BridgeOptions | SwidgeOptions} The kind-specific options.
  * @throws {WdkCliError} When the kind cannot serve the request shape.
  */
 export function buildOptions (kind, req) {

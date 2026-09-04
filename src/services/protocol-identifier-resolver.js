@@ -16,19 +16,24 @@ import { walletsFile } from '../config/wdk-config.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 
 /** @typedef {import('./protocol-adapter.js').SwapRequest} SwapRequest */
+/** @typedef {{ id: string | number, name?: string, type?: string, nativeToken?: Record<string, unknown> }} ProviderChain */
+/** @typedef {{ token: string, symbol?: string, address?: string, chain?: string | number }} ProviderToken */
+/** @typedef {{ chains: ProviderChain[] | null, tokensByChain: Map<string, ProviderToken[]> }} DiscoveryCacheEntry */
 
 /**
  * Caches a protocol's chain/token discovery per session, keyed by the protocol
  * instance — so a best-route fan-out fetches each list once. Entries vanish when
  * the instance is garbage-collected on wallet lock.
  *
- * @type {WeakMap<object, { chains: any[] | null, tokensByChain: Map<string, any[]> }>}
+ * @type {WeakMap<object, DiscoveryCacheEntry>}
  */
 const cache = new WeakMap()
 
 /**
- * @param {any} instance - The protocol instance.
- * @returns {{ chains: any[] | null, tokensByChain: Map<string, any[]> }}
+ * Returns the per-instance discovery cache, creating it on first use.
+ *
+ * @param {Record<string, unknown>} instance - The protocol instance.
+ * @returns {DiscoveryCacheEntry}
  */
 function cacheFor (instance) {
   let c = cache.get(instance)
@@ -44,7 +49,7 @@ function cacheFor (instance) {
  * translate identifiers only for these; swap/bridge protocols take the contract
  * address and numeric chain directly.
  *
- * @param {any} instance - The protocol instance.
+ * @param {Record<string, unknown>} instance - The protocol instance.
  * @returns {boolean} True when the instance exposes the discovery methods.
  */
 export function selfDescribes (instance) {
@@ -58,14 +63,15 @@ export function selfDescribes (instance) {
  * provider keys chains by numeric chainId (symbiosis) or by a custom string
  * (rhino): the numeric chainId, the display name, or our network key.
  *
- * @param {any} instance - The self-describing protocol instance.
+ * @param {Record<string, unknown>} instance - The self-describing protocol instance.
  * @param {string} network - Our network name (key in `wdk.config.json`).
  * @returns {Promise<string | number>} The provider's chain identifier.
  * @throws {WdkCliError} When the provider does not support the network.
  */
 export async function resolveChain (instance, network) {
   const c = cacheFor(instance)
-  if (!c.chains) c.chains = await instance.getSupportedChains()
+  const proto = /** @type {{ getSupportedChains: () => Promise<ProviderChain[]>, getSupportedTokens: (opts: Record<string, unknown>) => Promise<ProviderToken[]> }} */ (/** @type {unknown} */ (instance))
+  if (!c.chains) c.chains = await proto.getSupportedChains()
 
   const entry = walletsFile.networks[network]
   const numericChainId = /** @type {number | undefined} */ (entry?.config?.chainId)
@@ -92,16 +98,17 @@ export async function resolveChain (instance, network) {
  * contract address (the stable, unique key) and native assets by symbol (native
  * has no consistent address across providers).
  *
- * @param {any} instance - The self-describing protocol instance.
+ * @param {Record<string, unknown>} instance - The self-describing protocol instance.
  * @param {string | number} providerChain - The provider's chain id (from {@link resolveChain}).
  * @param {{ address: string, symbol: string, isNative: boolean }} token - Our resolved token.
  * @returns {Promise<string>} The provider's token identifier, or our address when the provider does not list it.
  */
 export async function resolveToken (instance, providerChain, token) {
   const c = cacheFor(instance)
+  const proto = /** @type {{ getSupportedChains: () => Promise<ProviderChain[]>, getSupportedTokens: (opts: Record<string, unknown>) => Promise<ProviderToken[]> }} */ (/** @type {unknown} */ (instance))
   const key = String(providerChain)
   if (!c.tokensByChain.has(key)) {
-    c.tokensByChain.set(key, await instance.getSupportedTokens({ fromChain: providerChain }))
+    c.tokensByChain.set(key, await proto.getSupportedTokens({ fromChain: providerChain }))
   }
   const tokens = c.tokensByChain.get(key) || []
 
@@ -123,7 +130,7 @@ export async function resolveToken (instance, providerChain, token) {
  * the provider's own `getSupportedChains`/`getSupportedTokens`; for swap/bridge
  * protocols the request is returned unchanged (they take the contract address).
  *
- * @param {any} instance - The protocol instance.
+ * @param {Record<string, unknown>} instance - The protocol instance.
  * @param {string} network - Our source network name.
  * @param {SwapRequest} request - The normalized request (tokens carry symbol/isNative).
  * @returns {Promise<SwapRequest>} The request with provider-specific identifiers.
@@ -138,8 +145,8 @@ export async function resolveRequestIdentifiers (instance, network, request) {
     ? await resolveChain(instance, String(request.toChain))
     : undefined
 
-  const fromToken = await resolveToken(instance, fromChain, /** @type {any} */ (request.fromToken))
-  const toToken = await resolveToken(instance, toChain ?? fromChain, /** @type {any} */ (request.toToken))
+  const fromToken = await resolveToken(instance, fromChain, /** @type {{ address: string, symbol: string, isNative: boolean }} */ (/** @type {unknown} */ (request.fromToken)))
+  const toToken = await resolveToken(instance, toChain ?? fromChain, /** @type {{ address: string, symbol: string, isNative: boolean }} */ (/** @type {unknown} */ (request.toToken)))
 
   return {
     ...request,

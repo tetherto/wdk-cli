@@ -46,6 +46,22 @@ export function nonNegativeInt (value) {
 }
 
 /**
+ * Commander argParser for a positive decimal amount (> 0). A coarse gate for
+ * early, crisp rejection of `0`, negatives, and non-numbers; exact
+ * token-precision validation stays in `toBaseUnits`.
+ *
+ * @param {string} value - The raw CLI argument.
+ * @returns {string} The original value, once validated.
+ */
+export function decimalAmount (value) {
+  const n = Number(value)
+  if (!Number.isFinite(n) || n <= 0) {
+    throw new InvalidArgumentError('Must be a positive decimal amount.')
+  }
+  return value
+}
+
+/**
  * Auto-detects whether `value` is an inline JSON string or a path to a JSON
  * file, and parses it. The "one positional, two delivery modes" input pattern
  * used by `wdk network create` and `wdk token add`.
