@@ -48,11 +48,11 @@ describe('buildOptions bridge', () => {
 describe('buildOptions swidge', () => {
   it('maps a cross-network swap to fromToken/toToken/toChain/fromTokenAmount', () => {
     const options = buildOptions('swidge', {
-      fromToken: FROM, toToken: TO, toChain: 'base', amountIn: 100000000n, recipient: '0xME', slippage: 0.01
+      fromToken: FROM, toToken: TO, toChain: 'base', amountIn: 100000000n, recipient: '0xME'
     })
 
     expect(options).toEqual({
-      fromToken: '0xUSDT', toToken: '0xETH', toChain: 'base', recipient: '0xME', slippage: 0.01, fromTokenAmount: 100000000n
+      fromToken: '0xUSDT', toToken: '0xETH', toChain: 'base', recipient: '0xME', fromTokenAmount: 100000000n
     })
   })
 

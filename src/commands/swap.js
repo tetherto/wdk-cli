@@ -40,7 +40,6 @@ export function registerSwapCommand (program) {
     .option('--to-network <network>', 'Destination network for a cross-chain swap (default: source network)')
     .option('--amount-in <value>', 'Exact amount to sell (decimal, e.g. 100)')
     .option('--amount-out <value>', 'Exact amount to receive (decimal, e.g. 0.05)')
-    .option('--slippage <decimal>', 'Max slippage as a decimal (e.g. 0.01 for 1%)', parseFloat)
     .option('--recipient <address>', 'Address that receives the output (default: your account)')
     .option('--protocol <name>', 'Force a specific protocol; omit to use the best route')
     .option('--dry-run', 'Quote the best route and show a summary without swapping')
@@ -57,7 +56,6 @@ export function registerSwapCommand (program) {
       { flags: '--wallet <name>', description: 'Wallet name (default: default wallet)' },
       { flags: '--index <n>', description: 'Account index (default: 0)' },
       { flags: '--to-network <network>', description: 'Destination network for a cross-chain swap' },
-      { flags: '--slippage <decimal>', description: 'Max slippage as a decimal (e.g. 0.01)' },
       { flags: '--recipient <address>', description: 'Address that receives the output' },
       { flags: '--protocol <name>', description: 'Force a specific protocol; omit for best route' },
       { flags: '--dry-run', description: 'Quote the best route without swapping' }
@@ -75,7 +73,6 @@ export function registerSwapCommand (program) {
         toNetwork: options.toNetwork,
         amountIn: options.amountIn,
         amountOut: options.amountOut,
-        slippage: options.slippage,
         recipient: options.recipient,
         protocol: options.protocol,
         wallet: options.wallet

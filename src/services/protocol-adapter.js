@@ -27,7 +27,6 @@ import { WdkCliError, ErrorCode } from '../errors/index.js'
  * @property {bigint} [amountIn] - Exact input amount in base units (mutually exclusive with amountOut).
  * @property {bigint} [amountOut] - Exact output amount in base units (mutually exclusive with amountIn).
  * @property {string} [recipient] - The address that receives the output.
- * @property {number} [slippage] - Max slippage as a decimal (swidge only).
  */
 
 /**
@@ -72,7 +71,6 @@ function buildSwidgeOptions (req) {
   const options = { fromToken: req.fromToken.address, toToken: req.toToken.address }
   if (req.toChain !== undefined) options.toChain = req.toChain
   if (req.recipient) options.recipient = req.recipient
-  if (req.slippage !== undefined) options.slippage = req.slippage
   if (req.amountIn !== undefined) options.fromTokenAmount = req.amountIn
   else options.toTokenAmount = req.amountOut
   return options

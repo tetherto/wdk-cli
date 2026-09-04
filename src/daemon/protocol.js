@@ -40,7 +40,6 @@
  * @property {string} [amountIn] - Exact input amount in base units.
  * @property {string} [amountOut] - Exact output amount in base units.
  * @property {string} [recipient] - The address that receives the output.
- * @property {number} [slippage] - Max slippage as a decimal (swidge only).
  * @property {string} fromSymbol - Source token symbol, for messaging.
  * @property {string} toSymbol - Destination token symbol, for messaging.
  * @property {string} [toNetwork] - Destination network name, when cross-network.
@@ -78,8 +77,8 @@
 /** @typedef {{ txHash: string, network: string, from: string, to: string, amount: string, fee?: string }} SendResult */
 /** @typedef {{ name: string, ttlMs: number, ttlRemaining: number }} WalletStatus */
 /** @typedef {{ protocol: string, reason: string }} SkippedProtocol */
-/** @typedef {{ protocol: string, inputAmount?: string, outputAmount: string, fees: unknown, skipped?: SkippedProtocol[] }} QuoteResult */
-/** @typedef {{ protocol: string, result: unknown, skipped?: SkippedProtocol[] }} ExecuteResult */
+/** @typedef {{ protocol: string, inputAmount?: string, outputAmount: string, fees: unknown, skipped: SkippedProtocol[] }} QuoteResult */
+/** @typedef {{ protocol: string, result: unknown, skipped: SkippedProtocol[] }} ExecuteResult */
 /** @typedef {{ wallets: WalletStatus[] }} ListWalletsResult */
 /** @typedef {{ unlocked: boolean, wallets: WalletStatus[], pid: number }} StatusResult */
 

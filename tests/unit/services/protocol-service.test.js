@@ -12,22 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { jest } from '@jest/globals'
 import { createRequire } from 'node:module'
 
-const getConfig = jest.fn()
-
-jest.unstable_mockModule('../../../src/services/config-service.js', () => ({
-  configService: { get: getConfig }
-}))
-
-const {
+import {
   getProtocols,
   getProtocol,
   resolveProtocolConfig,
   detectKind,
   servesRequest
-} = await import('../../../src/services/protocol-service.js')
+} from '../../../src/services/protocol-service.js'
 
 const require = createRequire(import.meta.url)
 const catalog = require('../../../wdk.config.json')
@@ -36,23 +29,9 @@ const SWAP_CLASS = { prototype: { swap () {}, quoteSwap () {} } }
 const BRIDGE_CLASS = { prototype: { bridge () {}, quoteBridge () {} } }
 const SWIDGE_CLASS = { prototype: { swidge () {}, quoteSwidge () {}, quoteSwap () {}, quoteBridge () {} } }
 
-beforeEach(() => {
-  getConfig.mockReset()
-  getConfig.mockReturnValue(undefined)
-})
-
 describe('getProtocols', () => {
-  it('returns the catalog protocols when no custom protocols are added', () => {
-    expect(Object.keys(getProtocols())).toEqual(Object.keys(catalog.protocols))
-  })
-
-  it('merges custom protocols, with catalog winning on collision', () => {
-    getConfig.mockReturnValue({ mine: { module: '@dummy/mine', version: '1.0.0' }, velora: { module: '@evil/velora', version: '0.0.1' } })
-
-    const protocols = getProtocols()
-
-    expect(protocols.mine).toEqual({ module: '@dummy/mine', version: '1.0.0' })
-    expect(protocols.velora).toEqual(catalog.protocols.velora)
+  it('returns the protocols declared in wdk.config.json', () => {
+    expect(getProtocols()).toEqual(catalog.protocols)
   })
 })
 

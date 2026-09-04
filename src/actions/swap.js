@@ -32,7 +32,6 @@ import { WdkCliError, ErrorCode } from '../errors/index.js'
  * @property {string} [amountIn] - Human-readable exact input amount (mutually exclusive with amountOut).
  * @property {string} [amountOut] - Human-readable exact output amount (mutually exclusive with amountIn).
  * @property {string} [recipient] - The address that receives the output.
- * @property {number} [slippage] - Max slippage as a decimal (swidge only).
  * @property {string} [protocol] - Force a specific protocol; omit for best-route.
  * @property {string} [wallet] - The wallet name (defaults to the active wallet).
  */
@@ -111,6 +110,12 @@ async function prepareRequest (input) {
   const destNetwork = input.toNetwork || input.network
   if (input.toNetwork) validateNetwork(input.toNetwork)
   const crossNetwork = destNetwork !== input.network
+  if (input.kind === 'bridge' && !crossNetwork) {
+    throw new WdkCliError(
+      'Source and destination network are the same; use `wdk send` for same-chain transfers.',
+      ErrorCode.INVALID_ARGUMENT
+    )
+  }
 
   const from = resolveToken(input.network, input.fromToken)
   const to = resolveToken(destNetwork, input.toToken)
@@ -129,7 +134,6 @@ async function prepareRequest (input) {
     amountIn,
     amountOut,
     recipient: input.recipient,
-    slippage: input.slippage,
     fromSymbol: from.symbol,
     toSymbol: to.symbol,
     toNetwork: crossNetwork ? destNetwork : undefined
@@ -169,7 +173,7 @@ export async function previewSwap (input) {
     outputAmount: quote.outputAmount,
     receiveUsd,
     fees: quote.fees,
-    skipped: quote.skipped || []
+    skipped: quote.skipped
   }
 }
 
@@ -198,7 +202,7 @@ export async function executeSwap (input) {
     toToken: to.symbol,
     payFormatted: inBase !== undefined ? formatAmount(BigInt(inBase), from.decimals, from.symbol) : undefined,
     receiveFormatted: outBase !== undefined ? formatAmount(BigInt(outBase), to.decimals, to.symbol) : undefined,
-    skipped: skipped || []
+    skipped
   }
 }
 

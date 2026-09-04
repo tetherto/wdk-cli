@@ -646,8 +646,7 @@ export class WalletDaemon {
       toChain: r.toChain,
       amountIn: r.amountIn !== undefined ? BigInt(r.amountIn) : undefined,
       amountOut: r.amountOut !== undefined ? BigInt(r.amountOut) : undefined,
-      recipient,
-      slippage: r.slippage
+      recipient
     }
     const context = { fromToken: r.fromSymbol, toToken: r.toSymbol, toNetwork: r.toNetwork }
     return { account, request, context }

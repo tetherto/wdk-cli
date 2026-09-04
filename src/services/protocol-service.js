@@ -13,22 +13,18 @@
 // limitations under the License.
 
 import { walletsFile } from '../config/wdk-config.js'
-import { configService } from './config-service.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 
 /** @typedef {import('../config/wdk-config.js').WdkProtocolEntry} WdkProtocolEntry */
 /** @typedef {'swap' | 'bridge' | 'swidge'} ProtocolKind */
 
 /**
- * Returns all registered protocols, merging catalog protocols with any the
- * user added. Catalog entries win on name collision.
+ * Returns all registered protocols, keyed by short name, from `wdk.config.json`.
  *
  * @returns {Record<string, WdkProtocolEntry>} Protocol entries keyed by short name.
  */
 export function getProtocols () {
-  const custom = configService.get('customProtocols')
-  const merged = (custom && typeof custom === 'object') ? { ...custom } : {}
-  return { ...merged, ...(walletsFile.protocols || {}) }
+  return { ...(walletsFile.protocols || {}) }
 }
 
 /**
