@@ -22,12 +22,6 @@ import { WdkCliError, ErrorCode } from '../errors/index.js'
 /** @typedef {import('../daemon/protocol.js').SkippedProtocol} SkippedProtocol */
 
 /**
- * EIP-7528 native-asset sentinel address. Swap/bridge protocols read this as
- * "the chain's native token" rather than a wrapped ERC-20.
- */
-const NATIVE_SENTINEL = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
-
-/**
  * @typedef {Object} SwapActionInput
  * @property {'swap' | 'bridge'} kind - Whether to quote a swap or a bridge.
  * @property {string} network - The source network name (binds the source chain to the account).
@@ -75,12 +69,13 @@ const NATIVE_SENTINEL = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
  */
 
 /**
- * Resolves a token name to the address (native sentinel for native assets),
- * decimals, and symbol used to build a quote request.
+ * Resolves a token name to the identifier, decimals, and symbol used to build a
+ * quote request. The identifier is the registry's `nativeId` for native assets
+ * (undefined when none is declared) and the contract address otherwise.
  *
  * @param {string} network - The network the token lives on.
  * @param {string} token - The token name (e.g. "usdt", "eth").
- * @returns {{ address: string, decimals: number, symbol: string, isNative: boolean }}
+ * @returns {{ address: string | undefined, decimals: number, symbol: string, isNative: boolean }}
  */
 function resolveToken (network, token) {
   const { isNative, address } = resolveTokenIdentifier(network, token)
@@ -88,7 +83,7 @@ function resolveToken (network, token) {
     getTokenByName(network, token)
   )
   return {
-    address: isNative ? NATIVE_SENTINEL : /** @type {string} */ (address),
+    address: isNative ? entry.nativeId : /** @type {string} */ (address),
     decimals: entry.decimals,
     symbol: entry.symbol,
     isNative

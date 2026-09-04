@@ -41,6 +41,7 @@
       "name": "ETH",
       "decimals": 18,
       "isNative": true,
+      "nativeId": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
       "testnet": false,
       "metadata": {
         "moonpaySlug": "eth",
@@ -90,6 +91,7 @@
       "name": "ETH",
       "decimals": 18,
       "isNative": true,
+      "nativeId": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
       "testnet": true,
       "metadata": {
         "moonpaySlug": "eth",
@@ -121,6 +123,7 @@
       "name": "POL",
       "decimals": 18,
       "isNative": true,
+      "nativeId": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
       "testnet": false,
       "metadata": {
         "moonpaySlug": "pol_polygon",
@@ -151,6 +154,7 @@
       "name": "ETH",
       "decimals": 18,
       "isNative": true,
+      "nativeId": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
       "testnet": false,
       "metadata": {
         "moonpaySlug": "eth_arbitrum",
@@ -166,6 +170,7 @@
       "name": "ETH",
       "decimals": 18,
       "isNative": true,
+      "nativeId": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
       "testnet": false,
       "metadata": {
         "moonpaySlug": "eth_base",
@@ -181,6 +186,7 @@
       "name": "BNB",
       "decimals": 18,
       "isNative": true,
+      "nativeId": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
       "testnet": false,
       "metadata": {
         "moonpaySlug": "bnb_bsc",
@@ -211,6 +217,7 @@
       "name": "AVAX",
       "decimals": 18,
       "isNative": true,
+      "nativeId": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
       "testnet": false,
       "metadata": {
         "moonpaySlug": "avax_cchain",
@@ -241,6 +248,7 @@
       "name": "SOL",
       "decimals": 9,
       "isNative": true,
+      "nativeId": "So11111111111111111111111111111111111111112",
       "testnet": false,
       "metadata": {
         "moonpaySlug": "sol",
@@ -272,6 +280,7 @@
       "name": "SOL",
       "decimals": 9,
       "isNative": true,
+      "nativeId": "So11111111111111111111111111111111111111112",
       "testnet": true,
       "metadata": {
         "moonpaySlug": "sol",
@@ -287,6 +296,7 @@
       "name": "SOL",
       "decimals": 9,
       "isNative": true,
+      "nativeId": "So11111111111111111111111111111111111111112",
       "testnet": true,
       "metadata": {
         "bitfinexSlug": "tSOLUSD"
@@ -330,6 +340,7 @@
       "name": "TRX",
       "decimals": 6,
       "isNative": true,
+      "nativeId": "TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR",
       "testnet": false,
       "metadata": {
         "moonpaySlug": "trx",
@@ -376,6 +387,7 @@
       "name": "ETH",
       "decimals": 18,
       "isNative": true,
+      "nativeId": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
       "testnet": false,
       "metadata": {
         "moonpaySlug": "eth",
@@ -425,6 +437,7 @@
       "name": "ETH",
       "decimals": 18,
       "isNative": true,
+      "nativeId": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
       "testnet": true,
       "metadata": {
         "moonpaySlug": "eth",
@@ -456,6 +469,7 @@
       "name": "POL",
       "decimals": 18,
       "isNative": true,
+      "nativeId": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
       "testnet": false,
       "metadata": {
         "moonpaySlug": "pol_polygon",
@@ -486,6 +500,7 @@
       "name": "ETH",
       "decimals": 18,
       "isNative": true,
+      "nativeId": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
       "testnet": false,
       "metadata": {
         "moonpaySlug": "eth_arbitrum",
@@ -501,6 +516,7 @@
       "name": "ETH",
       "decimals": 18,
       "isNative": true,
+      "nativeId": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
       "testnet": false,
       "metadata": {
         "moonpaySlug": "eth_base",
@@ -516,6 +532,7 @@
       "name": "ETH",
       "decimals": 18,
       "isNative": true,
+      "nativeId": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
       "testnet": false,
       "metadata": {
         "bitfinexSlug": "tETHUSD"

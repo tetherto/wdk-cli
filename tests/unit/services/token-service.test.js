@@ -115,14 +115,28 @@ describe('token-service', () => {
     expect(Object.keys(entry).sort()).toEqual(['address', 'decimals', 'isNative', 'metadata', 'symbol'])
   })
 
-  it('resolves the native token', () => {
+  it('resolves the native token with its swap/bridge nativeId', () => {
     expect(getNativeToken('ethereum')).toEqual({
       symbol: 'ETH',
       decimals: 18,
       isNative: true,
+      nativeId: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
       metadata: {
         moonpaySlug: 'eth',
         bitfinexSlug: 'tETHUSD'
+      }
+    })
+  })
+
+  it('leaves nativeId unset for a native token that declares none', () => {
+    expect(getNativeToken('bitcoin')).toEqual({
+      symbol: 'BTC',
+      decimals: 8,
+      isNative: true,
+      metadata: {
+        indexerSlug: 'btc',
+        moonpaySlug: 'btc',
+        bitfinexSlug: 'tBTCUSD'
       }
     })
   })

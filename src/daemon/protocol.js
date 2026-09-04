@@ -21,7 +21,7 @@
  * decimals. Native assets use the sentinel address (see actions/swap.js).
  *
  * @typedef {Object} QuoteToken
- * @property {string} address - The token contract address (or native sentinel).
+ * @property {string} [address] - Contract address, or the native identifier (`nativeId`) for native. Absent when a native asset declares none.
  * @property {number} decimals - The token's decimals.
  * @property {string} symbol - The token symbol (for provider identifier resolution).
  * @property {boolean} isNative - Whether the token is the chain's native asset.
