@@ -29,8 +29,19 @@ import { WdkCliError, ErrorCode } from '../errors/index.js'
 /** @typedef {import('./routing.js').ProtocolQuote} ProtocolQuote */
 /** @typedef {import('./protocol-adapter.js').SwapRequest} SwapRequest */
 /** @typedef {import('@tetherto/wdk').WdkAccount} WalletAccount */
-/** @typedef {Record<string, unknown>} ProtocolInstance - A constructed protocol instance exposing the kind's quote/execute methods. */
-/** @typedef {new (account: WalletAccount, config: Record<string, unknown>) => ProtocolInstance} ProtocolConstructor */
+/**
+ * A constructed protocol instance, indexed by method name. Typed as a callable
+ * map because the orchestrator only ever invokes its kind-specific quote and
+ * execute methods.
+ *
+ * @typedef {Record<string, (...args: unknown[]) => unknown>} ProtocolInstance
+ */
+/**
+ * A protocol's default-exported class, constructed with an account and its
+ * network-effective config.
+ *
+ * @typedef {new (account: WalletAccount, config: Record<string, unknown>) => ProtocolInstance} ProtocolConstructor
+ */
 
 /**
  * The quote method exposed by each protocol kind.
@@ -269,8 +280,7 @@ async function quoteOne (account, capable, network, request) {
   const instance = getProtocolInstance(account, capable, network)
   const resolved = await resolveRequestIdentifiers(instance, network, request)
   const options = buildOptions(capable.kind, resolved)
-  const callable = /** @type {Record<string, (...args: unknown[]) => unknown>} */ (/** @type {unknown} */ (instance))
-  const raw = /** @type {Record<string, unknown>} */ (await callable[QUOTE_METHOD[capable.kind]](options))
+  const raw = /** @type {Record<string, unknown>} */ (await instance[QUOTE_METHOD[capable.kind]](options))
   return normalizeQuote(capable.kind, capable.name, raw, request)
 }
 
@@ -376,13 +386,12 @@ async function executeOne (account, capable, request, winningQuote, network) {
   const instance = getProtocolInstance(account, capable, network)
   const resolved = await resolveRequestIdentifiers(instance, network, request)
   const options = buildOptions(capable.kind, resolved)
-  const callable = /** @type {Record<string, (...args: unknown[]) => unknown>} */ (/** @type {unknown} */ (instance))
   if (capable.kind === 'swidge') {
     const raw = /** @type {{ quote?: unknown }} */ (winningQuote.raw)
     const config = raw && raw.quote !== undefined ? { quote: raw.quote } : undefined
-    return /** @type {Promise<Record<string, unknown>>} */ (/** @type {unknown} */ (callable[EXECUTE_METHOD.swidge](options, config)))
+    return /** @type {Promise<Record<string, unknown>>} */ (instance[EXECUTE_METHOD.swidge](options, config))
   }
-  return /** @type {Promise<Record<string, unknown>>} */ (/** @type {unknown} */ (callable[EXECUTE_METHOD[capable.kind]](options)))
+  return /** @type {Promise<Record<string, unknown>>} */ (instance[EXECUTE_METHOD[capable.kind]](options))
 }
 
 /**
