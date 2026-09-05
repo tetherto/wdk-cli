@@ -39,6 +39,7 @@ const tokensFileRaw = createRequire(import.meta.url)('../../wdk.tokens.json')
  * @property {string} name - The token name.
  * @property {number} decimals - The number of decimal places.
  * @property {boolean} isNative - True when this token is the chain's native asset.
+ * @property {string} [nativeId] - Identifier a swap/bridge protocol uses for the native asset (native entries only).
  * @property {string} [address] - Contract/mint address. Absent for native assets.
  * @property {boolean} testnet - True when the asset belongs to a testnet network.
  * @property {TokenMetadata} [metadata] - Optional provider-specific mappings.

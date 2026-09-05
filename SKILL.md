@@ -1,6 +1,6 @@
 ---
 name: wdk-wallet
-description: "Manage a multi-chain crypto wallet via the wdk CLI. Supports multiple named wallets. Use when: user asks to check wallet balance, get wallet address, send tokens, check transaction history, buy/sell crypto, or invoke chain-specific wallet module methods (discover them with `wdk method list`). Supports Bitcoin, Ethereum, Polygon, Arbitrum, Base, BSC, Avalanche, Solana, Tron, Spark, and Smart Accounts (ERC-4337). Triggers on: 'check balance', 'wallet address', 'send tokens', 'transfer tokens', 'transaction history', 'buy crypto', 'sell crypto', 'get address'."
+description: "Manage a multi-chain crypto wallet via the wdk CLI. Supports multiple named wallets. Use when: user asks to check wallet balance, get wallet address, send tokens, swap tokens, bridge tokens across chains, check transaction history, buy/sell crypto, or invoke chain-specific wallet module methods (discover them with `wdk method list`). Supports Bitcoin, Ethereum, Polygon, Arbitrum, Base, BSC, Avalanche, Solana, Tron, Spark, and Smart Accounts (ERC-4337). Triggers on: 'check balance', 'wallet address', 'send tokens', 'transfer tokens', 'swap tokens', 'bridge tokens', 'cross-chain swap', 'best route', 'transaction history', 'buy crypto', 'sell crypto', 'get address'."
 metadata:
   openclaw:
     requires:
@@ -111,6 +111,35 @@ Step 3: Execute the transfer (drop `--dry-run`):
 ```bash
 wdk send --to 0xRECIPIENT --amount 1 --network ethereum --json
 ```
+
+### Swap / Bridge
+
+Swap one token for another, or bridge the same token to another chain — routed across installed protocols (best output wins). Same dry-run → confirm → execute flow as Send: funds move on execute.
+
+Step 1: Preview with `--dry-run`.
+
+```bash
+# Swap (add --to-network for a cross-chain swap)
+wdk swap --network ethereum --from-token usdt --to-token eth --amount-in 100 --dry-run --json
+# {"kind":"swap","protocol":"symbiosis","payFormatted":"100 USDT","receiveFormatted":"0.0407 ETH","receiveUsd":100.10,"skipped":[{"protocol":"velora","reason":"insufficient funds"}]}
+
+# Bridge the same token to another chain (exact-in)
+wdk bridge --network ethereum --token usdt --to-network avalanche --amount 100 --dry-run --json
+```
+
+Step 2: Show the preview (protocol, amounts, USD, `skipped`) to the user and wait for confirmation.
+
+Step 3: Execute (drop `--dry-run`):
+
+```bash
+wdk swap --network ethereum --from-token usdt --to-token eth --amount-in 100 --json
+```
+
+Rules:
+
+1. `swap` takes `--from-token`/`--to-token` (`--amount-in` or `--amount-out`; add `--to-network` for cross-chain); `bridge` takes one `--token` + `--to-network` with exact-in `--amount`.
+2. Best-route by default; the `skipped` array lists protocols that failed and why. Pass `--protocol <name>` to force one.
+3. Execute moves funds — treat like Send: dry-run, show the user, confirm.
 
 ### Transaction History
 

@@ -30,6 +30,7 @@ import { WdkService } from '../services/wdk-service.js'
 import { isValidNetwork, getNetworkConfig } from '../config/networks.js'
 import { getTokenByAddress } from '../services/token-service.js'
 import { getMethod, convertMethodArgs, bigintReplacer } from '../services/methods.js'
+import { quoteBest, executeBest } from '../services/swap-orchestrator.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 import { formatAmount } from '../ui/formatters.js'
 
@@ -47,6 +48,9 @@ import { formatAmount } from '../ui/formatters.js'
  * @property {number} expiresAt - The Unix timestamp (ms) when the session expires (0 = no expiry).
  */
 
+/** Max length of a summarized third-party error message before truncation. */
+const MAX_ERROR_LEN = 200
+
 /**
  * Builds a failure DaemonResponse that preserves the error code across IPC.
  * Picks up `code` and `suggestion` from WdkCliError, plus `code` from
@@ -57,12 +61,30 @@ import { formatAmount } from '../ui/formatters.js'
  */
 function errorResponse (e) {
   if (!(e instanceof Error)) return { ok: false, error: String(e) }
-  const err = /** @type {Error & { code?: unknown, suggestion?: unknown }} */ (e)
+  const err = /** @type {Error & { code?: unknown, suggestion?: unknown, shortMessage?: unknown }} */ (e)
+
+  // Pass our own WdkCliError messages through verbatim (concise, sometimes
+  // intentionally multi-line). Summarize only third-party errors — ethers packs
+  // the whole failing tx into `message`, so prefer `shortMessage` and cap it.
+  let error
+  if (e instanceof WdkCliError) {
+    error = err.message
+  } else {
+    const raw = typeof err.shortMessage === 'string' ? err.shortMessage : err.message
+    error = raw.length > MAX_ERROR_LEN ? raw.slice(0, MAX_ERROR_LEN) + '…' : raw
+  }
+
+  const suggestion = typeof err.suggestion === 'string'
+    ? err.suggestion
+    : err.code === 'INSUFFICIENT_FUNDS'
+      ? 'Quoting a swap/bridge estimates the on-chain tx, so the account must hold the input token plus native gas (or use a gasless 4337/7702 account).'
+      : undefined
+
   return {
     ok: false,
-    error: err.message,
+    error,
     ...(typeof err.code === 'string' ? { code: err.code } : {}),
-    ...(typeof err.suggestion === 'string' ? { suggestion: err.suggestion } : {})
+    ...(suggestion ? { suggestion } : {})
   }
 }
 
@@ -483,6 +505,18 @@ export class WalletDaemon {
         }
       }
 
+      case 'quote_swap':
+        return this.#handleQuote(req, 'swap', wallet)
+
+      case 'quote_bridge':
+        return this.#handleQuote(req, 'bridge', wallet)
+
+      case 'execute_swap':
+        return this.#handleExecute(req, 'swap', wallet)
+
+      case 'execute_bridge':
+        return this.#handleExecute(req, 'bridge', wallet)
+
       case 'list_wallets': {
         return { ok: true, data: { wallets: this.#getWalletStatusList() } }
       }
@@ -506,6 +540,119 @@ export class WalletDaemon {
       default:
         return { ok: false, error: `Unknown action: ${req.action}` }
     }
+  }
+
+  /**
+   * Handles a best-route quote request (swap or bridge). Resolves the account
+   * for the source network, converts the string amounts back to BigInt, quotes
+   * every capable protocol concurrently, and returns the winning quote with
+   * BigInt fields serialized as strings.
+   *
+   * @param {DaemonRequest} req - The parsed request object.
+   * @param {'swap' | 'bridge'} requestKind - Which kind of quote to run.
+   * @param {string} wallet - The resolved wallet name.
+   * @returns {Promise<DaemonResponse>} The response with the best quote.
+   */
+  async #handleQuote (req, requestKind, wallet) {
+    if (!req.network || !isValidNetwork(req.network)) {
+      return { ok: false, error: `Invalid network: ${req.network}` }
+    }
+    if (!req.request) {
+      return { ok: false, error: 'Missing required field: request' }
+    }
+    try {
+      const { account, request, context } = await this.#resolveQuoteInputs(req, wallet)
+      const { quote: best, failures } = await quoteBest({
+        account,
+        requestKind,
+        network: req.network,
+        request,
+        context,
+        protocol: req.protocol
+      })
+
+      return {
+        ok: true,
+        data: {
+          protocol: best.protocol,
+          inputAmount: best.inputAmount !== undefined ? best.inputAmount.toString() : undefined,
+          outputAmount: best.outputAmount.toString(),
+          fees: JSON.parse(JSON.stringify({ v: best.fees }, bigintReplacer)).v,
+          skipped: failures
+        }
+      }
+    } catch (e) {
+      return errorResponse(e)
+    }
+  }
+
+  /**
+   * Handles a best-route execution request (swap or bridge): quotes every
+   * capable protocol to pick the winner, executes only the winner as a single
+   * transaction, and returns its result plus the protocols that were skipped.
+   *
+   * @param {DaemonRequest} req - The parsed request object.
+   * @param {'swap' | 'bridge'} requestKind - Which kind of transaction to run.
+   * @param {string} wallet - The resolved wallet name.
+   * @returns {Promise<DaemonResponse>} The response with the execution result.
+   */
+  async #handleExecute (req, requestKind, wallet) {
+    if (!req.network || !isValidNetwork(req.network)) {
+      return { ok: false, error: `Invalid network: ${req.network}` }
+    }
+    if (!req.request) {
+      return { ok: false, error: 'Missing required field: request' }
+    }
+    try {
+      const { account, request, context } = await this.#resolveQuoteInputs(req, wallet)
+      const { protocol, result, failures } = await executeBest({
+        account,
+        requestKind,
+        network: req.network,
+        request,
+        context,
+        protocol: req.protocol
+      })
+
+      return {
+        ok: true,
+        data: {
+          protocol,
+          result: JSON.parse(JSON.stringify({ v: result }, bigintReplacer)).v,
+          skipped: failures
+        }
+      }
+    } catch (e) {
+      return errorResponse(e)
+    }
+  }
+
+  /**
+   * Builds the account, normalized request, and display context shared by the
+   * quote and execute handlers. Converts the string amounts back to BigInt and
+   * defaults the recipient to the account's own address — bridge requires one
+   * (swap's `to` is optional), and it's valid on these EVM destination chains.
+   *
+   * @param {DaemonRequest} req - The parsed request object (with `req.request` set).
+   * @param {string} wallet - The resolved wallet name.
+   * @returns {Promise<{ account: any, request: object, context: object }>}
+   */
+  async #resolveQuoteInputs (req, wallet) {
+    const wdk = this.#requireWallet(wallet)
+    const account = await wdk.getAccount(req.network, req.index ?? 0)
+
+    const r = /** @type {import('./protocol.js').QuoteRequest} */ (req.request)
+    const recipient = r.recipient || await account.getAddress()
+    const request = {
+      fromToken: r.fromToken,
+      toToken: r.toToken,
+      toChain: r.toChain,
+      amountIn: r.amountIn !== undefined ? BigInt(r.amountIn) : undefined,
+      amountOut: r.amountOut !== undefined ? BigInt(r.amountOut) : undefined,
+      recipient
+    }
+    const context = { fromToken: r.fromSymbol, toToken: r.toSymbol, toNetwork: r.toNetwork }
+    return { account, request, context }
   }
 
   /**

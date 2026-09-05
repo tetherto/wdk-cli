@@ -22,6 +22,7 @@ import { getBalance, getAllBalances } from '../actions/balance.js'
 import { getAddress, getAllAddresses } from '../actions/address.js'
 import { getHistory } from '../actions/history.js'
 import { previewSend, executeSend } from '../actions/send.js'
+import { previewSwap, executeSwap } from '../actions/swap.js'
 import { createRampUrl } from '../actions/ramp.js'
 import { listTokens, getToken } from '../actions/token.js'
 import { listMethods, listAllMethods, callMethod } from '../actions/method.js'
@@ -326,6 +327,120 @@ export async function startMcpServer () {
           })
         }
         const result = await executeSend(sendInput)
+        return jsonResult({ success: true, ...result })
+      } catch (e) {
+        return errorResult(e)
+      }
+    }
+  )
+
+  server.registerTool(
+    'swap_token',
+    {
+      description:
+        'Swap one token for another on the same chain (or cross-chain when toNetwork is set) via the best available protocol. IMPORTANT: Always call with dryRun=true first to preview the route and amounts, show it to the user, and only call again with dryRun=false after the user confirms.',
+      inputSchema: {
+        network: z.string().describe('Source network name (e.g. ethereum)'),
+        fromToken: z.string().describe('Token to sell (e.g. usdt). Use the token tool to list available ones.'),
+        toToken: z.string().describe('Token to buy (e.g. eth)'),
+        toNetwork: z
+          .string()
+          .optional()
+          .describe('Destination network for a cross-chain swap (default: source network)'),
+        amountIn: z
+          .string()
+          .optional()
+          .describe('Exact amount to sell (decimal, e.g. "100"). Mutually exclusive with amountOut.'),
+        amountOut: z
+          .string()
+          .optional()
+          .describe('Exact amount to receive (decimal, e.g. "0.05"). Mutually exclusive with amountIn.'),
+        recipient: z.string().optional().describe('Address that receives the output (default: your account)'),
+        protocol: z.string().optional().describe('Force a specific protocol; omit to use the best route'),
+        index: z.number().optional().default(0).describe('Account index (default: 0)'),
+        dryRun: z
+          .boolean()
+          .optional()
+          .default(true)
+          .describe('Preview without executing (default: true). Set false to execute.'),
+        wallet: z.string().optional().describe('Wallet name (uses default wallet if omitted)')
+      }
+    },
+    async ({ network, fromToken, toToken, toNetwork, amountIn, amountOut, recipient, protocol, index, dryRun, wallet }) => {
+      try {
+        const input = {
+          kind: /** @type {const} */ ('swap'),
+          network,
+          index,
+          fromToken,
+          toToken,
+          toNetwork,
+          amountIn,
+          amountOut,
+          recipient,
+          protocol,
+          wallet
+        }
+        if (dryRun) {
+          const preview = await previewSwap(input)
+          return jsonResult({
+            preview: true,
+            ...preview,
+            message: 'This is a dry-run preview. Call swap_token again with dryRun=false to execute.'
+          })
+        }
+        const result = await executeSwap(input)
+        return jsonResult({ success: true, ...result })
+      } catch (e) {
+        return errorResult(e)
+      }
+    }
+  )
+
+  server.registerTool(
+    'bridge_token',
+    {
+      description:
+        'Bridge a token to another chain (same token, exact-in) via the best available protocol. IMPORTANT: Always call with dryRun=true first to preview the route and amounts, show it to the user, and only call again with dryRun=false after the user confirms.',
+      inputSchema: {
+        network: z.string().describe('Source network name (e.g. ethereum)'),
+        token: z.string().describe('Token to bridge (e.g. usdt)'),
+        toNetwork: z.string().describe('Destination network name'),
+        amount: z.string().describe('Amount to bridge (decimal, e.g. "100")'),
+        recipient: z.string().optional().describe('Address that receives the tokens (default: your account)'),
+        protocol: z.string().optional().describe('Force a specific protocol; omit to use the best route'),
+        index: z.number().optional().default(0).describe('Account index (default: 0)'),
+        dryRun: z
+          .boolean()
+          .optional()
+          .default(true)
+          .describe('Preview without executing (default: true). Set false to execute.'),
+        wallet: z.string().optional().describe('Wallet name (uses default wallet if omitted)')
+      }
+    },
+    async ({ network, token, toNetwork, amount, recipient, protocol, index, dryRun, wallet }) => {
+      try {
+        const input = {
+          kind: /** @type {const} */ ('bridge'),
+          network,
+          index,
+          fromToken: token,
+          toToken: token,
+          toNetwork,
+          amountIn: amount,
+          recipient,
+          protocol,
+          wallet
+        }
+        if (dryRun) {
+          const preview = await previewSwap(input)
+          return jsonResult({
+            preview: true,
+            ...preview,
+            message: 'This is a dry-run preview. Call bridge_token again with dryRun=false to execute.'
+          })
+        }
+        const result = await executeSwap(input)
         return jsonResult({ success: true, ...result })
       } catch (e) {
         return errorResult(e)

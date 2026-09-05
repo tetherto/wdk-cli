@@ -31,7 +31,8 @@ import { humanToBaseUnits } from '../ui/parsers.js'
  * @property {string} symbol - The display symbol (e.g. "USDT", "ETH").
  * @property {number} decimals - The number of decimal places.
  * @property {boolean} isNative - True when this token is the chain's native asset (use native transfer path).
- * @property {string} [address] - Contract/mint address. Required for non-native sends; optional for native (wrapped/protocol representation).
+ * @property {string} [nativeId] - Identifier a swap/bridge protocol uses for the native asset (native entries only).
+ * @property {string} [address] - Contract/mint address. Required for non-native sends; absent for native.
  * @property {TokenMetadata} [metadata] - Optional provider-specific mappings.
  */
 
@@ -101,6 +102,7 @@ function customEntryToAsset (network, slug, entry) {
     name: entry.symbol,
     decimals: entry.decimals,
     isNative: entry.isNative,
+    ...(entry.nativeId !== undefined && { nativeId: entry.nativeId }),
     ...(entry.address !== undefined && { address: entry.address }),
     testnet: walletsFile.networks[network]?.testnet ?? false,
     ...(entry.metadata !== undefined && { metadata: entry.metadata })
@@ -119,6 +121,7 @@ function toTokenEntry (asset) {
     symbol: asset.symbol,
     decimals: asset.decimals,
     isNative: asset.isNative,
+    ...(asset.nativeId !== undefined && { nativeId: asset.nativeId }),
     ...(asset.address !== undefined && { address: asset.address }),
     ...(asset.metadata !== undefined && { metadata: asset.metadata })
   }

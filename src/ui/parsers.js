@@ -46,6 +46,22 @@ export function nonNegativeInt (value) {
 }
 
 /**
+ * Commander argParser for a positive decimal amount (> 0). A coarse gate for
+ * early, crisp rejection of `0`, negatives, and non-numbers; exact
+ * token-precision validation stays in `toBaseUnits`.
+ *
+ * @param {string} value - The raw CLI argument.
+ * @returns {string} The original value, once validated.
+ */
+export function decimalAmount (value) {
+  const n = Number(value)
+  if (!Number.isFinite(n) || n <= 0) {
+    throw new InvalidArgumentError('Must be a positive decimal amount.')
+  }
+  return value
+}
+
+/**
  * Auto-detects whether `value` is an inline JSON string or a path to a JSON
  * file, and parses it. The "one positional, two delivery modes" input pattern
  * used by `wdk network create` and `wdk token add`.
@@ -64,8 +80,9 @@ export function loadJson (value, label) {
     try {
       return JSON.parse(value)
     } catch (err) {
+      const error = /** @type {Error} */ (err)
       throw new WdkCliError(
-        `Invalid JSON in ${label}: ${/** @type {Error} */ (err).message}`,
+        `Invalid JSON in ${label}: ${error.message}`,
         ErrorCode.INVALID_ARGUMENT
       )
     }
@@ -74,16 +91,18 @@ export function loadJson (value, label) {
   try {
     raw = readFileSync(value, 'utf8')
   } catch (err) {
+    const error = /** @type {Error} */ (err)
     throw new WdkCliError(
-      `Cannot read ${label} from '${value}': ${/** @type {Error} */ (err).message}`,
+      `Cannot read ${label} from '${value}': ${error.message}`,
       ErrorCode.INVALID_ARGUMENT
     )
   }
   try {
     return JSON.parse(raw)
   } catch (err) {
+    const error = /** @type {Error} */ (err)
     throw new WdkCliError(
-      `${label} file '${value}' is not valid JSON: ${/** @type {Error} */ (err).message}`,
+      `${label} file '${value}' is not valid JSON: ${error.message}`,
       ErrorCode.INVALID_ARGUMENT
     )
   }

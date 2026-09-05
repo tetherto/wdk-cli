@@ -22,7 +22,7 @@ import { CONFIG_DEFAULTS } from '../config/constants.js'
 import { WdkCliError, ErrorCode, isNetworkError } from '../errors/index.js'
 
 /** @typedef {typeof import('@tetherto/wdk-wallet').default} WalletManagerCtor */
-/** @typedef {import('@tetherto/wdk').IWalletAccountWithProtocols} WalletAccount */
+/** @typedef {import('@tetherto/wdk').WdkAccount} WalletAccount */
 
 /** @type {Map<string, WalletManagerCtor>} */
 const walletManagerCache = new Map()
