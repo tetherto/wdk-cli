@@ -77,6 +77,10 @@ export async function resolveChain (instance, network) {
   const numericChainId = /** @type {number | undefined} */ (entry?.config?.chainId)
   const displayName = entry?.displayName
 
+  // NOTE: no chain identifier is common to every protocol, so this matches on any
+  // of three keys as a best effort. It can mismatch when a provider's name/string
+  // id differs from ours (e.g. "BNB Chain" vs "Binance").
+  // Future work: a shared standard (CAIP-2 chain ids) would remove the guessing
   const row = c.chains.find((chain) =>
     (typeof chain.id === 'number' && numericChainId !== undefined && chain.id === numericChainId) ||
     (chain.name && displayName && chain.name.toLowerCase() === displayName.toLowerCase()) ||
