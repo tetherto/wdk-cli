@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import { jest } from '@jest/globals'
 import { createRequire } from 'node:module'
 
 import {
@@ -21,6 +22,7 @@ import {
   detectKind,
   servesRequest
 } from '../../../src/services/protocol-service.js'
+import { configService } from '../../../src/services/config-service.js'
 
 const require = createRequire(import.meta.url)
 const catalog = require('../../../wdk.config.json')
@@ -87,5 +89,25 @@ describe('servesRequest', () => {
   it('lets a bridge protocol serve only bridge requests', () => {
     expect(servesRequest('bridge', 'bridge')).toBe(true)
     expect(servesRequest('bridge', 'swap')).toBe(false)
+  })
+})
+
+describe('protocol overrides', () => {
+  afterEach(() => {
+    jest.restoreAllMocks()
+  })
+
+  const withOverrides = (overrides) => {
+    jest.spyOn(configService, 'get').mockImplementation((key) =>
+      key === 'overrides' ? overrides : undefined
+    )
+  }
+
+  it('drops protocols whose module is disabled', () => {
+    withOverrides({ modules: { [catalog.protocols.velora.module]: { enabled: false } } })
+
+    expect(getProtocols().velora).toBeUndefined()
+    expect(getProtocols().usdt0).toEqual(catalog.protocols.usdt0)
+    expect(() => getProtocol('velora')).toThrow("Protocol 'velora' is disabled.")
   })
 })

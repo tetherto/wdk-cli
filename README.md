@@ -169,7 +169,11 @@ wdk network list --testnet    # Show only testnets
 wdk network list --mainnet    # Show only mainnets
 wdk network info --network <network>  # Show network details and config
 wdk network delete --name <name>      # Delete a custom network (requires unlocked wallet)
+wdk network disable --name <name>     # Hide a network
+wdk network enable --name <name>      # Bring it back
 ```
+
+`delete` permanently removes a network you created; `disable` hides any network reversibly (see [Module](#module) for how overrides are stored).
 
 #### Adding Custom Networks
 
@@ -243,9 +247,11 @@ wdk token add '{"network":"ethereum","token":"dai","symbol":"DAI","decimals":18,
 wdk token add ./dai-on-ethereum.json
 
 wdk token delete --network <n> --token <t>                     # Remove a custom entry
+wdk token disable --network <n> --token <t>                    # Hide an entry (built-in or custom)
+wdk token enable --network <n> --token <t>                     # Bring it back
 ```
 
-`wdk token add <data>` takes a single argument — inline JSON or a path to a JSON file.
+`wdk token add <data>` takes a single argument — inline JSON or a path to a JSON file. `delete` permanently removes an entry you added; `disable` hides any entry reversibly (native tokens cannot be disabled — disable the network instead).
 
 **Token entry fields — and why each one is needed:**
 
@@ -398,9 +404,27 @@ wdk module list                                            # Built-in and custom
 wdk module add --name @tetherto/wdk-wallet-ton             # Add a custom module (latest, pinned once)
 wdk module add --name @tetherto/wdk-wallet-ton@1.0.0-beta.12   # Pin a specific version
 wdk module remove --name @tetherto/wdk-wallet-ton          # Remove a custom module
+wdk module disable --name @tetherto/wdk-wallet-solana      # Disable a module and everything it backs
+wdk module enable --name @tetherto/wdk-wallet-solana       # Re-enable it
+wdk module add --name @tetherto/wdk-wallet-evm@1.0.0-beta.20   # Replace a built-in module's version
+wdk module remove --name @tetherto/wdk-wallet-evm          # Restore its default version
 ```
 
 Built-in modules ship as regular npm dependencies of the CLI — installing the CLI installs them, with no lifecycle scripts. `wdk module add` registers an *additional* package (stored in user config, pinned to an exact version) and installs it; because module code runs inside the wallet daemon, adding or removing one requires the default wallet's passphrase to confirm (set `WDK_PASSPHRASE` for non-interactive use), same as `network create` and `token add`. After adding, the module can back a custom network — `wdk network create '{"network":"ton","module":"@tetherto/wdk-wallet-ton",...}'` — and a running daemon keeps the previously loaded code, so lock and unlock again to pick up module changes.
+
+Any entry can be disabled — built-in or your own. Each command matches its own registry exactly: `--name` is a module **package** name here, a **network** name for `wdk network enable|disable`, and `--network` + `--token` for `wdk token enable|disable`:
+
+```bash
+wdk module  disable --name @tetherto/wdk-wallet-tron   # module: hides every network and protocol it backs
+wdk network disable --name tron                        # one network
+wdk token   disable --network ethereum --token usdt    # one token
+```
+
+The rule is **everything can be disabled; only entries you created can be deleted** — built-ins ship inside the package, so there is nothing to delete, and `delete` on your own entry also drops any override it had. Disabling is reversible and never hides anything from you: `module list`, `network list`, and `token list` keep showing disabled entries with a `Status` of `disabled` (so you can see what to re-enable), and `network info` / `token info` still print the full entry. Only commands that would *use* the entry fail, with the exact enable command in the hint.
+
+Protocols have no separate command: a protocol *is* a module (`velora` → `@tetherto/wdk-protocol-swap-velora-evm`), so disabling the package disables the protocol. Native tokens cannot be disabled — disable the network instead.
+
+Choices are stored in user config under `overrides` as deltas — only what you changed, never a copy of the defaults — so a CLI upgrade that ships new modules, versions, networks, or tokens applies automatically to everything you have not overridden, with no migration step. Re-enabling deletes the delta, and the key disappears once the last one is gone. `wdk module list` also marks a module `overridden` with its `(default: …)` version, or `stale override` for an entry the catalog no longer ships (harmless; clear it by enabling that name). In `wdk network list`, networks hidden by a disabled *module* are marked `disabled` too. `--json` output carries the state directly: networks gain an `enabled` field, and token listings include a `disabled` array of `<network>/<token>` ids. The MCP server lists only usable entries, so agents are never offered a disabled network or token. Any enable/disable locks the wallets, like other SDK-affecting config changes — unlock again to apply.
 
 Custom modules are not package.json dependencies, so a plain `npm install` prunes them from `node_modules`. `wdk module list` shows them as `not installed`; re-running `wdk module add --name <pkg>` reinstalls them at their registered pin.
 

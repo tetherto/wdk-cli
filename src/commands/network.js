@@ -19,9 +19,12 @@ import {
   isBuiltinNetwork,
   isCustomNetwork,
   isValidNetwork,
+  isNetworkDisabled,
   saveCustomNetwork,
-  deleteCustomNetwork
+  deleteCustomNetwork,
+  setNetworkEnabled
 } from '../config/networks.js'
+import { applyToggle } from '../ui/toggle.js'
 import { listNetworks, validateNetworkSpec } from '../actions/networks.js'
 import { configService } from '../services/config-service.js'
 import { createTable } from '../ui/tables.js'
@@ -59,14 +62,18 @@ export function registerNetworkCommand (program) {
 
   listCmd.action((options) => {
     try {
-      const result = listNetworks({ testnet: options.testnet, mainnet: options.mainnet })
+      const result = listNetworks({
+        testnet: options.testnet,
+        mainnet: options.mainnet,
+        includeDisabled: true
+      })
 
       if (program.opts().json) {
         console.log(JSON.stringify(result))
         return
       }
 
-      const table = createTable(['Name', 'Network', 'Type', 'Symbol', 'Testnet'])
+      const table = createTable(['Name', 'Network', 'Type', 'Symbol', 'Testnet', 'Status'])
 
       for (const n of result.networks) {
         const nameLabel = n.custom ? `${n.name} ${chalk.dim('(custom)')}` : n.name
@@ -75,12 +82,14 @@ export function registerNetworkCommand (program) {
           n.displayName,
           n.module,
           n.symbol ?? chalk.dim('-'),
-          n.testnet ? chalk.dim('yes') : ''
+          n.testnet ? chalk.dim('yes') : '',
+          n.enabled ? '' : chalk.dim('disabled')
         ])
       }
 
       console.log(table.toString())
-      console.log(chalk.dim(`\n  ${result.count} networks available`))
+      const enabledCount = result.networks.filter((n) => n.enabled).length
+      console.log(chalk.dim(`\n  ${enabledCount} networks available`))
     } catch (error) {
       handleError(error, program.opts().verbose, program.opts().json)
     }
@@ -232,18 +241,19 @@ export function registerNetworkCommand (program) {
   info.action((options) => {
     try {
       const networkName = options.network
-      if (!isValidNetwork(networkName)) {
+      const disabled = isNetworkDisabled(networkName)
+      if (!isValidNetwork(networkName) && !disabled) {
         throw new WdkCliError(
           `Network '${networkName}' is not supported.`,
           ErrorCode.NETWORK_NOT_SUPPORTED
         )
       }
 
-      const config = getNetworkConfig(networkName)
+      const config = getNetworkConfig(networkName, { includeDisabled: true })
       const netConf = configService.get(`networks.${networkName}`) ?? {}
 
       if (program.opts().json) {
-        console.log(JSON.stringify({ ...config, config: netConf }))
+        console.log(JSON.stringify({ ...config, enabled: !disabled, config: netConf }))
         return
       }
 
@@ -251,6 +261,9 @@ export function registerNetworkCommand (program) {
       console.log(`  ${chalk.bold(config.displayName)}`)
       console.log()
       console.log(`  Name:       ${networkName}`)
+      if (disabled) {
+        console.log(`  Status:     ${chalk.dim('disabled')}`)
+      }
       console.log(`  Module:     ${config.module}`)
       console.log(`  Symbol:     ${config.nativeSymbol ?? chalk.dim('(no native token registered)')}`)
       console.log(`  Decimals:   ${config.decimals ?? chalk.dim('-')}`)
@@ -276,4 +289,28 @@ export function registerNetworkCommand (program) {
       handleError(error, program.opts().verbose, program.opts().json)
     }
   })
+
+  for (const enabled of [false, true]) {
+    const cmd = network
+      .command(enabled ? 'enable' : 'disable')
+      .description(`${enabled ? 'Enable' : 'Disable'} a network`)
+      .requiredOption('--name <name>', 'Network name')
+
+    configureHelp(cmd, {
+      params: [{ flags: '--name <name>', description: 'Network name', required: true }]
+    })
+
+    cmd.action(async (options) => {
+      try {
+        await applyToggle(program, {
+          apply: () => setNetworkEnabled(options.name, enabled),
+          enabled,
+          label: `Network '${options.name}'`,
+          result: { network: options.name }
+        })
+      } catch (error) {
+        handleError(error, program.opts().verbose, program.opts().json)
+      }
+    })
+  }
 }

@@ -66,7 +66,9 @@ const {
   getMoonpayCode,
   getBitfinexCode,
   getTokensSupportedBy,
-  getAllTokens
+  getAllTokens,
+  setTokenEnabled,
+  getDisabledTokens
 } = await import('../../../src/services/token-service.js')
 
 const USDT_ETH = '0xdAC17F958D2ee523a2206206994597C13D831ec7'
@@ -101,6 +103,7 @@ const BUILT_IN_NETWORKS = [
 
 afterEach(() => {
   delete store.customTokens
+  delete store.overrides
 })
 
 describe('token-service', () => {
@@ -274,5 +277,95 @@ describe('token-service', () => {
     expect(toBaseUnits('ethereum', 'usdt', '1.5')).toBe('1500000')
     expect(toBaseUnits('ethereum', undefined, '2')).toBe('2000000000000000000')
     expect(() => toBaseUnits('ethereum', 'usdt', '1.1234567')).toThrow(/precision/)
+  })
+})
+
+describe('token overrides', () => {
+  const DISABLED_USDT = { tokens: { 'ethereum/usdt': { enabled: false } } }
+  const ETH_ENTRY = {
+    symbol: 'ETH',
+    decimals: 18,
+    isNative: true,
+    nativeId: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+    metadata: { moonpaySlug: 'eth', bitfinexSlug: 'tETHUSD' }
+  }
+
+  it('hides a disabled built-in token from every lookup', () => {
+    store.overrides = DISABLED_USDT
+
+    expect(getTokenByName('ethereum', 'usdt')).toBeUndefined()
+    expect(getTokenByAddress('ethereum', USDT_ETH)).toBeUndefined()
+    expect(getTokensForNetwork('ethereum').usdt).toBeUndefined()
+    expect(getTokensForNetwork('ethereum').eth).toEqual(ETH_ENTRY)
+  })
+
+  it('lists the disabled tokens of a network', () => {
+    store.overrides = DISABLED_USDT
+
+    expect(getDisabledTokens('ethereum')).toEqual(['ethereum/usdt'])
+    expect(getDisabledTokens('polygon')).toEqual([])
+  })
+
+  it('disables a built-in token', () => {
+    expect(setTokenEnabled('ethereum', 'usdt', false)).toBe(false)
+
+    expect(store.overrides).toEqual(DISABLED_USDT)
+  })
+
+  it('restores the token on enable and clears the delta', () => {
+    store.overrides = DISABLED_USDT
+
+    expect(setTokenEnabled('ethereum', 'usdt', true)).toBe(false)
+
+    expect(getTokenByName('ethereum', 'usdt')).toEqual(USDT_ETH_ENTRY)
+    expect(store.overrides).toBeUndefined()
+  })
+
+  it('refuses to disable a native token', () => {
+    expect(() => setTokenEnabled('ethereum', 'eth', false)).toThrow(
+      "'eth' is the native token of 'ethereum'."
+    )
+  })
+
+  it('refuses a token that is not registered', () => {
+    expect(() => setTokenEnabled('ethereum', 'nope', false)).toThrow(
+      "'nope' is not registered on 'ethereum'."
+    )
+  })
+
+  it('disables a custom token', () => {
+    store.customTokens = { ethereum: { mytok: CUSTOM_ENTRY } }
+
+    expect(setTokenEnabled('ethereum', 'mytok', false)).toBe(false)
+    expect(store.overrides).toEqual({ tokens: { 'ethereum/mytok': { enabled: false } } })
+  })
+
+  it('hides a disabled custom token but still resolves it for inspection', () => {
+    store.customTokens = { ethereum: { mytok: CUSTOM_ENTRY } }
+    store.overrides = { tokens: { 'ethereum/mytok': { enabled: false } } }
+
+    expect(getTokenByName('ethereum', 'mytok')).toBeUndefined()
+    expect(getTokenByName('ethereum', 'mytok', { includeDisabled: true })).toEqual(CUSTOM_ENTRY)
+  })
+
+  it('clears the override when the custom token is deleted', () => {
+    store.customTokens = { ethereum: { mytok: CUSTOM_ENTRY } }
+    store.overrides = { tokens: { 'ethereum/mytok': { enabled: false } } }
+
+    expect(deleteCustomToken('ethereum', 'mytok')).toBe(true)
+    expect(store.overrides).toBeUndefined()
+  })
+
+  it('rejects a token already in the desired state', () => {
+    expect(() => setTokenEnabled('ethereum', 'usdt', true)).toThrow(
+      "'ethereum/usdt' is already enabled."
+    )
+  })
+
+  it('clears a stale override on enable', () => {
+    store.overrides = { tokens: { 'ethereum/gone': { enabled: false } } }
+
+    expect(setTokenEnabled('ethereum', 'gone', true)).toBe(true)
+    expect(store.overrides).toBeUndefined()
   })
 })

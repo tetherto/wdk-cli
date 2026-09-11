@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { getAllNetworks, getAllNetworkNames, isTestnet, getValidWalletTypes } from '../config/networks.js'
+import { getAllNetworks, getAllNetworksIncludingDisabled, isTestnet, getValidWalletTypes } from '../config/networks.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 import { validateTokenEntry, validateTokenName } from './token.js'
 
@@ -20,6 +20,7 @@ import { validateTokenEntry, validateTokenName } from './token.js'
  * @typedef {Object} ListNetworksInput
  * @property {boolean} [testnet] - When true, return only testnet networks.
  * @property {boolean} [mainnet] - When true, return only mainnet networks.
+ * @property {boolean} [includeDisabled] - When true, also return networks the user disabled (default: false).
  */
 
 /**
@@ -32,6 +33,7 @@ import { validateTokenEntry, validateTokenName } from './token.js'
  * @property {number} [decimals] - Native token decimals (undefined when no native token is registered).
  * @property {boolean} testnet - True when the network is a testnet.
  * @property {boolean} custom - True when the network was added by the user via `wdk network create`.
+ * @property {boolean} enabled - False when the user disabled the network or its wallet module.
  */
 
 /**
@@ -47,8 +49,9 @@ import { validateTokenEntry, validateTokenName } from './token.js'
  * @returns {ListNetworksResult}
  */
 export function listNetworks (input = {}) {
-  const allNetworks = getAllNetworks()
-  let names = getAllNetworkNames()
+  const enabled = getAllNetworks()
+  const allNetworks = input.includeDisabled ? getAllNetworksIncludingDisabled() : enabled
+  let names = Object.keys(allNetworks)
 
   if (input.testnet) names = names.filter((n) => isTestnet(n))
   else if (input.mainnet) names = names.filter((n) => !isTestnet(n))
@@ -63,7 +66,8 @@ export function listNetworks (input = {}) {
       symbol: config.nativeSymbol,
       decimals: config.decimals,
       testnet: isTestnet(name),
-      custom: !!config.custom
+      custom: !!config.custom,
+      enabled: name in enabled
     }
   })
 

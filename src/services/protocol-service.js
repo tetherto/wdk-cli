@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import { walletsFile } from '../config/wdk-config.js'
+import { isDisabled } from './override-service.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 
 /** @typedef {import('../config/wdk-config.js').WdkProtocolEntry} WdkProtocolEntry */
@@ -20,11 +21,18 @@ import { WdkCliError, ErrorCode } from '../errors/index.js'
 
 /**
  * Returns all registered protocols, keyed by short name, from `wdk.config.json`.
+ * Protocols whose module package is disabled are dropped.
  *
  * @returns {Record<string, WdkProtocolEntry>} Protocol entries keyed by short name.
  */
 export function getProtocols () {
-  return { ...(walletsFile.protocols || {}) }
+  /** @type {Record<string, WdkProtocolEntry>} */
+  const result = {}
+  for (const [name, entry] of Object.entries(walletsFile.protocols || {})) {
+    if (isDisabled('modules', entry.module)) continue
+    result[name] = entry
+  }
+  return result
 }
 
 /**
@@ -32,11 +40,19 @@ export function getProtocols () {
  *
  * @param {string} name - The protocol short name (e.g. "velora").
  * @returns {WdkProtocolEntry} The protocol entry.
- * @throws {WdkCliError} When no protocol is registered under that name.
+ * @throws {WdkCliError} When no protocol is registered under that name, or its module is disabled.
  */
 export function getProtocol (name) {
   const protocol = getProtocols()[name]
   if (!protocol) {
+    const entry = walletsFile.protocols?.[name]
+    if (entry) {
+      throw new WdkCliError(
+        `Protocol '${name}' is disabled.`,
+        ErrorCode.INVALID_ARGUMENT,
+        `Enable its module with: wdk module enable --name ${entry.module}`
+      )
+    }
     const names = Object.keys(getProtocols())
     throw new WdkCliError(
       `Unknown protocol '${name}'.`,

@@ -21,7 +21,8 @@ import {
   validateTokenSpec,
   validateTokenName
 } from '../actions/token.js'
-import { getTokenSource } from '../services/token-service.js'
+import { getTokenSource, setTokenEnabled } from '../services/token-service.js'
+import { applyToggle } from '../ui/toggle.js'
 import { validateNetwork } from '../config/networks.js'
 import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
 import { configureHelp } from '../ui/help.js'
@@ -77,7 +78,7 @@ function tokenRow (network, token, entry) {
     entry.metadata?.indexerSlug ?? chalk.dim('—'),
     entry.metadata?.moonpaySlug ?? chalk.dim('—'),
     entry.metadata?.bitfinexSlug ?? chalk.dim('—'),
-    source === 'custom' ? chalk.yellow('custom') : chalk.dim('built-in')
+    source === 'custom' ? 'custom' : chalk.dim('built-in')
   ]
 }
 
@@ -90,7 +91,8 @@ const COMMON_COLUMNS = [
   'Indexer',
   'MoonPay',
   'Bitfinex',
-  'Source'
+  'Source',
+  'Status'
 ]
 
 /**
@@ -98,14 +100,15 @@ const COMMON_COLUMNS = [
  *
  * @param {string} network
  * @param {Record<string, TokenEntry>} tokens
+ * @param {string[]} disabled - Ids (`<network>/<slug>`) of disabled tokens.
  * @returns {void}
  */
-function printSingleNetworkTable (network, tokens) {
+function printSingleNetworkTable (network, tokens, disabled) {
   console.log()
   console.log(chalk.bold(`  ${network}:`))
   const table = createTable(COMMON_COLUMNS)
   for (const [token, entry] of Object.entries(tokens)) {
-    table.push(tokenRow(network, token, entry))
+    table.push([...tokenRow(network, token, entry), statusCell(network, token, disabled)])
   }
   console.log(table.toString())
 }
@@ -115,9 +118,10 @@ function printSingleNetworkTable (network, tokens) {
  * the same widths. Network is the leading column.
  *
  * @param {Record<string, Record<string, TokenEntry>>} byNetwork
+ * @param {string[]} disabled - Ids (`<network>/<slug>`) of disabled tokens.
  * @returns {{ totalNetworks: number, totalTokens: number }}
  */
-function printCombinedTable (byNetwork) {
+function printCombinedTable (byNetwork, disabled) {
   console.log()
   const table = createTable(['Network', ...COMMON_COLUMNS])
   let totalNetworks = 0
@@ -126,8 +130,8 @@ function printCombinedTable (byNetwork) {
     if (Object.keys(tokens).length === 0) continue
     totalNetworks++
     for (const [token, entry] of Object.entries(tokens)) {
-      totalTokens++
-      table.push([chalk.dim(network), ...tokenRow(network, token, entry)])
+      if (!disabled.includes(`${network}/${token}`)) totalTokens++
+      table.push([chalk.dim(network), ...tokenRow(network, token, entry), statusCell(network, token, disabled)])
     }
   }
   console.log(table.toString())
@@ -140,6 +144,18 @@ function printCombinedTable (byNetwork) {
  * @param {Command} program - The root Commander program instance.
  * @returns {void}
  */
+/**
+ * Renders a token's status cell: empty when usable, `disabled` otherwise.
+ *
+ * @param {string} network - The network the token belongs to.
+ * @param {string} token - The token key.
+ * @param {string[]} disabled - Ids (`<network>/<slug>`) of disabled tokens.
+ * @returns {string} `disabled` when the user disabled the token, otherwise an empty cell.
+ */
+function statusCell (network, token, disabled) {
+  return disabled.includes(`${network}/${token}`) ? chalk.dim('disabled') : ''
+}
+
 export function registerTokenCommand (program) {
   const token = program.command('token').description('Manage token registry entries')
 
@@ -157,7 +173,7 @@ export function registerTokenCommand (program) {
 
   listCmd.action((options) => {
     try {
-      const result = listTokens({ network: options.network })
+      const result = listTokens({ network: options.network, includeDisabled: true })
 
       if (program.opts().json) {
         console.log(JSON.stringify(result))
@@ -169,12 +185,12 @@ export function registerTokenCommand (program) {
           console.log(chalk.yellow(`No tokens registered for '${result.network}'.`))
           return
         }
-        printSingleNetworkTable(result.network, result.tokens)
+        printSingleNetworkTable(result.network, result.tokens, result.disabled)
         console.log()
         return
       }
 
-      const { totalNetworks, totalTokens } = printCombinedTable(result.tokens)
+      const { totalNetworks, totalTokens } = printCombinedTable(result.tokens, result.disabled)
       console.log(chalk.dim(`\n  ${totalTokens} tokens across ${totalNetworks} networks`))
       console.log()
     } catch (error) {
@@ -206,8 +222,11 @@ export function registerTokenCommand (program) {
       }
       console.log()
       console.log(chalk.bold(`  ${result.network}:`))
-      const { network: _n, token, ...entry } = result
+      const { network: _n, token, enabled, ...entry } = result
       printTokenEntry(/** @type {TokenEntry} */ (entry), token)
+      if (!enabled) {
+        console.log(`    Status:   ${chalk.dim('disabled')}`)
+      }
       console.log()
     } catch (error) {
       handleError(error, program.opts().verbose, program.opts().json)
@@ -310,4 +329,33 @@ export function registerTokenCommand (program) {
       handleError(error, program.opts().verbose, program.opts().json)
     }
   })
+
+  for (const enabled of [false, true]) {
+    const cmd = token
+      .command(enabled ? 'enable' : 'disable')
+      .description(`${enabled ? 'Enable' : 'Disable'} a token`)
+      .requiredOption('--network <network>', 'Network the token belongs to')
+      .requiredOption('--token <token>', 'Token key (e.g. usdt)')
+
+    configureHelp(cmd, {
+      params: [
+        { flags: '--network <network>', description: 'Network the token belongs to', required: true },
+        { flags: '--token <token>', description: 'Token key (e.g. usdt)', required: true }
+      ]
+    })
+
+    cmd.action(async (options) => {
+      try {
+        const { network, token: name } = options
+        await applyToggle(program, {
+          apply: () => setTokenEnabled(network, name, enabled),
+          enabled,
+          label: `Token '${network}/${name.toLowerCase()}'`,
+          result: { network, token: name.toLowerCase() }
+        })
+      } catch (error) {
+        handleError(error, program.opts().verbose, program.opts().json)
+      }
+    })
+  }
 }
