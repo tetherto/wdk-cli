@@ -3,597 +3,97 @@
 [![npm version](https://img.shields.io/npm/v/%40tetherto%2Fwdk-cli?style=flat-square)](https://www.npmjs.com/package/@tetherto/wdk-cli)
 [![npm downloads](https://img.shields.io/npm/dw/%40tetherto%2Fwdk-cli?style=flat-square)](https://www.npmjs.com/package/@tetherto/wdk-cli)
 [![license](https://img.shields.io/npm/l/%40tetherto%2Fwdk-cli?style=flat-square)](https://github.com/tetherto/wdk-cli/blob/main/LICENSE)
+[![docs](https://img.shields.io/badge/docs-docs.wdk.tether.io-0A66C2?style=flat-square)](https://docs.wdk.tether.io/cli)
 
-A multi-chain crypto wallet for AI agents, built on [Wallet Development Kit (WDK)](https://wallet.tether.io/). Designed to be operated by AI agents (e.g. Claude, ChatGPT, OpenClaw).
+**Note**: This package is currently in beta. Please test thoroughly in development environments before using in production.
 
-> **AI agents:** see [`SKILL.md`](./SKILL.md) for the complete operational guide — commands, workflows, error handling, and safety rules.
+A command-line wallet built with WDK. Manage named wallets, derive addresses, read balances and transactions, sign messages, send assets, find swap and bridge routes, and connect an MCP-compatible AI client to the same local wallet daemon.
 
-## Architecture
+**AI agents:** See [`SKILL.md`](./SKILL.md) for the operational guide, including workflows, error handling, and approval rules.
 
-```
-┌───────────┐        ┌───────────────────────────────────┐
-│  wdk-cli  │──IPC──▶│          wdk-daemon               │
-│  (CLI)    │        │        (wallet daemon)             │
-└───────────┘        │                                   │
-                     │  Holds WDK instances in memory    │
-┌───────────┐        │  Handles all crypto operations:   │
-│  wdk-mcp  │──IPC──▶│  derivation, signing, balances    │
-│  (MCP)    │        │  Auto-locks after TTL expires     │
-└───────────┘        │                                   │
-                     │  Signs tx locally, then submits   │
-                     └───────────┬───────────────────────┘
-                                 │
-                                 │  submits signed tx
-                                 ▼
-                          ┌──────────────┐
-                          │  Blockchain  │
-                          │   (RPC/P2P)  │
-                          └──────────────┘
-```
+## About WDK
 
-**wdk-daemon** (Wallet Daemon):
-- Starts empty — wallets unlocked individually via socket requests
-- Holds WDK instances in memory — owns all cryptographic operations
-- Listens on a Unix socket (`daemon.sock`, 0600 permissions)
-- Exposes: `unlock_wallet`, `lock_wallet`, `get_address`, `get_balance`, `estimate_fee`, `send`, `call_method`, `list_wallets`, `status`, `lock`
-- Per-wallet TTL — each wallet has its own timeout (default: 5 min, `--ttl 0` for unlimited)
-- Auto-exits when last wallet is locked
+This tool is part of the [**WDK (Wallet Development Kit)**](https://docs.wdk.tether.io/) project, which empowers developers to build secure, non-custodial wallets with unified blockchain access, stateless architecture, and complete user control.
 
-**wdk-cli** (CLI):
-- Thin client — no crypto, no keys
-- Parses user commands, sends requests to daemon, formats and displays results
-- Only interface for passphrase-protected operations: unlock wallet, export seed, delete wallet
+For detailed documentation about the complete WDK ecosystem, visit [docs.wdk.tether.io](https://docs.wdk.tether.io).
 
-**wdk-mcp** (MCP Server):
-- Thin client — no crypto, no keys
-- Exposes structured wallet tools to AI agents via [Model Context Protocol](https://modelcontextprotocol.io/)
-- Routes all operations through the daemon
+## Installation
 
-## Features
-
-- **Wallet** — Multiple named wallets with per-wallet passphrases and BIP-39 seed phrases, encrypted at rest with AES-256-GCM. Background daemon holds keys in memory after unlock, with per-wallet TTL
-- **Network** — Bitcoin, Ethereum, Polygon, Arbitrum, Base, BSC, Avalanche, Solana, Tron, Spark, Smart Account (ERC-4337) + testnets. Add custom networks with `network create`
-- **Token** — Built-in registry of tokens per network (symbol, decimals, address, indexer/MoonPay/Bitfinex mappings). Add your own with `token add`
-- **Get** — Derive wallet addresses, check balances, and view transaction history across all networks
-- **Send** — Native and token transfers with fee estimation and dry-run preview. Decimal amounts by default
-- **Buy/Sell** — On/off ramp via MoonPay (buy crypto with fiat, sell crypto for fiat)
-- **Config** — Per-network configuration with env var overrides
-
-## Requirements
-
-- Node.js >= 22.18.0
-
-## Install
+Requires Node.js 22.18.0 or later and npm.
 
 ```bash
-npm install -g @tetherto/wdk-cli
+npm install -g @tetherto/wdk-cli@1.0.0-beta.5
+wdk --version
 ```
 
-From source:
-
-```bash
-git clone https://github.com/tetherto/wdk-cli.git
-cd wdk-cli
-npm install
-npm link  # makes `wdk` available globally
-```
+The package installs `wdk`, `wdk-daemon`, and `wdk-mcp`; use `wdk` for the steps below.
 
 ## Quick Start
 
-```bash
-# Create wallets (each has its own passphrase)
-wdk wallet create --name trading --words 24
-wdk wallet create --name savings --words 12
+Create a dedicated, unfunded wallet and derive an Ethereum address:
 
-# List all wallets
-wdk wallet list
-
-# Unlock wallets individually (starts daemon on first unlock)
-wdk wallet unlock --name trading --ttl 0      # unlimited session
-wdk wallet unlock --name savings --ttl 60     # 60 min session
-
-# Set default wallet
-wdk wallet default --name trading
-
-# Get all wallet addresses across networks
-wdk get address --all
-
-# Get address for a specific network
-wdk get address --network ethereum
-
-# Use a specific wallet
-wdk get address --network ethereum --wallet trading
-
-# Check all balances across networks (with USD totals)
-wdk get balance --all
-
-# Check balance for a specific wallet
-wdk get balance --all --wallet savings
-
-# Send 1.23456 ETH (decimal default; add --base-units to send in wei)
-wdk send --to 0x000000000000000000000000000000000000dEaD --amount 1.23456 --network ethereum
-
-# Send 100.5 USDT (registered token ticker — see `wdk token list`)
-wdk send --to 0x... --amount 100.5 --token usdt --network ethereum --wallet trading
-
-# Swap 100 USDT for ETH via the best available protocol (preview first)
-wdk swap --network ethereum --from-token usdt --to-token eth --amount-in 100 --dry-run
-
-# Bridge 100 USDT from Ethereum to Avalanche
-wdk bridge --network ethereum --token usdt --to-network avalanche --amount 100 --dry-run
-
-# Show network details and config
-wdk network info --network ethereum
-
-# List supported networks
-wdk network list
-
-# Lock a single wallet
-wdk wallet lock --name trading
-
-# Lock all wallets when done
-wdk wallet lock --all
-```
-
-## Commands
-
-### Wallet
-
-Wallet commands that require passphrase input (create, import, unlock, export, delete) are interactive by default. Set `WDK_PASSPHRASE` env var to skip the interactive prompt for automation and `--json` output. Two commands take an extra flag for non-interactive use: `import` reads the seed phrase from stdin with `--seed-stdin`, and `change-passphrase` reads the new passphrase from stdin with `--new-passphrase-stdin` (`WDK_PASSPHRASE` supplies only the current passphrase, never the new one).
+> **Security:** Run these commands in a private terminal. Enter a strong, nonempty passphrase at the prompts. Wallet creation displays the generated seed phrase: record it offline and keep it out of screenshots, logs, source files, and agent conversations. Keep the passphrase and seed phrase separately.
 
 ```bash
-wdk wallet create --name <name> [--words 12|24]       # Create a new wallet with a generated seed phrase
-wdk wallet import --name <name> [--seed-stdin]        # Import a wallet from an existing seed phrase
-wdk wallet export --name <name>                       # Display the seed phrase of an existing wallet
-wdk wallet list                                       # List all wallets with lock/default status
-wdk wallet unlock --name <name> [--ttl <minutes>]     # Unlock a wallet for signing transactions
-wdk wallet lock --name <name>                         # Lock a single wallet
-wdk wallet lock --all                                 # Lock all wallets (stops daemon)
-wdk wallet delete --name <name>                       # Delete a wallet (requires passphrase)
-wdk wallet change-passphrase --name <name> [--new-passphrase-stdin]  # Change the wallet passphrase (requires current passphrase)
-wdk wallet default --name <name>                      # Set the default wallet
-wdk wallet rename --name <old> --new-name <new>       # Rename a wallet
+# Create a wallet and enter its passphrase when prompted
+wdk wallet create --name quickstart --words 12
+
+# Unlock for five minutes
+wdk wallet unlock --name quickstart --ttl 5
+
+# Derive an address for this wallet
+wdk get address --network ethereum --wallet quickstart
+
+# End the session when finished
+wdk wallet lock --name quickstart
 ```
 
-Supports **multiple named wallets** with **per-wallet passphrases**. Each wallet is stored as `~/.config/wdk-cli/wallets/<name>/seed.enc`. The first wallet created is auto-set as default. Use `--wallet <name>` on other commands to target a specific wallet (defaults to the default wallet).
+The address command prints the wallet's Ethereum address. These steps do not transfer funds. The five-minute session starts at unlock; unlock again if it expires before the address command.
 
-Passphrase is optional (empty for none). If provided, it encrypts the seed phrase with AES-256-GCM + scrypt.
+Any local process that can access the daemon as your operating-system user can use an unlocked wallet without entering its passphrase again. Review the [security model](https://docs.wdk.tether.io/cli/reference/security-model) before unlocking a funded wallet or connecting an AI client.
 
-`wdk wallet unlock` unlocks a single wallet and starts the daemon if not running. Each wallet has its own TTL — use `--ttl 0` for unlimited session, ideal for AI agent environments. The daemon auto-exits when the last wallet is locked.
+## Key Capabilities
 
-### Networks
+- **Wallet Management**: Create and import BIP-39 wallets with per-wallet passphrases, encrypted seed files, and expiring unlock sessions
+- **Account Data**: Derive addresses and read balances, transfer history, and normalized transaction receipts
+- **Transfers and Message Signing**: Preview or send native and registered-token transfers, sign messages, and verify signatures
+- **Swaps and Bridges**: Compare available protocol quotes and preview or execute same-network swaps and cross-network routes
+- **Configuration and Modules**: Manage network and token entries, inspect module versions, and discover declared chain-specific methods
+- **AI Integration**: Use CLI commands or the bundled MCP server to access the same local wallets
+- **Fiat Ramps**: Generate MoonPay on-ramp and off-ramp URLs for supported assets
 
-```bash
-wdk network list              # List all networks (built-in + custom)
-wdk network list --testnet    # Show only testnets
-wdk network list --mainnet    # Show only mainnets
-wdk network info --network <network>  # Show network details and config
-wdk network delete --name <name>      # Delete a custom network (requires unlocked wallet)
-```
+## Compatibility
 
-#### Adding Custom Networks
+- **Runtime**: Node.js 22.18.0 or later
+- **Networks and Tokens**: Run `wdk network list` and `wdk token list` to inspect the current registries
+- **Modules**: Run `wdk module list` to compare pinned and installed module versions
+- **Providers**: Network operations, transfer history, swap and bridge routes, and fiat ramps depend on the applicable provider configuration and supported assets; see [Configuration](https://docs.wdk.tether.io/cli/configuration)
+- **MCP Clients**: Automated setup supports Claude Desktop, Claude Code, and OpenClaw; other MCP-compatible clients can run `wdk-mcp` over stdio
 
-`wdk network create <data>` takes a single argument — either an inline JSON string or a path to a JSON file. Requires an unlocked wallet.
+## Documentation
 
-```bash
-# Inline JSON
-wdk network create '{"network":"optimism","module":"@tetherto/wdk-wallet-evm","indexerSlug":"ethereum","config":{"provider":"https://mainnet.optimism.io","chainId":10}}'
+| Topic | Description | Link |
+|-------|-------------|------|
+| Overview | CLI overview and command map | [WDK CLI Overview](https://docs.wdk.tether.io/cli) |
+| Get Started | Wallet creation and first transaction walkthrough | [WDK CLI Get Started](https://docs.wdk.tether.io/cli/guides/get-started) |
+| Configuration | Providers, defaults, paths, and environment variables | [WDK CLI Configuration](https://docs.wdk.tether.io/cli/configuration) |
+| API Reference | Commands, parameters, options, and defaults | [WDK CLI API Reference](https://docs.wdk.tether.io/cli/api-reference) |
+| MCP Server | Connect an MCP-compatible AI client | [WDK CLI MCP Guide](https://docs.wdk.tether.io/cli/guides/use-mcp-server) |
+| Architecture | CLI, daemon, and MCP responsibilities | [WDK CLI Architecture](https://docs.wdk.tether.io/cli/reference/architecture) |
+| Security | Wallet storage, session access, and recovery | [WDK CLI Security Model](https://docs.wdk.tether.io/cli/reference/security-model) |
 
-# Or from a file
-wdk network create ./optimism.json
-```
+## Community
 
-Example spec file:
+Join the [WDK Discord](https://discord.gg/arYXDhHB2w) to connect with other developers.
 
-```json
-{
-  "network": "optimism",
-  "module": "@tetherto/wdk-wallet-evm",
-  "displayName": "Optimism",
-  "testnet": false,
-  "indexerSlug": "ethereum",
-  "config": { "provider": "https://mainnet.optimism.io", "chainId": 10 },
-  "tokens": [
-    {
-      "token": "eth",
-      "symbol": "ETH",
-      "decimals": 18,
-      "isNative": true,
-      "metadata": { "moonpaySlug": "eth", "bitfinexSlug": "tETHUSD" }
-    },
-    {
-      "token": "usdt",
-      "symbol": "USDT",
-      "decimals": 6,
-      "isNative": false,
-      "address": "0x...",
-      "metadata": { "indexerSlug": "usdt", "moonpaySlug": "usdt", "bitfinexSlug": "tUSTUSD" }
-    }
-  ]
-}
-```
+## Support
 
-**Spec fields:**
-
-| Field | Required | Description |
-|-------|----------|-------------|
-| `network` | Yes | Network identifier (lowercase, hyphens allowed) |
-| `module` | Yes | Wallet module: `@tetherto/wdk-wallet-evm`, `@tetherto/wdk-wallet-btc`, `@tetherto/wdk-wallet-solana`, `@tetherto/wdk-wallet-spark`, `@tetherto/wdk-wallet-tron`, `@tetherto/wdk-wallet-evm-erc-4337` |
-| `displayName` | No | Human-readable name (defaults to `network`) |
-| `testnet` | No | `true` to mark as a testnet |
-| `indexerSlug` | Required for indexer support | Chain slug used by the WDK indexer API (e.g. `ethereum`, `polygon`, `bitcoin`). If omitted, the indexer is disabled for this network and `wdk get history` will error with `NETWORK_NOT_SUPPORTED`. For most networks the slug equals the network name; smart-account / forked networks point at the underlying chain (e.g. `smart-account-ethereum` uses `"indexerSlug": "ethereum"`). |
-| `config` | No | SDK config object (provider URL, chainId, etc.). May be set later via `wdk config set --network <name>`. |
-| `tokens` | No | Token registry entries to register atomically with the network. At most one entry may have `isNative: true`. Each entry's shape matches the [Tokens](#tokens) spec. |
-
-The spec is parsed and validated atomically: if any token in `tokens[]` fails validation, the network is not created (full rollback). Unknown top-level fields pass through silently (so you can annotate specs with comments, tags, owner, etc.).
-
-Deleting a custom network (`wdk network delete --name <n>`) also removes its registered tokens.
-
-### Tokens
-
-The CLI ships with a registry (`wdk.tokens.json`) of all known tokens per network — symbol, decimals, contract address, and provider mappings (indexer code, MoonPay asset code, Bitfinex pair). The `--token` flag on `get balance` / `send` / `get history` / `buy` / `sell` resolves against this registry.
-
-```bash
-wdk token list                                                 # All tokens, grouped by network
-wdk token list --network ethereum                              # Filter to one network
-wdk token info --network ethereum --token usdt                 # Show full entry
-
-# Add a token from inline JSON or a file
-wdk token add '{"network":"ethereum","token":"dai","symbol":"DAI","decimals":18,"isNative":false,"address":"0x..."}'
-wdk token add ./dai-on-ethereum.json
-
-wdk token delete --network <n> --token <t>                     # Remove a custom entry
-```
-
-`wdk token add <data>` takes a single argument — inline JSON or a path to a JSON file.
-
-**Token entry fields — and why each one is needed:**
-
-| Field | Required | What the CLI does with it |
-|-------|----------|---------------------------|
-| `network` | Yes | Parent network the token belongs to. Must already exist. |
-| `token` | Yes | Registry key (lowercased) used by `--token <ticker>` flags across the CLI. |
-| `symbol` | Yes | Display label shown in `get balance`, `send` previews, fee lines, and tables (e.g. `1.5 ETH`, `100 USDT`). |
-| `decimals` | Yes | Used to convert between the CLI's decimal `--amount` (e.g. `1.5`) and the SDK's base units (wei / satoshi / lamport). Integer 0–24. |
-| `isNative` | Yes | Routes transfers through the native-coin path (no contract call) vs the token-contract path. Each network can have **at most one** native entry. |
-| `address` | If `!isNative` | Contract / mint address used by the SDK to call `transfer` / `getBalance` on the right token. Required for ERC-20 / SPL / TRC-20; omit for native. |
-| `metadata.indexerSlug` | No | Asset slug sent to the WDK indexer (`/api/v1/{chain}/{indexerSlug}/{addr}/token-transfers`). Without it, this token is skipped by `wdk get history`. **Requires the network to also have `indexerSlug` set** — a token slug alone doesn't enable the indexer; the network's `indexerSlug` is what tells the CLI the indexer is available for that chain. |
-| `metadata.moonpaySlug` | No | MoonPay asset code used in the buy/sell URL. Without it, `wdk buy`/`wdk sell` rejects the token. |
-| `metadata.bitfinexSlug` | No | Bitfinex pair symbol used to fetch a USD price. Without it, `wdk get balance` shows the balance but no USD column for that token. |
-
-Provider mappings (`metadata.*Slug`) are all optional. Omit them when the integration doesn't apply — the rest of the CLI keeps working; only the specific feature is disabled for that token. Unknown top-level fields pass through silently so you can annotate entries with comments, tags, owner, etc.
-
-Example full entry (file or inline):
-
-```json
-{
-  "network": "optimism",
-  "token": "usdt",
-  "symbol": "USDT",
-  "decimals": 6,
-  "isNative": false,
-  "address": "0x...",
-  "metadata": {
-    "indexerSlug": "usdt",
-    "moonpaySlug": "usdt",
-    "bitfinexSlug": "tUSTUSD"
-  }
-}
-```
-
-Custom entries (added via `token add`) live under `customTokens.<network>.<ticker>` and survive `wdk config reset --all`. Built-in entries can be **overridden** by adding a custom entry with the same ticker — a yellow warning is shown when this happens. `token delete` only removes custom entries; the built-in falls through after deletion.
-
-### Get
-
-```bash
-wdk get address --network <network> [--index <n>]              # Derive wallet address
-wdk get address --all                                           # All mainnet addresses
-wdk get address --all --testnet                                 # All addresses incl. testnets
-wdk get balance --network ethereum                              # Native ETH balance
-wdk get balance --network ethereum --token usdt                 # ERC-20 by registered ticker
-wdk get balance --all                                           # All mainnet balances with USD
-wdk get balance --all --testnet                                 # All balances incl. testnets
-wdk get history --network ethereum                                              # All supported tokens
-wdk get history --network ethereum --token xaut --limit 50                      # XAUT transfers, last 50
-wdk get history --network ethereum --from-date 2026-01-01 --to-date 2026-03-31  # Date range filter
-wdk get transaction --network ethereum --hash <txHash>                          # Normalized receipt by hash
-wdk get transaction --network ethereum --hash <txHash> --finality confirmed     # Block until mined
-```
-
-`--token` accepts a registered token ticker (e.g. `usdt`, `eth`, `xaut`). See `wdk token list` for available tokens. Use `wdk token add` to register a new token.
-
-Wallets are derived deterministically from your seed phrase using HD paths (BIP-84 for BTC, BIP-44 for EVM/Solana) — no local state is stored. `get address` works without a provider configured (local derivation only), while `get balance` requires a provider connection.
-
-`get history` uses the [WDK Indexer API](https://github.com/tetherto/wdk-indexer-http). Configure with `WDK_INDEXER_BASE_URL` / `WDK_INDEXER_API_KEY` env vars, or use `wdk config set` for `indexer.baseUrl` and `indexer.apiKey`. If using a proxy provider that includes the API key, only the base URL is needed.
-
-`get transaction` returns a normalized receipt (`finality`: `pending` | `confirmed` | `final` | `dropped`, plus `success`, `block`, `fee`). Pass `--finality confirmed|final` to block until the target is reached; `--timeout <ms>` caps the wait.
-
-### Send
-
-```bash
-wdk send --to <address> --amount <decimal> --network <network>                     # Native (decimal, e.g. 1.5)
-wdk send --to <address> --amount <decimal> --token <ticker> --network ethereum     # ERC-20 by registered ticker
-wdk send --to <address> --amount <decimal> --token <ticker> --network solana       # SPL by registered ticker
-wdk send --to <address> --amount <baseUnits> --base-units --network ethereum       # Opt-in: raw base units
-wdk send --to <address> --amount <decimal> --network ethereum --dry-run            # preview without sending
-```
-
-`--amount` is decimal by default (e.g. `1.5` for 1.5 ETH, `0.001` for 0.001 BTC, `1.23456789012345678` for full 18-decimal ETH precision). The CLI converts using the token's registered decimals. If the value has more decimal places than the token allows (e.g. `1.12345678` with 6-decimal USDT), it's rejected with `INVALID_AMOUNT`. Pass `--base-units` to interpret the value as raw base units (wei/satoshi/lamport) — useful for scripts that already have BigInt amounts. Fee estimation runs before confirmation; use `--dry-run` to preview the transaction with fee and USD estimates without sending.
-
-### Message
-
-```bash
-wdk message sign --network ethereum --message "hello"                        # Sign with the account key
-wdk message verify --network ethereum --message "hello" --signature <sig>    # Check a signature
-```
-
-`message sign` uses each chain's standard scheme (EIP-191 `personal_sign` on EVM). `message verify` reports whether the signature was produced by the wallet account at the given `--index`.
-
-### Swap / Bridge
-
-```bash
-wdk swap --network ethereum --from-token usdt --to-token eth --amount-in 100 --dry-run       # swap (exact-in)
-wdk swap --network ethereum --from-token usdt --to-token eth --amount-out 0.05 --dry-run     # exact-out
-wdk swap --network ethereum --from-token usdt --to-token avax --to-network avalanche --amount-in 100  # cross-chain swap
-wdk bridge --network ethereum --token usdt --to-network avalanche --amount 100 --dry-run     # same token, other chain
-wdk swap --network ethereum --from-token usdt --to-token eth --amount-in 100 --protocol velora  # force a protocol
-```
-
-`wdk swap` exchanges one token for another (add `--to-network` to swap across chains); `wdk bridge` moves the *same* token to another chain (single `--token`, exact-in `--amount`). Both are **best-route**: every installed protocol capable of the request is quoted and the best quote wins (highest output for exact-in, lowest input for `--amount-out`) — pass `--protocol <name>` to force one. Use `--dry-run` to preview the route, amounts, and skipped protocols without executing. Protocols come from the `protocols` registry in `wdk.config.json`; add more with `wdk module add`.
-
-### Method
-
-```bash
-wdk method list --network spark                                   # Methods declared by the network's module
-wdk method list --all                                             # Every module's declared methods
-wdk method call --network spark --name getStaticDepositAddress    # Invoke a read method
-wdk method call --network spark-regtest --name claimStaticDeposit --txid <btc-txid>  # Invoke a write method
-wdk method call --network ethereum --name getAllowance --token <address> --spender <address>
-wdk method call --network ethereum --name approve --token <address> --spender <address> --amount <baseUnits>
-```
-
-Wallet modules expose chain-specific methods beyond the generic interface (address, balance, send). `wdk method` invokes the ones declared in the catalog (`wdk.config.json`) under the module's `methods` entry — each with a `read`/`write` kind and a typed parameter schema. Method parameters are passed as flags: camelCase parameter names map to kebab-case flags (`maxFee` → `--max-fee`), `bigint` parameters take integer strings in base units (e.g. sats), `string[]` parameters take comma-separated values, and structured parameters (nested objects or arrays of them) take a JSON string — with `bigint` fields inside the JSON given as strings so amounts never lose precision. Only declared methods are invocable — the daemon re-validates every call against its own catalog copy.
-
-### Buy / Sell (On/Off Ramp)
-
-```bash
-# Buy crypto with fiat
-wdk buy --network ethereum --token usdt                          # Opens MoonPay widget
-wdk buy --network ethereum --token eth --fiat-amount 100         # Buy $100 of ETH
-wdk buy --network bitcoin --token btc --crypto-amount 0.05       # Buy 0.05 BTC
-
-# Sell crypto for fiat
-wdk sell --network ethereum --token usdt                         # Opens MoonPay sell widget
-wdk sell --network ethereum --token eth --fiat-amount 200        # Sell ETH for $200
-wdk sell --network polygon --token usdt --crypto-amount 50       # Sell 50 USDT on Polygon
-```
-
-Uses MoonPay as the fiat provider. All three config values are required:
-
-```bash
-wdk config set --key ramp.moonpay.apiKey --value <your-publishable-key>
-wdk config set --key ramp.moonpay.signUrl --value <your-sign-url>
-wdk config set --key ramp.moonpay.environment --value sandbox    # or production
-```
-
-**Options:**
-
-| Flag | Description |
-|------|-------------|
-| `--network <network>` | Blockchain network (required) |
-| `--token <token>` | Crypto asset code, e.g. `usdt`, `eth`, `btc` (required) |
-| `--module <module>` | Fiat provider (default: `moonpay`) |
-| `--fiat-currency <currency>` | Fiat currency code (default: `usd`) |
-| `--fiat-amount <value>` | Fiat amount (mutually exclusive with `--crypto-amount`) |
-| `--crypto-amount <value>` | Crypto amount (mutually exclusive with `--fiat-amount`) |
-
-Supported tokens are derived from the registry — any token with `metadata.moonpaySlug` set in `wdk.tokens.json` (or a custom token added via `wdk token add`). Environment validation prevents using production MoonPay with testnet networks (and vice versa).
-
-Configure via `wdk config set --key ramp.moonpay.apiKey --value <key>`, `ramp.moonpay.signUrl`, and `ramp.moonpay.environment`.
-
-### Module
-
-```bash
-wdk module list                                            # Built-in and custom modules: pinned vs installed
-wdk module add --name @tetherto/wdk-wallet-ton             # Add a custom module (latest, pinned once)
-wdk module add --name @tetherto/wdk-wallet-ton@1.0.0-beta.12   # Pin a specific version
-wdk module remove --name @tetherto/wdk-wallet-ton          # Remove a custom module
-```
-
-Built-in modules ship as regular npm dependencies of the CLI — installing the CLI installs them, with no lifecycle scripts. `wdk module add` registers an *additional* package (stored in user config, pinned to an exact version) and installs it; because module code runs inside the wallet daemon, adding or removing one requires the default wallet's passphrase to confirm (set `WDK_PASSPHRASE` for non-interactive use), same as `network create` and `token add`. After adding, the module can back a custom network — `wdk network create '{"network":"ton","module":"@tetherto/wdk-wallet-ton",...}'` — and a running daemon keeps the previously loaded code, so lock and unlock again to pick up module changes.
-
-Custom modules are not package.json dependencies, so a plain `npm install` prunes them from `node_modules`. `wdk module list` shows them as `not installed`; re-running `wdk module add --name <pkg>` reinstalls them at their registered pin.
-
-For maintainers: module pins live in the `modules` registry of `wdk.config.json`. After adding, removing, or bumping a module, run `npm run sync-modules` to reconcile the `package.json` dependencies (adds and updates catalog modules, removes redundant `wdk-wallet-*` / `wdk-protocol-*` deps no longer in the catalog), then `npm install` to refresh the lockfile — a unit test fails if they disagree.
-
-### Configuration
-
-Config read commands (`get`, `path`) work without a wallet. Write operations (`set`, `reset`) require an unlocked wallet. All config commands support `--json`.
-
-```bash
-# Get
-wdk config get --all                                            # Show all config
-wdk config get --key ramp.moonpay.apiKey                        # Show a specific value
-wdk config get --network ethereum                               # Show Ethereum config
-wdk config get --key provider --network ethereum                # Show a network-specific value
-
-# Set
-wdk config set --key ramp.moonpay.apiKey --value pk_test_...    # Set a value
-wdk config set --key provider --value <rpc-url> --network ethereum              # Network-scoped value
-wdk config set --key ramp.moonpay --value '{"apiKey":"...","signUrl":"...","environment":"sandbox"}'  # JSON object
-wdk config set --value '{"provider":"https://...","transferMaxFee":5000}' --network optimism    # Full network config
-
-# Reset
-wdk config reset --key provider --network ethereum              # Reset a key to default
-wdk config reset --all                                          # Reset everything to factory defaults
-                                                                # (preserves defaultWallet, customNetworks, customTokens)
-
-# Path
-wdk config path                                                 # Config file path
-```
-
-Values passed to `--value` support JSON — objects and arrays are parsed and stored as structured data. Use `--network` to scope config to a specific network. When `--key` is omitted with `--network`, the entire network config is set.
-
-Network configuration is passed directly to the wallet SDK. Refer to each [wallet module's documentation](https://docs.wdk.tether.io/sdk/wallet-modules) for supported config keys. Default values are in [`wdk.config.json`](wdk.config.json).
-
-### Global Flags
-
-| Flag | Description |
-|------|-------------|
-| `--index <n>` | Account index (default: 0) |
-| `--wallet <name>` | Wallet name (uses default wallet if omitted) |
-| `--json` | Machine-readable JSON output |
-| `--verbose` | Debug logging |
-
-## Supported Networks
-
-All built-in networks are defined in [`wdk.config.json`](wdk.config.json). Run `wdk network list` to see all available networks.
-
-Additional networks can be added with `wdk network create`. See [Adding Custom Networks](#adding-custom-networks).
-
-## Non-Interactive Mode
-
-All commands support `--json` for machine-parseable output. Commands that require passphrase input (wallet create, unlock, export, delete, and config set/reset) can be run non-interactively by setting the `WDK_PASSPHRASE` environment variable. `wallet import` additionally reads the seed phrase from stdin with `--seed-stdin`, and `wallet change-passphrase` reads the new passphrase from stdin with `--new-passphrase-stdin`.
-
-```bash
-# CI/CD: create and unlock a wallet without interactive prompts
-WDK_PASSPHRASE=mypass wdk wallet create --name ci-wallet --json
-WDK_PASSPHRASE=mypass wdk wallet unlock --name ci-wallet --ttl 0 --json
-
-# Docker: unlock at container start
-WDK_PASSPHRASE=$WALLET_PASS wdk wallet unlock --name default --ttl 0 --json
-
-# Import a seed from a secret manager or file — never echo a real seed
-op read "op://vault/wallet/seed" | WDK_PASSPHRASE=mypass wdk wallet import --name restored --seed-stdin --json
-wdk wallet import --name restored --seed-stdin --json < /run/secrets/seed
-
-# Rotate a wallet passphrase
-printf '%s\n' "$NEW_PASS" | WDK_PASSPHRASE=$OLD_PASS wdk wallet change-passphrase --name ci-wallet --new-passphrase-stdin --json
-
-# Scripting: check balance and parse output
-wdk get balance --network ethereum --json | jq '.balance'
-```
-
-## Environment Variables
-
-| Variable | Description |
-|----------|-------------|
-| `WDK_PASSPHRASE` | Wallet passphrase (skip interactive prompt) |
-| `WDK_INDEXER_API_KEY` | Indexer API key (avoids storing secrets in config file) |
-
-## Security
-
-- Seed phrases encrypted at rest (AES-256-GCM + scrypt), per-wallet passphrases with unique salt per wallet
-- Seeds and passphrases never accepted as CLI arguments
-- Private keys and seeds never leave the daemon process
-- Unix socket with 0600 permissions (same-user access only, like ssh-agent)
-- No telemetry, no analytics, no external data collection
-
-### Data flow
-
-1. **Unlock**: User unlocks a wallet by name → passphrase sent to daemon over Unix socket → daemon decrypts seed via scrypt + AES-256-GCM → initializes WDK instance in RAM → starts per-wallet TTL timer
-2. **Request**: CLI/MCP sends operation (e.g. `get_address`) with wallet name over Unix socket → daemon performs crypto operation → returns result only
-3. **Lock**: Individual wallet locked → WDK instance disposed and cleared. When last wallet locks → daemon exits
-
-### Encrypted wallet files
-
-Each wallet is stored in its own directory as `~/.config/wdk-cli/wallets/<name>/seed.enc`:
-
-```json
-{ "version": 1, "salt": "...", "iv": "...", "tag": "...", "ciphertext": "..." }
-```
-
-Per-wallet passphrase with unique random salt → unique derived key per wallet.
-
-## AI Agent Integration
-
-AI agents interact with wdk-wallet in two ways, depending on their environment:
-
-### MCP — for sandboxed AI models
-
-For AI models that run as applications with limited system access (Claude Desktop, OpenClaw, etc.). The model can only interact with the wallet through structured MCP tools — it cannot run commands or access the filesystem.
-
-```bash
-wdk mcp setup --ai-tool claude-desktop    # Configure for Claude Desktop
-wdk mcp setup --ai-tool claude-code       # Configure for Claude Code
-wdk mcp setup --ai-tool openclaw          # Configure for OpenClaw
-
-wdk mcp remove --ai-tool claude-desktop   # Remove configuration
-wdk mcp verify-setup --ai-tool claude-code # Verify config and test MCP server
-wdk mcp list                               # Show status across all AI tools
-```
-
-Setup auto-detects the Node.js path, validates the MCP server, and writes the config. For Claude Code and OpenClaw, it uses their native CLI (`claude mcp add`, `openclaw mcp set`). For Claude Desktop, it writes the config file directly.
-
-**MCP Tools:**
-
-| Tool | Parameters | Description |
-|------|-----------|-------------|
-| `get_networks` | `testnet?`, `mainnet?` | List all supported blockchain networks |
-| `list_tokens` | `network?` | List registered tokens (omit network for every network) |
-| `get_token` | `network`, `token` | Get a single registered token entry (symbol, decimals, address, provider mappings) |
-| `get_address` | `network?`, `index?`, `testnet?`, `wallet?` | Get wallet address (omit network for all) |
-| `get_balance` | `network?`, `token?`, `index?`, `testnet?`, `wallet?` | Get balance with USD values (omit network for all). `token` is a registered ticker. |
-| `get_history` | `network`, `token?`, `limit?`, `index?`, `fromDate?`, `toDate?`, `wallet?` | Transaction history (requires indexer API) |
-| `send_token` | `to`, `amount`, `baseUnits?`, `network`, `token?`, `index?`, `dryRun?`, `wallet?` | Send tokens. `amount` is decimal by default; set `baseUnits=true` to interpret as base units. Returns dry-run preview by default; set `dryRun=false` to execute |
-| `buy_crypto` | `network`, `token`, `fiatCurrency?`, `fiatAmount?`, `cryptoAmount?`, `index?`, `wallet?` | Buy crypto with fiat. Returns a signed MoonPay URL. |
-| `sell_crypto` | `network`, `token`, `fiatCurrency?`, `fiatAmount?`, `cryptoAmount?`, `index?`, `wallet?` | Sell crypto for fiat. Returns a signed MoonPay URL. |
-| `list_methods` | `network?` | List a wallet module's chain-specific methods (omit network for all modules). Each entry includes its kind (read/write) and parameter schema. |
-| `call_method` | `network`, `name`, `args?`, `index?`, `wallet?` | Invoke a declared module method. `args` maps parameter names to string values, using the declared camelCase name — `{"maxFee": "1000"}`, not the CLI flag `--max-fee`. A structured parameter's value is a JSON-encoded string. |
-
-All wallet-dependent tools accept an optional `wallet` parameter (uses default wallet if omitted).
-
-**Important: `send_token` requires two calls.** The tool defaults to `dryRun=true` (preview mode). AI agents must:
-1. Call `send_token` first to get a fee/amount preview
-2. Show the preview to the user and wait for confirmation
-3. Call `send_token` again with `dryRun=false` only after the user confirms
-
-**Important: `call_method` write methods require user confirmation.** Only methods declared in the catalog are invocable. Methods with kind `write` move funds or mutate on-chain state and have no preview mode — AI agents must show the exact method and args to the user and call `call_method` only after the user explicitly confirms. `read` methods can be called freely.
-
-The AI model interacts exclusively through these structured tools — it cannot run shell commands, access the filesystem, or read private keys. All operations route through the daemon over a Unix socket.
-
-### CLI — for local AI agents
-
-For AI agents with full system access (Claude Code, OpenClaw, custom agents). The agent runs `wdk` commands directly with `--json` for machine-parseable output.
-
-```bash
-wdk get balance --network ethereum --json
-wdk send --to 0xRECIPIENT --amount 1.23456 --network ethereum --dry-run --json   # decimal accepted (up to token precision)
-wdk send --to 0xRECIPIENT --amount 100.5 --token usdt --network ethereum --json  # decimal USDT by ticker
-```
-
-The `SKILL.md` file contains complete instructions for AI agents — commands, workflows, error handling, and amount conversions. Feed it as context to your agent.
-
-### Before using either mode
-
-Create and unlock wallets first:
-```bash
-wdk wallet create --name default --words 24
-wdk wallet unlock --name default --ttl 0
-```
-
-Both MCP and CLI route through the daemon — the agent never has access to keys or seeds.
-
-## Development
-
-```bash
-npm test                  # Run unit tests
-npm run test:integration  # Run integration tests (spawns CLI in isolated temp dir)
-npm run format            # Format with Prettier
-npm run format:check      # Check formatting
-```
-
-This project is plain JavaScript (ESM) — no build step. Source under `src/` is run directly via the `bin/*.mjs` entry points.
-
-## License
-
-This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+For support, please [open an issue](https://github.com/tetherto/wdk-cli/issues) on GitHub or reach out via [email](mailto:wallet-info@tether.io).
 
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-## Support
+## License
 
-For support, please open an issue on the GitHub repository.
-
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
