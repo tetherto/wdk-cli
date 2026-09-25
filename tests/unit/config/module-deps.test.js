@@ -31,6 +31,7 @@ describe('module dependency sync', () => {
       '@tetherto/wdk-wallet-tron',
       '@tetherto/wdk-protocol-fiat-moonpay',
       '@transak/wdk-protocol-fiat-transak',
+      '@tetherto/wdk-indexer-http',
       '@tetherto/wdk-pricing-bitfinex-http',
       '@tetherto/wdk-protocol-swap-velora-evm',
       '@tetherto/wdk-protocol-bridge-usdt0-evm',
@@ -39,7 +40,7 @@ describe('module dependency sync', () => {
     ])
   })
 
-  it('only registers WDK module packages (wdk-wallet-* / wdk-protocol-* / wdk-pricing-*)', () => {
+  it('only registers WDK module packages (wdk-wallet-* / wdk-protocol-* / wdk-pricing-* / wdk-indexer-*)', () => {
     for (const name of Object.keys(catalog.modules)) {
       expect(isWdkModulePackage(name)).toBe(true)
     }

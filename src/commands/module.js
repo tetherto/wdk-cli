@@ -90,6 +90,19 @@ function statusCell (status, label) {
  * @param {Command} program - The root Commander program instance.
  * @returns {void}
  */
+/**
+ * Renders a pinned version for the table. A git spec is abbreviated to its
+ * short commit, since the full URL is far wider than the column; `--json`
+ * still carries it in full.
+ *
+ * @param {string} pinned - The version or spec the catalog pins.
+ * @returns {string} The value to show.
+ */
+function pinnedCell (pinned) {
+  const hash = pinned.includes(':') ? pinned.split('#')[1] : undefined
+  return hash ? `git#${hash.slice(0, 7)}` : pinned
+}
+
 export function registerModuleCommand (program) {
   const module = program
     .command('module')
@@ -112,7 +125,7 @@ export function registerModuleCommand (program) {
         const status = s.defaultVersion ? `${s.status} (default: ${s.defaultVersion})` : s.status
         table.push([
           chalk.bold(s.module),
-          s.pinned,
+          pinnedCell(s.pinned),
           s.installed ?? '-',
           statusCell(s.status, status),
           s.source

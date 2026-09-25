@@ -17,24 +17,99 @@ import { WdkCliError, ErrorCode } from '../errors/index.js'
 import { walletsFile } from '../config/wdk-config.js'
 import { getAllTokens, getTokenByName, tokenSlugValue, getTokensSupportedBy } from './token-service.js'
 import { getOwn } from './override-service.js'
-/** The external system key the indexer's token slugs are registered under. */
-const INDEXER = 'indexer'
+import { WdkIndexerClient, WdkIndexerApiError } from '@tetherto/wdk-indexer-http'
+import { resolveProtocolConfig, resolveSoleProvider } from './protocol-service.js'
 
 /**
- * @typedef {Object} TokenTransfer
- * @property {string} blockchain - The blockchain identifier.
- * @property {number} blockNumber - The block number of the transfer.
- * @property {string} transactionHash - The transaction hash.
- * @property {number} transferIndex - The index of the transfer within the transaction.
- * @property {string} token - The token symbol.
- * @property {string} amount - The transfer amount as a string.
- * @property {number} timestamp - The Unix timestamp of the transfer.
- * @property {number} transactionIndex - The transaction index within the block.
- * @property {number} logIndex - The log index within the transaction.
- * @property {string} from - The sender address.
- * @property {string} to - The recipient address.
- * @property {string} [label] - An optional human-readable label.
+ * The system key the indexer's token codes are registered under in
+ * `metadata.slugs`. Independent of the provider's name: the code is the token
+ * segment of the indexer URL, not a vendor's vocabulary.
  */
+const INDEXER_SLUG_KEY = 'indexer'
+
+/** The kind an indexer provider declares in the registry. */
+const INDEXER_KIND = 'indexer'
+
+/**
+ * Returns the name of the enabled indexer provider.
+ *
+ * @returns {string} The provider short name.
+ * @throws {WdkCliError} MISSING_CONFIG when no indexer provider is enabled.
+ * @throws {WdkCliError} INVALID_ARGUMENT when several are enabled at once.
+ */
+function indexerProvider () {
+  return resolveSoleProvider(INDEXER_KIND, 'indexer')
+}
+
+/**
+ * Checks that exactly one indexer provider is enabled, so a caller can fail
+ * before doing expensive work such as unlocking a wallet or deriving an address.
+ *
+ * @returns {void}
+ * @throws {WdkCliError} MISSING_CONFIG when no indexer provider is enabled.
+ * @throws {WdkCliError} INVALID_ARGUMENT when several are enabled at once.
+ */
+export function assertIndexerAvailable () {
+  indexerProvider()
+}
+
+/**
+ * Builds the indexer client from its registry entry, merged with the user's
+ * `providers.<name>.config` deltas.
+ *
+ * @returns {{ name: string, client: WdkIndexerClient }} The client and the provider
+ *   it came from, for config-key hints.
+ * @throws {WdkCliError} MISSING_CONFIG when no indexer is enabled, or its config is incomplete.
+ * @throws {WdkCliError} INVALID_ARGUMENT when several are enabled at once.
+ */
+function indexerClient () {
+  const name = indexerProvider()
+  try {
+    const config = /** @type {IndexerConfig} */ (/** @type {unknown} */ (resolveProtocolConfig(name)))
+    return { name, client: new WdkIndexerClient(config) }
+  } catch (error) {
+    throw apiError(error, name)
+  }
+}
+
+/**
+ * Translates a client error into the CLI's own, so a 403 carries the config
+ * keys that fix it against the provider actually in use.
+ *
+ * @param {unknown} error - What the client threw.
+ * @param {string} name - The resolved provider's short name.
+ * @returns {WdkCliError} The error to throw.
+ */
+function apiError (error, name) {
+  const hint =
+    `Check its config, then update with: wdk config set --key providers.${name}.config.<setting> --value <value>`
+
+  if (error instanceof WdkIndexerApiError && error.status === 403) {
+    return new WdkCliError(
+      'Indexer API error: 403 Forbidden. The configured API key was rejected.',
+      ErrorCode.NETWORK_ERROR,
+      hint
+    )
+  }
+  const message = error instanceof Error ? error.message : String(error)
+  // Matched by name: these are exported at runtime but absent from the .d.ts.
+  if (error instanceof Error && error.name === 'WdkIndexerValidationError') {
+    return new WdkCliError(message, ErrorCode.NETWORK_NOT_SUPPORTED)
+  }
+  if (error instanceof Error && error.name === 'WdkIndexerError') {
+    return new WdkCliError(
+      `Indexer is not configured: ${message}`,
+      ErrorCode.MISSING_CONFIG,
+      hint
+    )
+  }
+  return new WdkCliError(`Indexer API error: ${message}`, ErrorCode.NETWORK_ERROR)
+}
+
+/** @typedef {import('@tetherto/wdk-indexer-http').TokenTransfer} TokenTransfer */
+/** @typedef {import('@tetherto/wdk-indexer-http').WdkIndexerConfig} IndexerConfig */
+/** @typedef {import('@tetherto/wdk-indexer-http').Blockchain} Blockchain */
+/** @typedef {import('@tetherto/wdk-indexer-http').Token} Token */
 
 /**
  * @typedef {Object} TokenTransferOptions
@@ -73,7 +148,7 @@ export const INDEXER_TOKENS = [
   ...new Set(
     Object.values(getAllTokens()).flatMap((tokens) =>
       Object.values(tokens)
-        .map((t) => tokenSlugValue(t, INDEXER))
+        .map((t) => tokenSlugValue(t, INDEXER_SLUG_KEY))
         .filter((c) => typeof c === 'string' && c.length > 0)
     )
   )
@@ -107,8 +182,8 @@ export function getIndexerSlug (network) {
  */
 export function getIndexerTokens (network) {
   const codes = new Set()
-  for (const token of getTokensSupportedBy(network, INDEXER)) {
-    const code = tokenSlugValue(getTokenByName(network, token), INDEXER)
+  for (const token of getTokensSupportedBy(network, INDEXER_SLUG_KEY)) {
+    const code = tokenSlugValue(getTokenByName(network, token), INDEXER_SLUG_KEY)
     if (code) codes.add(code)
   }
   return [...codes]
@@ -134,6 +209,11 @@ export function isIndexerSupported (network) {
  * @param {string} address - The wallet address.
  * @param {TokenTransferOptions} [options] - Optional filter parameters.
  * @returns {Promise<TokenTransfer[]>} Array of token transfers.
+ * @throws {WdkCliError} NETWORK_NOT_SUPPORTED when the network has no `indexerSlug`, or the
+ *   indexer does not carry it.
+ * @throws {WdkCliError} MISSING_CONFIG when no indexer is enabled, or its config is incomplete.
+ * @throws {WdkCliError} INVALID_ARGUMENT when several indexers are enabled at once.
+ * @throws {WdkCliError} NETWORK_ERROR when the indexer API rejects the request.
  */
 export async function getTokenTransfers (network, token, address, options = {}) {
   if (!isIndexerSupported(network)) {
@@ -143,48 +223,19 @@ export async function getTokenTransfers (network, token, address, options = {}) 
     )
   }
   const blockchain = getIndexerSlug(network)
+  const { name, client } = indexerClient()
 
-  const baseUrl = /** @type {string | undefined} */ (configService.get('indexer.baseUrl'))
-  const apiKey = /** @type {string | undefined} */ (configService.get('indexer.apiKey'))
-
-  if (!baseUrl) {
-    throw new WdkCliError(
-      'Indexer base URL not configured. Set it with: wdk config set --key indexer.baseUrl --value <url>',
-      ErrorCode.MISSING_CONFIG
+  try {
+    const data = await client.getTokenTransfers(
+      /** @type {Blockchain} */ (blockchain),
+      /** @type {Token} */ (token),
+      address,
+      options
     )
+    return data.transfers ?? []
+  } catch (error) {
+    throw apiError(error, name)
   }
-
-  const params = new URLSearchParams()
-  if (options.limit) params.set('limit', String(options.limit))
-  if (options.fromTs) params.set('fromTs', String(options.fromTs))
-  if (options.toTs) params.set('toTs', String(options.toTs))
-
-  const qs = params.toString() ? `?${params.toString()}` : ''
-  const url = `${baseUrl}/api/v1/${blockchain}/${token}/${address}/token-transfers${qs}`
-
-  /** @type {Record<string, string>} */
-  const headers = {}
-  if (apiKey) headers['x-api-key'] = apiKey
-
-  const response = await fetch(url, { headers, signal: AbortSignal.timeout(20000) })
-
-  if (!response.ok) {
-    if (response.status === 403) {
-      throw new WdkCliError(
-        'Indexer API error: 403 Forbidden. Please set your API key or use a proxy API for the indexer provider:\n' +
-          '  wdk config set --key indexer.apiKey --value <your-api-key>\n' +
-          '  wdk config set --key indexer.baseUrl --value <your-proxy-url>',
-        ErrorCode.NETWORK_ERROR
-      )
-    }
-    throw new WdkCliError(
-      `Indexer API error: ${response.status} ${response.statusText}`,
-      ErrorCode.NETWORK_ERROR
-    )
-  }
-
-  const data = await response.json()
-  return data.transfers ?? []
 }
 
 /**
@@ -192,45 +243,20 @@ export async function getTokenTransfers (network, token, address, options = {}) 
  *
  * @param {BatchTransferRequestItem[]} items - The batch request items.
  * @returns {Promise<BatchTransferResultItem[]>} Array of per-item results.
+ * @throws {WdkCliError} MISSING_CONFIG when no indexer is enabled, or its config is incomplete.
+ * @throws {WdkCliError} INVALID_ARGUMENT when several indexers are enabled at once.
+ * @throws {WdkCliError} NETWORK_ERROR when the indexer API rejects the request.
  */
 export async function getTokenTransfersBatch (items) {
   if (items.length === 0) return []
 
-  const baseUrl = /** @type {string | undefined} */ (configService.get('indexer.baseUrl'))
-  const apiKey = /** @type {string | undefined} */ (configService.get('indexer.apiKey'))
+  const { name, client } = indexerClient()
 
-  if (!baseUrl) {
-    throw new WdkCliError(
-      'Indexer base URL not configured. Set it with: wdk config set --key indexer.baseUrl --value <url>',
-      ErrorCode.MISSING_CONFIG
+  try {
+    return await client.getBatchTokenTransfers(
+      /** @type {import('@tetherto/wdk-indexer-http').BatchTokenTransfersRequest[]} */ (items)
     )
+  } catch (error) {
+    throw apiError(error, name)
   }
-
-  /** @type {Record<string, string>} */
-  const headers = { 'content-type': 'application/json' }
-  if (apiKey) headers['x-api-key'] = apiKey
-
-  const response = await fetch(`${baseUrl}/api/v1/batch/token-transfers`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(items),
-    signal: AbortSignal.timeout(20000)
-  })
-
-  if (!response.ok) {
-    if (response.status === 403) {
-      throw new WdkCliError(
-        'Indexer API error: 403 Forbidden. Please set your API key or use a proxy API for the indexer provider:\n' +
-          '  wdk config set indexer.apiKey <your-api-key>\n' +
-          '  wdk config set indexer.baseUrl <your-proxy-url>',
-        ErrorCode.NETWORK_ERROR
-      )
-    }
-    throw new WdkCliError(
-      `Indexer API error: ${response.status} ${response.statusText}`,
-      ErrorCode.NETWORK_ERROR
-    )
-  }
-
-  return await response.json()
 }

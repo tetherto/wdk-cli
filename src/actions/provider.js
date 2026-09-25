@@ -15,7 +15,7 @@
 import {
   PROTOCOL_KINDS,
   ADDABLE_KINDS,
-  assertSinglePricingFeed,
+  assertSingleInstanceKind,
   getProtocols,
   getAllProtocols,
   getProtocolsIncludingDisabled,
@@ -53,7 +53,8 @@ import { WdkCliError, ErrorCode } from '../errors/index.js'
  * @typedef {Object} ProviderInfo
  * @property {string} name - The provider short name.
  * @property {ProtocolKind} kind - The declared kind.
- * @property {string} module - The module package backing it.
+ * @property {string} [module] - The module package backing it; absent when the CLI
+ *   calls the provider's API directly.
  * @property {'built-in' | 'custom'} source - Whether it ships with the CLI or was added by the user.
  * @property {boolean} enabled - False when the user disabled it or its module.
  */
@@ -160,7 +161,7 @@ export function validateProviderSpec (data) {
       `${label} providers ship with the CLI. See the available ones with: wdk provider list`
     )
   }
-  assertSinglePricingFeed(kind, name)
+  assertSingleInstanceKind(kind, name)
 
   const module = obj.module
   if (typeof module !== 'string' || !module) {

@@ -32,6 +32,7 @@ const {
   resolveProtocolConfig,
   getProviderNetworks,
   assertImplementsKind,
+  PROTOCOL_KINDS,
   loadProtocolClass,
   isProviderDisabled,
   setProviderEnabled,
@@ -61,6 +62,27 @@ beforeEach(() => {
 function withConfig (values) {
   getConfig.mockImplementation((key) => (Object.hasOwn(values, key) ? values[key] : undefined))
 }
+
+describe('the packaged provider registry', () => {
+  // The CLI resolves these kinds by kind, not by name, and refuses to guess
+  // between two. Shipping a second one is a release bug, not a user error.
+  it.each([
+    ['indexer', ['wdk-indexer']],
+    ['pricing', ['bitfinex']]
+  ])('registers exactly one %s provider', (kind, expected) => {
+    const names = Object.entries(catalog.providers)
+      .filter(([, entry]) => entry.kind === kind)
+      .map(([name]) => name)
+
+    expect(names).toEqual(expected)
+  })
+
+  it('declares a known kind on every entry', () => {
+    for (const entry of Object.values(catalog.providers)) {
+      expect(PROTOCOL_KINDS).toContain(entry.kind)
+    }
+  })
+})
 
 describe('getProtocols', () => {
   it('returns the providers declared in wdk.config.json, each with a declared kind', () => {
@@ -366,6 +388,19 @@ describe('provider enable and disable', () => {
         message: 'A price feed is already enabled: coingecko.',
         code: 'INVALID_ARGUMENT',
         suggestion: 'Only one runs at a time. Disable it first with: wdk provider disable --name coingecko'
+      })
+    )
+  })
+
+  it('refuses to enable a second indexer', () => {
+    store.customProviders = { myidx: { kind: 'indexer', config: {} } }
+    store.overrides = { providers: { myidx: { enabled: false } } }
+
+    expect(() => setProviderEnabled('myidx', true)).toThrow(
+      expect.objectContaining({
+        message: 'An indexer is already enabled: wdk-indexer.',
+        code: 'INVALID_ARGUMENT',
+        suggestion: 'Only one runs at a time. Disable it first with: wdk provider disable --name wdk-indexer'
       })
     )
   })

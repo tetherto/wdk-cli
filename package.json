@@ -58,6 +58,7 @@
     "@symbiosis-finance/wdk-protocol-swidge-symbiosis": "1.3.0",
     "@tetherto/wdk": "1.0.0-beta.16",
     "@tetherto/wdk-asset-registry": "1.0.0-beta.2",
+    "@tetherto/wdk-indexer-http": "github:tetherto/wdk-indexer-http#fbde10bae408d546647ad6e6b8dcfaf8f0e6f103",
     "@tetherto/wdk-pricing-bitfinex-http": "1.0.0-beta.5",
     "@tetherto/wdk-pricing-provider": "1.0.0-beta.5",
     "@tetherto/wdk-protocol-bridge-usdt0-evm": "1.0.0-beta.7",

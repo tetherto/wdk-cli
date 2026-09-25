@@ -231,7 +231,7 @@ describe('resolvePricingProvider when no single feed is usable', () => {
       expect.objectContaining({
         message: 'Several price feeds are enabled: bitfinex, coingecko.',
         code: 'INVALID_ARGUMENT',
-        suggestion: 'Choose one by leaving a single feed enabled: wdk provider disable --name <name>'
+        suggestion: 'Only one runs at a time. Disable the others with: wdk provider disable --name <name>'
       })
     )
   })

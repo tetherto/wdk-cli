@@ -13,7 +13,12 @@
 // limitations under the License.
 
 import { PricingProvider, PricingClient } from '@tetherto/wdk-pricing-provider'
-import { getProtocols, loadProtocolClass, resolveProtocolConfig } from '../protocol-service.js'
+import {
+  getProtocols,
+  loadProtocolClass,
+  resolveProtocolConfig,
+  resolveSoleProvider
+} from '../protocol-service.js'
 import { getInstalledVersion } from '../module-service.js'
 import { WdkCliError, ErrorCode } from '../../errors/index.js'
 
@@ -42,18 +47,6 @@ const CACHE_TTL_MS = 5 * 60 * 1000
 const instances = new Map()
 
 /**
- * Returns the names of the pricing providers the CLI can use: enabled,
- * declaring `kind: "pricing"`, and with their module installed.
- *
- * @returns {string[]} Provider short names, in packaged order.
- */
-function getPricingProviders () {
-  return Object.entries(getProtocols())
-    .filter(([, entry]) => entry.kind === PRICING && getInstalledVersion(entry.module) !== null)
-    .map(([name]) => name)
-}
-
-/**
  * Returns the pricing provider to use, constructing it on first use. Pricing
  * providers cannot be added, so the usable one is whichever of the packaged
  * feeds is enabled.
@@ -64,23 +57,7 @@ function getPricingProviders () {
  * @throws {WdkCliError} UNSUPPORTED_MODULE when the module exports no pricing client.
  */
 export async function resolvePricingProvider () {
-  const usable = getPricingProviders()
-  if (usable.length === 0) {
-    throw new WdkCliError(
-      'No price feed is available.',
-      ErrorCode.MISSING_CONFIG,
-      'Enable one with: wdk provider enable --name <name>'
-    )
-  }
-  if (usable.length > 1) {
-    throw new WdkCliError(
-      `Several price feeds are enabled: ${usable.join(', ')}.`,
-      ErrorCode.INVALID_ARGUMENT,
-      'Choose one by leaving a single feed enabled: wdk provider disable --name <name>'
-    )
-  }
-
-  const name = usable[0]
+  const name = resolveSoleProvider(PRICING, 'price feed', (e) => getInstalledVersion(e.module) !== null)
   const module = getProtocols()[name].module
   const ClientClass = clientClass(await loadProtocolClass(module), name)
 
