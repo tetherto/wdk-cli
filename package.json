@@ -1,7 +1,8 @@
 {
   "name": "@tetherto/wdk-cli",
   "version": "1.0.0-beta.6",
-  "description": "CLI tool for Wallet Development Kit (WDK)",
+  "description": "CLI tool for WDK (Wallet Development Kit) by Tether.",
+  "homepage": "https://docs.wdk.tether.io/cli/",
   "keywords": [
     "wdk",
     "cli",
