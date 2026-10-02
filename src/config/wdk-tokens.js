@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { createRequire } from 'node:module'
+import { readFileSync } from 'node:fs'
 
-const tokensFileRaw = createRequire(import.meta.url)('../../wdk.tokens.json')
+const tokensFileRaw = JSON.parse(readFileSync(new URL('../../wdk.tokens.json', import.meta.url), 'utf8'))
 
 /**
  * How one external system names this token. A plain string is the slug on its

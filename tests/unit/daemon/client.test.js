@@ -25,6 +25,7 @@ const DUMMY_PID_PATH = join(tempDir, 'daemon.pid')
 jest.unstable_mockModule('../../../src/config/constants.js', () => ({
   getDaemonSocketPath: () => DUMMY_SOCKET_PATH,
   getDaemonPidPath: () => DUMMY_PID_PATH,
+  getConfigDir: () => tempDir,
   DAEMON_START_RETRIES: 1,
   DAEMON_START_RETRY_INTERVAL_MS: 1,
   DAEMON_SPAWN_TIMEOUT_MS: 100,

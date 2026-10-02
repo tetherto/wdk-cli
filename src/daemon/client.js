@@ -13,9 +13,8 @@
 // limitations under the License.
 
 import { connect } from 'node:net'
-import { spawn } from 'node:child_process'
 import { readFile, access, unlink } from 'node:fs/promises'
-import { fileURLToPath } from 'node:url'
+import bareSpawn from 'bare-runtime/spawn'
 import {
   getDaemonSocketPath,
   getDaemonPidPath,
@@ -32,6 +31,7 @@ import { WdkCliError, ErrorCode } from '../errors/index.js'
 import { configService } from '../services/config-service.js'
 import { KeyService } from '../services/key-service.js'
 import { WalletKeyring } from '../security/keyring.js'
+import { writeBareLaunchFiles } from './bare/imports.js'
 
 /** @typedef {import('./protocol.js').DaemonRequest} DaemonRequest */
 /** @typedef {import('./protocol.js').DaemonResponse} DaemonResponse */
@@ -52,30 +52,21 @@ import { WalletKeyring } from '../security/keyring.js'
 /** @typedef {import('../errors/index.js').ErrorCodeType} ErrorCodeType */
 
 /**
- * Resolves the absolute path to the wdk-daemon.mjs binary, relative to this file.
- *
- * @returns {string} The absolute path to wdk-daemon.mjs.
- */
-function getDaemonScript () {
-  return fileURLToPath(new URL('../../bin/wdk-daemon.mjs', import.meta.url))
-}
-
-/**
- * Spawns the daemon process in detached mode and waits for it to start.
+ * Spawns the daemon under the Bare runtime in detached mode and waits for it
+ * to start. `bare-runtime` resolves the prebuilt binary for this platform;
+ * the entry point and import map come from {@link writeBareLaunchFiles}.
  *
  * @returns {Promise<void>}
  */
-function spawnDaemon () {
+async function spawnDaemon () {
+  const entry = await writeBareLaunchFiles()
   return new Promise((resolve, reject) => {
-    const child = spawn(
-      process.execPath,
-      ['--disable-warning=ExperimentalWarning', getDaemonScript()],
-      {
-        stdio: ['ignore', 'ignore', 'pipe'],
-        detached: true, // Daemon must outlive the parent process on all platforms
-        windowsHide: true // Prevents a new console window on Windows when detached
-      }
-    )
+    const child = bareSpawn('bare', {
+      args: [entry],
+      stdio: ['ignore', 'ignore', 'pipe'],
+      detached: true, // Daemon must outlive the parent process on all platforms
+      windowsHide: true // Prevents a new console window on Windows when detached
+    })
 
     let stderr = ''
     child.stderr.on('data', (chunk) => {

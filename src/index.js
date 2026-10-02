@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { createRequire } from 'node:module'
+import { readFileSync } from 'node:fs'
 import { Command, CommanderError } from 'commander'
 import { ErrorCode } from './errors/index.js'
 import { PACKAGE_NAME, APP_VERSION } from './config/constants.js'
@@ -32,7 +32,7 @@ import { registerMethodCommand } from './commands/method.js'
 import { registerModuleCommand } from './commands/module.js'
 import { registerProviderCommand } from './commands/provider.js'
 
-const cliRequire = createRequire(import.meta.url)
+const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
 
 /**
  * Builds the `--version` output: the CLI version followed by each WDK
@@ -43,7 +43,6 @@ const cliRequire = createRequire(import.meta.url)
  * @returns {string}
  */
 function buildVersionString () {
-  const pkg = cliRequire('../package.json')
   /** @type {Map<string, string>} */
   const versions = new Map()
   // Top-level @tetherto/wdk* deps

@@ -128,8 +128,10 @@ export class WalletDaemon {
   /**
    * Starts the daemon: creates the IPC endpoint (Unix domain socket on
    * macOS/Linux, named pipe on Windows), writes the PID file, and begins
-   * accepting connections. Access is restricted to the current user on both
-   * platforms (umask 0o077 on Unix, default per-user ACL on Windows).
+   * accepting connections. Access is restricted to the current user on all
+   * runtimes: on Node the socket is created under umask 0o077, so it is
+   * owner-only from the instant it exists; Bare has no umask, so there it is
+   * chmod'ed to 0o700 right after listen; Windows uses the default per-user ACL.
    *
    * @returns {Promise<void>}
    */
@@ -148,16 +150,20 @@ export class WalletDaemon {
 
     this.#server = createServer((socket) => this.#handleConnection(socket))
 
-    const oldUmask = isWin ? 0 : process.umask(0o077)
+    const hasUmask = !isWin && typeof process.umask === 'function'
+    const oldUmask = hasUmask ? process.umask(0o077) : 0
     await new Promise((resolve, reject) => {
       const onError = reject
       this.#server.once('error', onError)
       this.#server.listen(socketPath, () => {
         this.#server.removeListener('error', onError)
-        if (!isWin) process.umask(oldUmask)
+        if (hasUmask) process.umask(oldUmask)
         resolve()
       })
     })
+    if (!isWin && !hasUmask) {
+      await chmod(socketPath, 0o700)
+    }
 
     const pidPath = getDaemonPidPath()
     await writeFile(pidPath, String(process.pid), 'utf8')

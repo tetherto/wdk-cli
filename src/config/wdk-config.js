@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { createRequire } from 'node:module'
+import { readFileSync } from 'node:fs'
 
-const walletsFileRaw = createRequire(import.meta.url)('../../wdk.config.json')
+const walletsFileRaw = JSON.parse(readFileSync(new URL('../../wdk.config.json', import.meta.url), 'utf8'))
 
 /**
  * @typedef {Object} WdkNetworkEntry

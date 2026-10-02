@@ -14,11 +14,11 @@
 
 import { join } from 'node:path'
 import { homedir } from 'node:os'
-import { createRequire } from 'node:module'
+import { readFileSync } from 'node:fs'
 import { walletsFile } from './wdk-config.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 
-const pkg = createRequire(import.meta.url)('../../package.json')
+const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'))
 
 const networkDefaults = {}
 for (const [name, entry] of Object.entries(walletsFile.networks)) {
