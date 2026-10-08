@@ -30,10 +30,15 @@ import { WdkCliError, ErrorCode } from '../errors/index.js'
  */
 
 /** Every protocol kind the registry accepts, in the order listings show them. */
-/** The registry kind a USD price feed declares. */
-const PRICING_KIND = /** @type {ProtocolKind} */ ('pricing')
+/**
+ * Kinds the CLI resolves by kind, so only one of each may be enabled, mapped to
+ * how an error names one.
+ *
+ * @type {Partial<Record<ProtocolKind, string>>}
+ */
+const SINGLE_INSTANCE_LABELS = { pricing: 'A price feed', indexer: 'An indexer' }
 
-export const PROTOCOL_KINDS = /** @type {readonly ProtocolKind[]} */ (['swap', 'bridge', 'swidge', 'fiat', 'pricing'])
+export const PROTOCOL_KINDS = /** @type {readonly ProtocolKind[]} */ (['swap', 'bridge', 'swidge', 'fiat', 'pricing', 'indexer'])
 
 /** The kinds `wdk provider add` can register. */
 export const ADDABLE_KINDS = /** @type {readonly ProtocolKind[]} */ (['swap', 'bridge', 'swidge', 'fiat', 'pricing'])
@@ -48,7 +53,8 @@ const KIND_METHODS = {
   bridge: ['quoteBridge', 'bridge'],
   swidge: ['quoteSwidge', 'swidge'],
   fiat: ['quoteBuy', 'buy', 'quoteSell', 'sell'],
-  pricing: ['getCurrentPrice', 'getMultiPriceData']
+  pricing: ['getCurrentPrice', 'getMultiPriceData'],
+  indexer: []
 }
 
 /**
@@ -204,9 +210,9 @@ function userObject (key) {
 }
 
 /**
- * Returns the networks that override something for a protocol: the packaged
- * network entries naming it, the entry's own `networks`, and the networks the
- * user configured under `providers.<name>.networks`.
+ * Returns the networks that override something for a protocol: the entry's own
+ * `networks`, and the networks the user configured under
+ * `providers.<name>.networks`.
  *
  * @param {string} name - The protocol short name.
  * @param {WdkProtocolEntry} entry - The registry entry.
@@ -215,9 +221,6 @@ function userObject (key) {
 export function getProviderNetworks (name, entry) {
   /** @type {Set<string>} */
   const names = new Set()
-  for (const [network, networkEntry] of Object.entries(walletsFile.networks)) {
-    if (hasOwn(networkEntry.providers, name)) names.add(network)
-  }
   for (const network of Object.keys(entry.networks || {})) names.add(network)
   for (const network of Object.keys(userObject(`providers.${name}.networks`))) names.add(network)
   return [...names]
@@ -232,7 +235,7 @@ export function getProviderNetworks (name, entry) {
  * Resolves a protocol's effective config, shallow-merging four layers with the
  * later ones winning: the packaged general `config`, the user's
  * `providers.<name>.config`, the packaged per-network override in
- * `networks.<network>.providers.<name>` (or a user-added entry's own
+ * the entry's own `networks.<network>` (or
  * `networks.<network>`, since it cannot edit the packaged network entries),
  * and the user's `providers.<name>.networks.<network>`. Without a network only
  * the two general layers apply.
@@ -256,8 +259,7 @@ export function resolveProtocolConfig (name, network, options = {}) {
   const config = { ...(entry.config || {}), ...userObject(`providers.${name}.config`) }
   if (network === undefined) return config
 
-  const packagedPerNetwork = getOwn(getOwn(walletsFile.networks, network)?.providers, name) ??
-    getOwn(entry.networks, network) ?? {}
+  const packagedPerNetwork = getOwn(entry.networks, network) ?? {}
   return { ...config, ...packagedPerNetwork, ...userObject(`providers.${name}.networks.${network}`) }
 }
 
@@ -269,10 +271,19 @@ export function resolveProtocolConfig (name, network, options = {}) {
  * @param {ProtocolKind} kind - The kind the registry declares for the provider.
  * @param {ProtocolClass} ProtocolClass - The class imported from the provider's module.
  * @returns {void}
+ * @throws {WdkCliError} INVALID_ARGUMENT when the kind has no interface to check against.
  * @throws {WdkCliError} INVALID_ARGUMENT when the class is missing a method the kind requires.
  */
 export function assertImplementsKind (name, kind, ProtocolClass) {
-  const missing = KIND_METHODS[kind].filter(
+  const required = KIND_METHODS[kind]
+  if (required.length === 0) {
+    throw new WdkCliError(
+      `Providers of kind '${kind}' cannot be verified against a module.`,
+      ErrorCode.INVALID_ARGUMENT,
+      `The CLI calls a ${kind} provider's API directly, so there is no interface to check.`
+    )
+  }
+  const missing = required.filter(
     (method) => typeof ProtocolClass?.prototype?.[method] !== 'function'
   )
   if (missing.length === 0) return
@@ -345,7 +356,9 @@ export function saveCustomProvider (name, entry) {
 }
 
 /**
- * Removes a user-added provider entry from config.
+ * Removes a user-added provider: its registry entry, its stored config, and
+ * any enabled/disabled override. Packaged providers are rejected, so their
+ * config is never touched.
  *
  * @param {string} name - The protocol short name.
  * @returns {void}
@@ -373,6 +386,10 @@ export function removeCustomProvider (name) {
   delete next[name]
   if (Object.keys(next).length === 0) configService.delete('customProviders')
   else configService.set('customProviders', next)
+  // Its config too, general and per-network. Left behind, it would be merged
+  // into the next provider registered under the same name — handing one
+  // service's credentials to another.
+  configService.delete(`providers.${name}`)
   clearOverride('providers', name)
 }
 
@@ -401,6 +418,54 @@ export function isProviderDisabled (name) {
  * @throws {WdkCliError} INVALID_ARGUMENT when the protocol is already in the desired state.
  */
 /**
+ * Returns the one enabled provider of a kind the CLI resolves by kind rather
+ * than by name, so a caller never has to guess which one served a result.
+ *
+ * @param {ProtocolKind} kind - The kind to resolve.
+ * @param {string} label - What to call it in an error, singular (e.g. "price feed").
+ * @param {(entry: WdkProtocolEntry) => boolean} [isUsable] - Extra condition an entry
+ *   must meet, such as having its module installed (default: every enabled entry).
+ * @returns {string} The provider short name.
+ * @throws {WdkCliError} MISSING_CONFIG when none is enabled.
+ * @throws {WdkCliError} INVALID_ARGUMENT when several are enabled at once.
+ */
+export function resolveSoleProvider (kind, label, isUsable = () => true) {
+  const usable = namesOfKind(getProtocols(), kind, isUsable)
+  if (usable.length === 0) {
+    const known = namesOfKind(getAllProtocols(), kind)
+    throw new WdkCliError(
+      `No ${label} is available.`,
+      ErrorCode.MISSING_CONFIG,
+      known.length > 0
+        ? `Enable one with: wdk provider enable --name ${known[0]}`
+        : 'See the registered providers with: wdk provider list'
+    )
+  }
+  if (usable.length > 1) {
+    throw new WdkCliError(
+      `Several ${label}s are enabled: ${usable.join(', ')}.`,
+      ErrorCode.INVALID_ARGUMENT,
+      'Only one runs at a time. Disable the others with: wdk provider disable --name <name>'
+    )
+  }
+  return usable[0]
+}
+
+/**
+ * Returns the names of the entries declaring a kind.
+ *
+ * @param {Record<string, WdkProtocolEntry>} entries - The entries to filter.
+ * @param {ProtocolKind} kind - The kind to look for.
+ * @param {(entry: WdkProtocolEntry) => boolean} [isUsable] - Extra condition an entry must meet.
+ * @returns {string[]} The matching provider short names.
+ */
+function namesOfKind (entries, kind, isUsable = () => true) {
+  return Object.entries(entries)
+    .filter(([, e]) => e.kind === kind && isUsable(e))
+    .map(([name]) => name)
+}
+
+/**
  * Returns the enabled providers of a kind, other than the one named.
  *
  * @param {ProtocolKind} kind - The kind to look for.
@@ -414,20 +479,21 @@ function otherEnabledOfKind (kind, name) {
 }
 
 /**
- * Refuses a second price feed. Only one `pricing` provider may be enabled at a
- * time, so the CLI never has to guess which one a USD figure came from.
+ * Refuses a second provider of a kind the CLI resolves by kind, so it never has
+ * to guess which one served a result.
  *
  * @param {ProtocolKind} kind - The kind being added or enabled.
  * @param {string} name - The provider being added or enabled.
  * @returns {void}
- * @throws {WdkCliError} INVALID_ARGUMENT when another price feed is already enabled.
+ * @throws {WdkCliError} INVALID_ARGUMENT when another provider of that kind is enabled.
  */
-export function assertSinglePricingFeed (kind, name) {
-  if (kind !== PRICING_KIND) return
-  const [active] = otherEnabledOfKind(PRICING_KIND, name)
+export function assertSingleInstanceKind (kind, name) {
+  const label = SINGLE_INSTANCE_LABELS[kind]
+  if (!label) return
+  const [active] = otherEnabledOfKind(kind, name)
   if (!active) return
   throw new WdkCliError(
-    `A price feed is already enabled: ${active}.`,
+    `${label} is already enabled: ${active}.`,
     ErrorCode.INVALID_ARGUMENT,
     `Only one runs at a time. Disable it first with: wdk provider disable --name ${active}`
   )
@@ -435,7 +501,7 @@ export function assertSinglePricingFeed (kind, name) {
 
 export function setProviderEnabled (name, enabled) {
   const entry = findProtocol(name)
-  if (enabled && entry) assertSinglePricingFeed(entry.kind, name)
+  if (enabled && entry) assertSingleInstanceKind(entry.kind, name)
   if (entry && isDisabled('modules', entry.module)) {
     throw new WdkCliError(
       `Provider '${name}' is disabled by its module.`,

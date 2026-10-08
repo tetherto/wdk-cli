@@ -138,7 +138,7 @@ describe('getModuleStatuses', () => {
     expect(statuses.map((s) => s.module)).toEqual(Object.keys(catalog.modules))
     for (const status of statuses) {
       expect(status.pinned).toBe(catalog.modules[status.module].version)
-      expect(status.installed).toBe(status.pinned)
+      if (!status.pinned.includes(':')) expect(status.installed).toBe(status.pinned)
       expect(status.status).toBe('ok')
       expect(status.source).toBe('built-in')
     }

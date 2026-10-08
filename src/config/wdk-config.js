@@ -26,8 +26,6 @@ const walletsFileRaw = createRequire(import.meta.url)('../../wdk.config.json')
  *   Per-token indexer slugs live in `wdk.tokens.json` under `metadata.slugs.indexer`.
  * @property {string} [chainId] - The CAIP-2 chain id (e.g. "eip155:1", "tron:mainnet").
  * @property {Record<string, unknown>} [config] - The per-network module configuration (RPC URL, chainId, etc.).
- * @property {Record<string, Record<string, unknown>>} [providers] - Per-network provider config overrides,
- *   keyed by provider short name; shallow-merged over the provider's general `config`.
  */
 
 /**
@@ -54,20 +52,22 @@ const walletsFileRaw = createRequire(import.meta.url)('../../wdk.config.json')
 
 /**
  * What a provider does: `swap` serves same-network swaps, `bridge` moves one
- * token across networks, `swidge` serves both, `fiat` is an on/off ramp, and
- * `pricing` is a USD price feed.
+ * token across networks, `swidge` serves both, `fiat` is an on/off ramp,
+ * `pricing` is a USD price feed, and `indexer` is a transfer-history API.
  *
- * @typedef {'swap' | 'bridge' | 'swidge' | 'fiat' | 'pricing'} ProtocolKind
+ * @typedef {'swap' | 'bridge' | 'swidge' | 'fiat' | 'pricing' | 'indexer'} ProtocolKind
  */
 
 /**
  * @typedef {Object} WdkProtocolEntry
- * @property {ProtocolKind} kind - What the provider does: same-network swaps, cross-network bridging, both, or fiat on/off ramping.
- * @property {string} module - The protocol module package name; its version is pinned in `modules`.
+ * @property {ProtocolKind} kind - What the provider does; see {@link ProtocolKind} for each value.
+ * @property {string} [module] - The protocol module package name; its version is pinned in
+ *   `modules`. Absent for a provider the CLI calls directly rather than through a module.
  * @property {Record<string, unknown>} [config] - General protocol config applied on every network
- *   (e.g. API keys); shallow-merged under any per-network override in `networks.<n>.providers.<name>`.
+ *   (e.g. API keys); shallow-merged under any per-network override in `networks`.
  * @property {Record<string, Record<string, unknown>>} [networks] - Per-network config overrides keyed by
- *   network name. Used by user-added providers, which cannot edit the packaged network entries.
+ *   network name, shallow-merged over `config`. Everything a provider needs lives under the provider,
+ *   so removing it takes its configuration with it.
  * @property {string[]} [endpointKeys] - Config keys the module takes as a callback rather than a
  *   value. The CLI stores a URL for each and POSTs to it when the module calls back.
  */

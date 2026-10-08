@@ -30,11 +30,17 @@ const originalIsTTY = process.stdin.isTTY
 
 const setStdinTTY = (isTTY) => Object.defineProperty(process.stdin, 'isTTY', { value: isTTY, configurable: true })
 
+/** Captures the env-var notice, which would otherwise print during the run. */
+let notices = []
+
 beforeEach(() => {
   setStdinTTY(true)
+  notices = []
+  jest.spyOn(console, 'error').mockImplementation((line) => notices.push(String(line)))
 })
 
 afterEach(() => {
+  jest.restoreAllMocks()
   jest.clearAllMocks()
   setStdinTTY(originalIsTTY)
   if (originalEnvPassphrase === undefined) {
@@ -52,6 +58,19 @@ describe('promptPassphrase', () => {
 
     expect(result).toBe(DUMMY_ENV_PASSPHRASE)
     expect(password).not.toHaveBeenCalled()
+  })
+
+  it('says once that the passphrase came from the environment', async () => {
+    process.env.WDK_PASSPHRASE = DUMMY_ENV_PASSPHRASE
+    // The notice fires once per module instance, so take a fresh one: by now
+    // the import at the top of this file has already spent it.
+    jest.resetModules()
+    const { promptPassphrase: fresh } = await import('../../../src/ui/prompts.js')
+
+    await fresh('Enter passphrase:')
+    await fresh('Enter passphrase:')
+
+    expect(notices).toEqual(['Note: using passphrase from WDK_PASSPHRASE env var.'])
   })
 
   it('prompts despite WDK_PASSPHRASE when allowEnv is false', async () => {

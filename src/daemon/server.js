@@ -717,11 +717,25 @@ export class WalletDaemon {
   }
 
   /**
-   * Gracefully shuts down the daemon: disposes all wallets, closes the server, removes socket/PID files, and exits.
+   * Gracefully shuts down the daemon and exits the process. Split from
+   * {@link WalletDaemon#close} so a caller that owns the process — a test, or
+   * an embedder — can release the daemon's resources without terminating.
    *
    * @returns {Promise<void>}
    */
   async shutdown () {
+    await this.close()
+    process.exit(0)
+  }
+
+  /**
+   * Releases everything the daemon holds: disposes each unlocked wallet, stops
+   * accepting connections, and removes the socket and PID files. Leaves the
+   * process running.
+   *
+   * @returns {Promise<void>}
+   */
+  async close () {
     for (const [, state] of this.#wallets) {
       if (state.timer) clearTimeout(state.timer)
       state.wdk.dispose()
@@ -746,8 +760,6 @@ export class WalletDaemon {
     } catch {
       /* */
     }
-
-    process.exit(0)
   }
 }
 

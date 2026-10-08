@@ -25,3 +25,11 @@ jobs:
       - uses: tetherto/oss-actions/node-base@v1
       - name: Run tests
         run: npm test
+  integration:
+    needs: lint
+    runs-on: ubuntu-latest
+    name: Integration
+    steps:
+      - uses: tetherto/oss-actions/node-base@v1
+      - name: Run integration tests
+        run: npm run test:integration

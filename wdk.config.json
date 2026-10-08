@@ -2,10 +2,6 @@
   "version": 3,
   "defaults": {
     "defaultIndex": 0,
-    "indexer": {
-      "baseUrl": "https://wdk-api.tether.io",
-      "apiKey": ""
-    },
     "output": {
       "json": false
     }
@@ -48,6 +44,7 @@
     "@tetherto/wdk-wallet-tron": { "version": "1.0.0-beta.13" },
     "@tetherto/wdk-protocol-fiat-moonpay": { "version": "1.0.0-beta.3" },
     "@transak/wdk-protocol-fiat-transak": { "version": "1.0.2" },
+    "@tetherto/wdk-indexer-http": { "version": "1.0.1" },
     "@tetherto/wdk-pricing-bitfinex-http": { "version": "1.0.0-beta.5" },
     "@tetherto/wdk-protocol-swap-velora-evm": { "version": "1.0.0-beta.6" },
     "@tetherto/wdk-protocol-bridge-usdt0-evm": { "version": "1.0.0-beta.7" },
@@ -55,6 +52,11 @@
     "@symbiosis-finance/wdk-protocol-swidge-symbiosis": { "version": "1.3.0" }
   },
   "providers": {
+    "wdk-indexer": {
+      "kind": "indexer",
+      "module": "@tetherto/wdk-indexer-http",
+      "config": { "baseUrl": "https://wdk-api.tether.io", "apiKey": "" }
+    },
     "bitfinex": {
       "kind": "pricing",
       "module": "@tetherto/wdk-pricing-bitfinex-http",
@@ -90,7 +92,15 @@
     "symbiosis": {
       "kind": "swidge",
       "module": "@symbiosis-finance/wdk-protocol-swidge-symbiosis",
-      "config": { "partnerId": "wdk" }
+      "config": { "partnerId": "wdk" },
+      "networks": {
+        "ethereum": { "chain": 1 },
+        "polygon": { "chain": 137 },
+        "arbitrum": { "chain": 42161 },
+        "base": { "chain": 8453 },
+        "bsc": { "chain": 56 },
+        "avalanche": { "chain": 43114 }
+      }
     }
   },
   "networks": {
@@ -139,9 +149,6 @@
         "chainId": 1,
         "provider": "https://ethereum-rpc.publicnode.com",
         "transferMaxFee": 5000000000000000
-      },
-      "providers": {
-        "symbiosis": { "chain": 1 }
       }
     },
     "sepolia": {
@@ -165,9 +172,6 @@
         "chainId": 137,
         "provider": "https://polygon.drpc.org",
         "transferMaxFee": 5000000000000000
-      },
-      "providers": {
-        "symbiosis": { "chain": 137 }
       }
     },
     "arbitrum": {
@@ -179,9 +183,6 @@
         "chainId": 42161,
         "provider": "https://arb1.arbitrum.io/rpc",
         "transferMaxFee": 1000000000000000
-      },
-      "providers": {
-        "symbiosis": { "chain": 42161 }
       }
     },
     "base": {
@@ -192,9 +193,6 @@
         "chainId": 8453,
         "provider": "https://mainnet.base.org",
         "transferMaxFee": 1000000000000000
-      },
-      "providers": {
-        "symbiosis": { "chain": 8453 }
       }
     },
     "bsc": {
@@ -205,9 +203,6 @@
         "chainId": 56,
         "provider": "https://bsc-dataseed.binance.org",
         "transferMaxFee": 5000000000000000
-      },
-      "providers": {
-        "symbiosis": { "chain": 56 }
       }
     },
     "avalanche": {
@@ -218,9 +213,6 @@
         "chainId": 43114,
         "provider": "https://api.avax.network/ext/bc/C/rpc",
         "transferMaxFee": 5000000000000000
-      },
-      "providers": {
-        "symbiosis": { "chain": 43114 }
       }
     },
     "solana": {
