@@ -15,15 +15,7 @@
 import Conf from 'conf'
 import { APP_NAME, CONFIG_DEFAULTS, getConfigDir } from '../config/constants.js'
 
-/** @type {Record<string, string>} */
-const ENV_MAP = {
-  'indexer.apiKey': 'WDK_INDEXER_API_KEY'
-}
-
-/**
- * Persistent user-config store backed by `Conf`. Env vars in `ENV_MAP` take
- * precedence over stored values on read.
- */
+/** Persistent user-config store backed by `Conf`. */
 class ConfigService {
   constructor () {
     this.conf = new Conf({
@@ -34,16 +26,12 @@ class ConfigService {
   }
 
   /**
-   * Retrieves a config value by key, with environment variable override support.
+   * Retrieves a config value by key.
    *
    * @param {string} key - The dot-separated config key.
    * @returns {unknown} The config value, or undefined if not set.
    */
   get (key) {
-    const envKey = ENV_MAP[key]
-    if (envKey && process.env[envKey]) {
-      return process.env[envKey]
-    }
     return this.conf.get(key)
   }
 
@@ -78,19 +66,13 @@ class ConfigService {
   }
 
   /**
-   * Returns the full config store with environment variable overrides applied.
-   * Excludes `customTokens` — tokens are their own registry (`wdk token list`),
-   * not configuration.
+   * Returns the full config store. Excludes `customTokens` — tokens are their
+   * own registry (`wdk token list`), not configuration.
    *
-   * @returns {Record<string, unknown>} The merged config object.
+   * @returns {Record<string, unknown>} The config object.
    */
   list () {
     const { customTokens: _ct, ...config } = { ...this.conf.store }
-    for (const [confKey, envKey] of Object.entries(ENV_MAP)) {
-      if (process.env[envKey]) {
-        this.#setNestedValue(config, confKey, process.env[envKey])
-      }
-    }
     return config
   }
 
@@ -139,29 +121,6 @@ class ConfigService {
    */
   get configPath () {
     return this.conf.path
-  }
-
-  /**
-   * Sets a value at a nested dot-separated path within an object. Keys that
-   * could pollute the prototype chain are rejected.
-   *
-   * @param {Record<string, unknown>} obj - The object to mutate.
-   * @param {string} path - The dot-separated path.
-   * @param {unknown} value - The value to assign.
-   * @returns {void}
-   */
-  #setNestedValue (obj, path, value) {
-    const keys = path.split('.')
-    let current = obj
-    for (let i = 0; i < keys.length - 1; i++) {
-      const key = keys[i]
-      if (key === '__proto__' || key === 'constructor' || key === 'prototype') return
-      if (!(key in current)) current[key] = {}
-      current = /** @type {Record<string, unknown>} */ (current[key])
-    }
-    const last = keys[keys.length - 1]
-    if (last === '__proto__' || last === 'constructor' || last === 'prototype') return
-    current[last] = value
   }
 }
 

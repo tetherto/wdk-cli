@@ -90,7 +90,7 @@ export function registerProviderCommand (program) {
         table.push([
           chalk.bold(p.name),
           p.kind,
-          p.module,
+          p.module ?? chalk.dim('—'),
           p.source === 'custom' ? 'custom' : chalk.dim('built-in'),
           p.enabled ? '' : chalk.dim('disabled')
         ])
@@ -126,7 +126,7 @@ export function registerProviderCommand (program) {
       console.log(`  ${chalk.bold(info.name)}`)
       console.log()
       console.log(`  Kind:       ${info.kind}`)
-      console.log(`  Module:     ${info.module}`)
+      if (info.module) console.log(`  Module:     ${info.module}`)
       console.log(`  Source:     ${info.source}`)
       if (!info.enabled) console.log(`  Status:     ${chalk.dim('disabled')}`)
       console.log()

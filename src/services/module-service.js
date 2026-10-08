@@ -43,7 +43,7 @@ const CORE_PACKAGES = new Set(['wdk-pricing-provider'])
 
 /**
  * Returns whether a package name is a WDK module the catalog manages
- * (`wdk-wallet-*`, `wdk-protocol-*` or `wdk-pricing-*`, any scope). These are
+ * (`wdk-wallet-*`, `wdk-protocol-*`, `wdk-pricing-*` or `wdk-indexer-*`, any scope). These are
  * swappable implementations; core packages (`@tetherto/wdk`, `-utils`,
  * `-wallet`, `-asset-registry`, `-pricing-provider`) are ordinary dependencies
  * and do not match.
@@ -53,7 +53,7 @@ const CORE_PACKAGES = new Set(['wdk-pricing-provider'])
  */
 export function isWdkModulePackage (name) {
   const bare = name.includes('/') ? name.slice(name.indexOf('/') + 1) : name
-  return !CORE_PACKAGES.has(bare) && /^wdk-(wallet|protocol|pricing)-.+/.test(bare)
+  return !CORE_PACKAGES.has(bare) && /^wdk-(wallet|protocol|pricing|indexer)-.+/.test(bare)
 }
 
 /**
@@ -127,6 +127,20 @@ export function getAllModules () {
 }
 
 /**
+ * Whether an installed version meets what the catalog pinned. A pin is normally
+ * an exact version, but may be a git spec (`github:owner/repo#<sha>`), which the
+ * package's own version never equals — the commit is the pin, and npm verifies
+ * it against the lockfile's integrity hash on install.
+ *
+ * @param {string} installed - The version found in the installed package.
+ * @param {string} pinned - The version or spec the catalog pins.
+ * @returns {boolean} True when the installed package satisfies the pin.
+ */
+function satisfies (installed, pinned) {
+  return pinned.includes(':') ? true : installed === pinned
+}
+
+/**
  * Compares every module's pinned version against what is installed.
  *
  * @returns {ModuleStatus[]} One status entry per module, built-in first.
@@ -143,7 +157,7 @@ export function getModuleStatuses () {
     const installed = getInstalledVersion(name)
     const status = override?.enabled === false
       ? 'disabled'
-      : installed === null ? 'not installed' : installed === pinned ? 'ok' : 'version mismatch'
+      : installed === null ? 'not installed' : satisfies(installed, pinned) ? 'ok' : 'version mismatch'
     statuses.push({
       module: name,
       pinned,
@@ -158,7 +172,7 @@ export function getModuleStatuses () {
     const installed = getInstalledVersion(name)
     const status = getOwn(overrides, name)?.enabled === false
       ? 'disabled'
-      : installed === null ? 'not installed' : installed === e.version ? 'ok' : 'version mismatch'
+      : installed === null ? 'not installed' : satisfies(installed, e.version) ? 'ok' : 'version mismatch'
     statuses.push({ module: name, pinned: e.version, installed, status, source: 'custom' })
   }
   for (const [name, o] of Object.entries(overrides)) {

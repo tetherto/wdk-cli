@@ -54,16 +54,17 @@ const walletsFileRaw = createRequire(import.meta.url)('../../wdk.config.json')
 
 /**
  * What a provider does: `swap` serves same-network swaps, `bridge` moves one
- * token across networks, `swidge` serves both, `fiat` is an on/off ramp, and
- * `pricing` is a USD price feed.
+ * token across networks, `swidge` serves both, `fiat` is an on/off ramp,
+ * `pricing` is a USD price feed, and `indexer` is a transfer-history API.
  *
- * @typedef {'swap' | 'bridge' | 'swidge' | 'fiat' | 'pricing'} ProtocolKind
+ * @typedef {'swap' | 'bridge' | 'swidge' | 'fiat' | 'pricing' | 'indexer'} ProtocolKind
  */
 
 /**
  * @typedef {Object} WdkProtocolEntry
- * @property {ProtocolKind} kind - What the provider does: same-network swaps, cross-network bridging, both, or fiat on/off ramping.
- * @property {string} module - The protocol module package name; its version is pinned in `modules`.
+ * @property {ProtocolKind} kind - What the provider does; see {@link ProtocolKind} for each value.
+ * @property {string} [module] - The protocol module package name; its version is pinned in
+ *   `modules`. Absent for a provider the CLI calls directly rather than through a module.
  * @property {Record<string, unknown>} [config] - General protocol config applied on every network
  *   (e.g. API keys); shallow-merged under any per-network override in `networks.<n>.providers.<name>`.
  * @property {Record<string, Record<string, unknown>>} [networks] - Per-network config overrides keyed by
