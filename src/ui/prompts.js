@@ -15,6 +15,7 @@
 import { createInterface } from 'node:readline'
 import { input, password } from '@inquirer/prompts'
 import chalk from 'chalk'
+import { WdkCliError, ErrorCode } from '../errors/index.js'
 
 let envPassphraseNoticeShown = false
 
@@ -24,6 +25,7 @@ let envPassphraseNoticeShown = false
  * @param {string} [message] - Prompt message. Defaults to `'Enter passphrase:'`.
  * @param {{ allowEnv?: boolean }} [options] - Set `allowEnv` to `false` to always prompt, ignoring WDK_PASSPHRASE.
  * @returns {Promise<string>} The entered passphrase.
+ * @throws {WdkCliError} When a prompt is needed but stdin is not a terminal.
  */
 export async function promptPassphrase (message = 'Enter passphrase:', { allowEnv = true } = {}) {
   const envPassphrase = process.env.WDK_PASSPHRASE
@@ -33,6 +35,13 @@ export async function promptPassphrase (message = 'Enter passphrase:', { allowEn
       envPassphraseNoticeShown = true
     }
     return envPassphrase
+  }
+  if (!process.stdin.isTTY) {
+    throw new WdkCliError(
+      'Cannot prompt for a passphrase when stdin is piped.',
+      ErrorCode.INVALID_ARGUMENT,
+      allowEnv ? 'Set WDK_PASSPHRASE, or run from a terminal.' : 'Run from a terminal.'
+    )
   }
   return password({ message })
 }

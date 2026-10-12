@@ -77,16 +77,17 @@
  */
 
 /** @typedef {{ address: string }} GetAddressResult */
-/** @typedef {{ balance: string, symbol: string, decimals: number }} GetBalanceResult */
-/** @typedef {{ fee: string, feeFormatted: string }} EstimateFeeResult */
+/** @typedef {{ balance: string, symbol: string, decimals: number, address: string }} GetBalanceResult */
+/** @typedef {{ fee: string, feeFormatted: string, from: string }} EstimateFeeResult */
 /** @typedef {{ txHash: string, network: string, from: string, to: string, amount: string, fee?: string }} SendResult */
 /** @typedef {{ address: string, signature: string }} SignMessageResult */
-/** @typedef {{ valid: boolean }} VerifyMessageResult */
+/** @typedef {{ valid: boolean, address: string }} VerifyMessageResult */
+/** @typedef {{ result: unknown, address: string }} CallMethodResult */
 /** @typedef {{ transaction: unknown }} GetTransactionResult */
 /** @typedef {{ name: string, ttlMs: number, ttlRemaining: number }} WalletStatus */
 /** @typedef {{ protocol: string, reason: string }} SkippedProtocol */
-/** @typedef {{ protocol: string, inputAmount?: string, outputAmount: string, fees: unknown, skipped: SkippedProtocol[] }} QuoteResult */
-/** @typedef {{ protocol: string, result: unknown, skipped: SkippedProtocol[] }} ExecuteResult */
+/** @typedef {{ protocol: string, from: string, inputAmount?: string, outputAmount: string, fees: unknown, skipped: SkippedProtocol[] }} QuoteResult */
+/** @typedef {{ protocol: string, from: string, result: unknown, skipped: SkippedProtocol[] }} ExecuteResult */
 /** @typedef {{ wallets: WalletStatus[] }} ListWalletsResult */
 /** @typedef {{ unlocked: boolean, wallets: WalletStatus[], pid: number }} StatusResult */
 

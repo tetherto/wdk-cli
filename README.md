@@ -22,7 +22,7 @@ For detailed documentation about the complete WDK ecosystem, visit [docs.wdk.tet
 Requires Node.js 22.18.0 or later and npm.
 
 ```bash
-npm install -g @tetherto/wdk-cli@1.0.0-beta.5
+npm install -g @tetherto/wdk-cli@1.0.0-beta.6
 wdk --version
 ```
 

@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "assets": [
     {
       "id": "bitcoin/btc",
@@ -12,9 +12,14 @@
       "isNative": true,
       "testnet": false,
       "metadata": {
-        "indexerSlug": "btc",
-        "moonpaySlug": "btc",
-        "bitfinexSlug": "tBTCUSD"
+        "slugs": {
+          "indexer": "btc",
+          "moonpay": "btc",
+          "transak": {
+            "slug": "BTC",
+            "network": "mainnet"
+          }
+        }
       }
     },
     {
@@ -28,8 +33,10 @@
       "isNative": true,
       "testnet": true,
       "metadata": {
-        "moonpaySlug": "btc",
-        "bitfinexSlug": "tBTCUSD"
+        "slugs": {
+          "moonpay": "btc",
+          "bitfinex": "BTC"
+        }
       }
     },
     {
@@ -44,8 +51,13 @@
       "nativeId": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
       "testnet": false,
       "metadata": {
-        "moonpaySlug": "eth",
-        "bitfinexSlug": "tETHUSD"
+        "slugs": {
+          "moonpay": "eth",
+          "transak": {
+            "slug": "ETH",
+            "network": "ethereum"
+          }
+        }
       }
     },
     {
@@ -60,9 +72,15 @@
       "address": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
       "testnet": false,
       "metadata": {
-        "indexerSlug": "usdt",
-        "moonpaySlug": "usdt",
-        "bitfinexSlug": "tUSTUSD"
+        "slugs": {
+          "indexer": "usdt",
+          "moonpay": "usdt",
+          "bitfinex": "UST",
+          "transak": {
+            "slug": "USDT",
+            "network": "ethereum"
+          }
+        }
       }
     },
     {
@@ -77,9 +95,14 @@
       "address": "0x68749665FF8D2d112Fa859AA293F07A622782F38",
       "testnet": false,
       "metadata": {
-        "indexerSlug": "xaut",
-        "moonpaySlug": "xaut",
-        "bitfinexSlug": "tXAUT:USD"
+        "slugs": {
+          "indexer": "xaut",
+          "moonpay": "xaut",
+          "transak": {
+            "slug": "XAUT",
+            "network": "ethereum"
+          }
+        }
       }
     },
     {
@@ -94,8 +117,9 @@
       "nativeId": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
       "testnet": true,
       "metadata": {
-        "moonpaySlug": "eth",
-        "bitfinexSlug": "tETHUSD"
+        "slugs": {
+          "moonpay": "eth"
+        }
       }
     },
     {
@@ -110,8 +134,10 @@
       "address": "0xd077A400968890Eacc75cdc901F0356c943e4fDb",
       "testnet": true,
       "metadata": {
-        "indexerSlug": "usdt",
-        "bitfinexSlug": "tUSTUSD"
+        "slugs": {
+          "indexer": "usdt",
+          "bitfinex": "UST"
+        }
       }
     },
     {
@@ -126,8 +152,13 @@
       "nativeId": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
       "testnet": false,
       "metadata": {
-        "moonpaySlug": "pol_polygon",
-        "bitfinexSlug": "tPOLUSD"
+        "slugs": {
+          "moonpay": "pol_polygon",
+          "transak": {
+            "slug": "POL",
+            "network": "polygon"
+          }
+        }
       }
     },
     {
@@ -142,7 +173,9 @@
       "address": "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
       "testnet": false,
       "metadata": {
-        "bitfinexSlug": "tUSTUSD"
+        "slugs": {
+          "bitfinex": "UST"
+        }
       }
     },
     {
@@ -157,8 +190,13 @@
       "nativeId": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
       "testnet": false,
       "metadata": {
-        "moonpaySlug": "eth_arbitrum",
-        "bitfinexSlug": "tETHUSD"
+        "slugs": {
+          "moonpay": "eth_arbitrum",
+          "transak": {
+            "slug": "ETH",
+            "network": "arbitrum"
+          }
+        }
       }
     },
     {
@@ -173,8 +211,13 @@
       "nativeId": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
       "testnet": false,
       "metadata": {
-        "moonpaySlug": "eth_base",
-        "bitfinexSlug": "tETHUSD"
+        "slugs": {
+          "moonpay": "eth_base",
+          "transak": {
+            "slug": "ETH",
+            "network": "base"
+          }
+        }
       }
     },
     {
@@ -189,8 +232,14 @@
       "nativeId": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
       "testnet": false,
       "metadata": {
-        "moonpaySlug": "bnb_bsc",
-        "bitfinexSlug": ""
+        "slugs": {
+          "moonpay": "bnb_bsc",
+          "bitfinex": "",
+          "transak": {
+            "slug": "BNB",
+            "network": "bsc"
+          }
+        }
       }
     },
     {
@@ -203,10 +252,7 @@
       "decimals": 6,
       "isNative": false,
       "address": "0x21cAef8A43163Eea865baeE23b9C2E327696A3bf",
-      "testnet": false,
-      "metadata": {
-        "bitfinexSlug": "tXAUT:USD"
-      }
+      "testnet": false
     },
     {
       "id": "avalanche/avax",
@@ -220,8 +266,13 @@
       "nativeId": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
       "testnet": false,
       "metadata": {
-        "moonpaySlug": "avax_cchain",
-        "bitfinexSlug": "tAVAX:USD"
+        "slugs": {
+          "moonpay": "avax_cchain",
+          "transak": {
+            "slug": "AVAX",
+            "network": "avaxcchain"
+          }
+        }
       }
     },
     {
@@ -236,7 +287,9 @@
       "address": "0x9702230A8Ea53601f5cD2dc00fDBc13d4dF4A8c7",
       "testnet": false,
       "metadata": {
-        "bitfinexSlug": "tUSTUSD"
+        "slugs": {
+          "bitfinex": "UST"
+        }
       }
     },
     {
@@ -251,8 +304,13 @@
       "nativeId": "So11111111111111111111111111111111111111112",
       "testnet": false,
       "metadata": {
-        "moonpaySlug": "sol",
-        "bitfinexSlug": "tSOLUSD"
+        "slugs": {
+          "moonpay": "sol",
+          "transak": {
+            "slug": "SOL",
+            "network": "solana"
+          }
+        }
       }
     },
     {
@@ -267,8 +325,14 @@
       "address": "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
       "testnet": false,
       "metadata": {
-        "moonpaySlug": "usdt_sol",
-        "bitfinexSlug": "tUSTUSD"
+        "slugs": {
+          "moonpay": "usdt_sol",
+          "bitfinex": "UST",
+          "transak": {
+            "slug": "USDT",
+            "network": "solana"
+          }
+        }
       }
     },
     {
@@ -283,8 +347,9 @@
       "nativeId": "So11111111111111111111111111111111111111112",
       "testnet": true,
       "metadata": {
-        "moonpaySlug": "sol",
-        "bitfinexSlug": "tSOLUSD"
+        "slugs": {
+          "moonpay": "sol"
+        }
       }
     },
     {
@@ -297,10 +362,7 @@
       "decimals": 9,
       "isNative": true,
       "nativeId": "So11111111111111111111111111111111111111112",
-      "testnet": true,
-      "metadata": {
-        "bitfinexSlug": "tSOLUSD"
-      }
+      "testnet": true
     },
     {
       "id": "spark/btc",
@@ -313,8 +375,9 @@
       "isNative": true,
       "testnet": false,
       "metadata": {
-        "indexerSlug": "btc",
-        "bitfinexSlug": "tBTCUSD"
+        "slugs": {
+          "indexer": "btc"
+        }
       }
     },
     {
@@ -326,10 +389,7 @@
       "name": "BTC",
       "decimals": 8,
       "isNative": true,
-      "testnet": true,
-      "metadata": {
-        "bitfinexSlug": "tBTCUSD"
-      }
+      "testnet": true
     },
     {
       "id": "tron/trx",
@@ -343,8 +403,13 @@
       "nativeId": "TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR",
       "testnet": false,
       "metadata": {
-        "moonpaySlug": "trx",
-        "bitfinexSlug": "tTRXUSD"
+        "slugs": {
+          "moonpay": "trx",
+          "transak": {
+            "slug": "TRX",
+            "network": "mainnet"
+          }
+        }
       }
     },
     {
@@ -359,9 +424,15 @@
       "address": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
       "testnet": false,
       "metadata": {
-        "indexerSlug": "usdt",
-        "moonpaySlug": "usdt_trx",
-        "bitfinexSlug": "tUSTUSD"
+        "slugs": {
+          "indexer": "usdt",
+          "moonpay": "usdt_trx",
+          "bitfinex": "UST",
+          "transak": {
+            "slug": "USDT",
+            "network": "tron"
+          }
+        }
       }
     },
     {
@@ -373,10 +444,7 @@
       "name": "TRX",
       "decimals": 6,
       "isNative": true,
-      "testnet": true,
-      "metadata": {
-        "bitfinexSlug": "tTRXUSD"
-      }
+      "testnet": true
     },
     {
       "id": "smart-account-ethereum/eth",
@@ -390,8 +458,13 @@
       "nativeId": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
       "testnet": false,
       "metadata": {
-        "moonpaySlug": "eth",
-        "bitfinexSlug": "tETHUSD"
+        "slugs": {
+          "moonpay": "eth",
+          "transak": {
+            "slug": "ETH",
+            "network": "ethereum"
+          }
+        }
       }
     },
     {
@@ -406,9 +479,15 @@
       "address": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
       "testnet": false,
       "metadata": {
-        "indexerSlug": "usdt",
-        "moonpaySlug": "usdt",
-        "bitfinexSlug": "tUSTUSD"
+        "slugs": {
+          "indexer": "usdt",
+          "moonpay": "usdt",
+          "bitfinex": "UST",
+          "transak": {
+            "slug": "USDT",
+            "network": "ethereum"
+          }
+        }
       }
     },
     {
@@ -423,9 +502,14 @@
       "address": "0x68749665FF8D2d112Fa859AA293F07A622782F38",
       "testnet": false,
       "metadata": {
-        "indexerSlug": "xaut",
-        "moonpaySlug": "xaut",
-        "bitfinexSlug": "tXAUT:USD"
+        "slugs": {
+          "indexer": "xaut",
+          "moonpay": "xaut",
+          "transak": {
+            "slug": "XAUT",
+            "network": "ethereum"
+          }
+        }
       }
     },
     {
@@ -440,8 +524,9 @@
       "nativeId": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
       "testnet": true,
       "metadata": {
-        "moonpaySlug": "eth",
-        "bitfinexSlug": "tETHUSD"
+        "slugs": {
+          "moonpay": "eth"
+        }
       }
     },
     {
@@ -456,8 +541,10 @@
       "address": "0xd077A400968890Eacc75cdc901F0356c943e4fDb",
       "testnet": true,
       "metadata": {
-        "indexerSlug": "usdt",
-        "bitfinexSlug": "tUSTUSD"
+        "slugs": {
+          "indexer": "usdt",
+          "bitfinex": "UST"
+        }
       }
     },
     {
@@ -472,8 +559,13 @@
       "nativeId": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
       "testnet": false,
       "metadata": {
-        "moonpaySlug": "pol_polygon",
-        "bitfinexSlug": "tPOLUSD"
+        "slugs": {
+          "moonpay": "pol_polygon",
+          "transak": {
+            "slug": "POL",
+            "network": "polygon"
+          }
+        }
       }
     },
     {
@@ -488,7 +580,9 @@
       "address": "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
       "testnet": false,
       "metadata": {
-        "bitfinexSlug": "tUSTUSD"
+        "slugs": {
+          "bitfinex": "UST"
+        }
       }
     },
     {
@@ -503,8 +597,13 @@
       "nativeId": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
       "testnet": false,
       "metadata": {
-        "moonpaySlug": "eth_arbitrum",
-        "bitfinexSlug": "tETHUSD"
+        "slugs": {
+          "moonpay": "eth_arbitrum",
+          "transak": {
+            "slug": "ETH",
+            "network": "arbitrum"
+          }
+        }
       }
     },
     {
@@ -519,8 +618,13 @@
       "nativeId": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
       "testnet": false,
       "metadata": {
-        "moonpaySlug": "eth_base",
-        "bitfinexSlug": "tETHUSD"
+        "slugs": {
+          "moonpay": "eth_base",
+          "transak": {
+            "slug": "ETH",
+            "network": "base"
+          }
+        }
       }
     },
     {
@@ -533,10 +637,7 @@
       "decimals": 18,
       "isNative": true,
       "nativeId": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
-      "testnet": false,
-      "metadata": {
-        "bitfinexSlug": "tETHUSD"
-      }
+      "testnet": false
     },
     {
       "id": "smart-account-plasma/usdt0",
@@ -550,7 +651,13 @@
       "address": "0xB8CE59FC3717ada4C02eaDF9682A9e934F625ebb",
       "testnet": false,
       "metadata": {
-        "bitfinexSlug": "tUSTUSD"
+        "slugs": {
+          "bitfinex": "UST",
+          "transak": {
+            "slug": "USDT0",
+            "network": "plasma"
+          }
+        }
       }
     }
   ]

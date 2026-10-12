@@ -203,6 +203,7 @@ export function registerGetCommand (program) {
         console.log(
           `  ${formatNetworkLabel(result.network)} ${chalk.dim(`(index: ${result.index})`)}`
         )
+        console.log(`  Address: ${formatAddress(result.address)}`)
         console.log(`  Balance: ${chalk.bold(result.formatted)}`)
         if (result.token) {
           console.log(`  Token:   ${chalk.dim(result.token)}`)

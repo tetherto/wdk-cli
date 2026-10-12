@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import { createRequire } from 'node:module'
 import {
+  getMethod,
   convertMethodArgs,
   parseMethodArgs,
   paramToFlag,
@@ -20,6 +22,9 @@ import {
   splitParamUsage,
   bigintReplacer
 } from '../../../src/services/methods.js'
+
+const require = createRequire(import.meta.url)
+const catalog = require('../../../wdk.config.json')
 
 const METHOD = {
   kind: 'write',
@@ -72,6 +77,12 @@ describe('convertMethodArgs', () => {
   it('rejects an unknown parameter', () => {
     expect(() => convertMethodArgs(METHOD, { txid: 'a', amount: '1', nope: 'x' })).toThrow(
       'Unknown parameter --nope.'
+    )
+  })
+
+  it('rejects an inherited object property as a parameter name', () => {
+    expect(() => convertMethodArgs(METHOD, { txid: 'a', amount: '1', constructor: 'x' })).toThrow(
+      'Unknown parameter --constructor.'
     )
   })
 
@@ -150,6 +161,12 @@ describe('convertMethodArgs', () => {
     )
   })
 
+  it('rejects an inherited object property as a structured field name', () => {
+    expect(() => convertMethodArgs(NESTED_METHOD, { invoices: '[{"id":"a","amount":"5000","toString":1}]' })).toThrow(
+      "Unknown field 'toString' in --invoices."
+    )
+  })
+
   it('rejects a missing required field inside a structured value', () => {
     expect(() => convertMethodArgs(NESTED_METHOD, { invoices: '[{"id":"a"}]' })).toThrow(
       "Missing required field 'amount' in --invoices."
@@ -161,6 +178,22 @@ describe('convertMethodArgs', () => {
       'Invalid --invoices: expected bigint.'
     )
   })
+})
+
+describe('getMethod', () => {
+  it('returns a declared method', () => {
+    expect(getMethod('ethereum', 'approve')).toEqual(catalog.modules['@tetherto/wdk-wallet-evm'].methods.approve)
+  })
+
+  it('rejects an undeclared method', () => {
+    expect(() => getMethod('ethereum', 'nope')).toThrow("Unknown method 'nope' for network 'ethereum'.")
+  })
+
+  it.each(['constructor', 'toString', '__proto__'])(
+    'rejects the inherited object property %s as a method name', (name) => {
+      expect(() => getMethod('ethereum', name)).toThrow(`Unknown method '${name}' for network 'ethereum'.`)
+    }
+  )
 })
 
 describe('parseMethodArgs', () => {

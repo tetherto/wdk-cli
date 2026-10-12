@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { validateNetwork } from '../config/networks.js'
+import { validateNetwork, getAllNetworks } from '../config/networks.js'
 import {
   getAllTokens,
   getTokensForNetwork,
   getTokenByName,
+  getDisabledTokens,
   isBuiltinToken,
   saveCustomToken,
   deleteCustomToken
@@ -24,7 +25,7 @@ import {
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 
 /** @typedef {import('../services/token-service.js').TokenEntry} TokenEntry */
-/** @typedef {import('../config/wdk-tokens.js').TokenMetadata} TokenMetadata */
+/** @typedef {import('../config/wdk-tokens.js').TokenSlug} TokenSlug */
 
 /**
  * Validates that a token name matches the registry key shape: lowercase
@@ -47,17 +48,20 @@ export function validateTokenName (value) {
 /**
  * @typedef {Object} ListTokensInput
  * @property {string} [network] - Filter to a single network. Omit for every network.
+ * @property {boolean} [includeDisabled] - When true, also return tokens the user disabled (default: false).
  */
 
 /**
  * @typedef {Object} ListTokensNetworkResult
  * @property {string} network - The network the listing is scoped to.
  * @property {Record<string, TokenEntry>} tokens - Tokens keyed by registry key (lowercased).
+ * @property {string[]} disabled - Ids (`<network>/<slug>`) of the network's disabled tokens.
  */
 
 /**
  * @typedef {Object} ListTokensAllResult
  * @property {Record<string, Record<string, TokenEntry>>} tokens - Tokens keyed first by network, then by registry key.
+ * @property {string[]} disabled - Ids (`<network>/<slug>`) of every disabled token.
  */
 
 /**
@@ -67,8 +71,9 @@ export function validateTokenName (value) {
  */
 
 /**
- * @typedef {{ network: string, token: string } & TokenEntry} GetTokenResult
- *   The matched entry's fields, plus its `network` and `token` key.
+ * @typedef {{ network: string, token: string, enabled: boolean } & TokenEntry} GetTokenResult
+ *   The matched entry's fields, plus its `network`, `token` key, and whether
+ *   the user has it enabled.
  */
 
 /**
@@ -98,6 +103,70 @@ export function validateTokenName (value) {
  * @property {true} [revertedToBuiltin] - True when the deleted entry was overriding a built-in,
  *   which is now effective again.
  */
+
+/**
+ * Validates a `metadata.slugs` block: a map of external system name to either
+ * a slug string, or an object carrying `slug` plus that system's extra fields.
+ *
+ * @param {unknown} value - The raw `slugs` value (parsed JSON, untrusted input).
+ * @returns {Record<string, TokenSlug>} The validated block.
+ * @throws {WdkCliError} INVALID_ARGUMENT when the block is not an object.
+ * @throws {WdkCliError} INVALID_ARGUMENT when a system name is `__proto__`.
+ * @throws {WdkCliError} INVALID_ARGUMENT when an entry is neither a string nor an object.
+ * @throws {WdkCliError} INVALID_ARGUMENT when a string entry is empty.
+ * @throws {WdkCliError} INVALID_ARGUMENT when an object entry has no `slug`, or its `slug` is not a non-empty string.
+ */
+function validateSlugs (value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new WdkCliError(
+      'Token "metadata.slugs" must be an object when provided.',
+      ErrorCode.INVALID_ARGUMENT
+    )
+  }
+  const raw = /** @type {Record<string, unknown>} */ (value)
+  /** @type {Record<string, TokenSlug>} */
+  const clean = Object.create(null)
+  for (const [system, entry] of Object.entries(raw)) {
+    if (system === '__proto__') {
+      throw new WdkCliError(
+        'Token "metadata.slugs" cannot use "__proto__" as a system name.',
+        ErrorCode.INVALID_ARGUMENT
+      )
+    }
+    if (typeof entry === 'string') {
+      if (!entry) {
+        throw new WdkCliError(
+          `Token "metadata.slugs.${system}" must be a non-empty string.`,
+          ErrorCode.INVALID_ARGUMENT
+        )
+      }
+      clean[system] = entry
+      continue
+    }
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      throw new WdkCliError(
+        `Token "metadata.slugs.${system}" must be a string or an object.`,
+        ErrorCode.INVALID_ARGUMENT
+      )
+    }
+    const obj = /** @type {Record<string, unknown>} */ (entry)
+    if (obj.slug === undefined) {
+      throw new WdkCliError(
+        `Token "metadata.slugs.${system}" is missing "slug".`,
+        ErrorCode.INVALID_ARGUMENT,
+        `Use a plain string, or {"slug":"<the ${system} identifier>"} plus any extra fields ${system} needs.`
+      )
+    }
+    if (typeof obj.slug !== 'string' || !obj.slug) {
+      throw new WdkCliError(
+        `Token "metadata.slugs.${system}.slug" must be a non-empty string.`,
+        ErrorCode.INVALID_ARGUMENT
+      )
+    }
+    clean[system] = /** @type {TokenSlug} */ (obj)
+  }
+  return clean
+}
 
 /**
  * Validates a structured token entry object. Throws `INVALID_ARGUMENT` on any
@@ -155,20 +224,18 @@ export function validateTokenEntry (data) {
       )
     }
     const meta = /** @type {Record<string, unknown>} */ (metadata)
-    /** @type {TokenMetadata} */
-    const clean = {}
-    for (const key of /** @type {const} */ (['indexerSlug', 'moonpaySlug', 'bitfinexSlug'])) {
-      const value = meta[key]
-      if (value === undefined) continue
-      if (typeof value !== 'string' || !value) {
-        throw new WdkCliError(
-          `Token "metadata.${key}" must be a non-empty string when provided.`,
-          ErrorCode.INVALID_ARGUMENT
-        )
-      }
-      clean[key] = value
+    const unknown = Object.keys(meta).filter((key) => key !== 'slugs')
+    if (unknown.length > 0) {
+      throw new WdkCliError(
+        `Token "metadata" has unknown field(s): ${unknown.join(', ')}.`,
+        ErrorCode.INVALID_ARGUMENT,
+        'External mappings go under "metadata.slugs", keyed by system name, e.g. {"slugs":{"moonpay":"usdt_trx"}}'
+      )
     }
-    if (Object.keys(clean).length > 0) entry.metadata = clean
+    if (meta.slugs !== undefined) {
+      const slugs = validateSlugs(meta.slugs)
+      if (Object.keys(slugs).length > 0) entry.metadata = { slugs }
+    }
   }
 
   return entry
@@ -226,11 +293,21 @@ export function validateTokenSpec (data) {
  * @returns {ListTokensNetworkResult | ListTokensAllResult}
  */
 export function listTokens (input = {}) {
+  const { includeDisabled } = input
   if (input.network) {
     validateNetwork(input.network)
-    return { network: input.network, tokens: getTokensForNetwork(input.network) }
+    return {
+      network: input.network,
+      tokens: getTokensForNetwork(input.network, { includeDisabled }),
+      disabled: getDisabledTokens(input.network)
+    }
   }
-  return { tokens: getAllTokens() }
+  const usable = getAllNetworks()
+  const tokens = Object.fromEntries(
+    Object.entries(getAllTokens({ includeDisabled })).filter(([network]) => Object.hasOwn(usable, network))
+  )
+  const disabled = getDisabledTokens().filter((id) => Object.hasOwn(usable, id.slice(0, id.indexOf('/'))))
+  return { tokens, disabled }
 }
 
 /**
@@ -244,14 +321,15 @@ export function listTokens (input = {}) {
 export function getToken (input) {
   validateNetwork(input.network)
   validateTokenName(input.token)
-  const entry = getTokenByName(input.network, input.token)
+  const entry = getTokenByName(input.network, input.token, { includeDisabled: true })
   if (!entry) {
     throw new WdkCliError(
       `Token '${input.token}' not found on '${input.network}'.`,
       ErrorCode.TOKEN_NOT_SUPPORTED
     )
   }
-  return { network: input.network, token: input.token, ...entry }
+  const enabled = !getDisabledTokens(input.network).includes(`${input.network}/${input.token.toLowerCase()}`)
+  return { network: input.network, token: input.token, enabled, ...entry }
 }
 
 /**

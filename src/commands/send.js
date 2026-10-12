@@ -117,6 +117,7 @@ export function registerSendCommand (program) {
           console.log()
           console.log(chalk.bold('Transaction Preview (dry run):'))
           console.log(`  Network:   ${formatNetworkLabel(preview.network)}`)
+          console.log(`  From:      ${formatAddress(preview.from)}`)
           console.log(`  To:        ${formatAddress(preview.to)}`)
           let amountLine = `  Amount:    ${preview.amountFormatted}`
           if (preview.amountUsd && preview.amountUsd > 0) { amountLine += ` (~$${preview.amountUsd.toFixed(2)})` }

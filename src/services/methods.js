@@ -15,6 +15,7 @@
 import { walletsFile } from '../config/wdk-config.js'
 import { getNetworkConfig, parseModuleName } from '../config/networks.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
+import { hasOwn, getOwn, isDisabled } from './override-service.js'
 
 /** @typedef {import('../config/wdk-config.js').MethodEntry} MethodEntry */
 /** @typedef {import('../config/wdk-config.js').MethodParamType} MethodParamType */
@@ -166,7 +167,7 @@ export function getModuleMethods (network) {
 }
 
 /**
- * Returns every module in the catalog that declares methods.
+ * Returns every enabled module in the catalog that declares methods.
  *
  * @returns {Record<string, Record<string, MethodEntry>>} Methods keyed by package name.
  */
@@ -174,6 +175,7 @@ export function getAllModuleMethods () {
   /** @type {Record<string, Record<string, MethodEntry>>} */
   const result = {}
   for (const [pkg, entry] of Object.entries(walletsFile.modules || {})) {
+    if (isDisabled('modules', pkg)) continue
     if (entry.methods && Object.keys(entry.methods).length > 0) {
       result[pkg] = entry.methods
     }
@@ -191,7 +193,7 @@ export function getAllModuleMethods () {
  */
 export function getMethod (network, name) {
   const methods = getModuleMethods(network)
-  const method = methods[name]
+  const method = getOwn(methods, name)
   if (!method) {
     const available = Object.keys(methods)
     throw new WdkCliError(
@@ -276,7 +278,7 @@ function marshalNode (type, value, flag) {
   }
   const record = /** @type {Record<string, unknown>} */ (value)
   for (const key of Object.keys(record)) {
-    if (!(key in type)) {
+    if (!hasOwn(type, key)) {
       throw new WdkCliError(`Unknown field '${key}' in --${flag}.`, ErrorCode.INVALID_ARGUMENT)
     }
   }
@@ -338,7 +340,7 @@ function marshalParam (type, raw, flag) {
  */
 export function convertMethodArgs (method, rawArgs) {
   for (const param of Object.keys(rawArgs)) {
-    if (!(param in method.params)) {
+    if (!hasOwn(method.params, param)) {
       throw new WdkCliError(`Unknown parameter --${paramToFlag(param)}.`, ErrorCode.INVALID_ARGUMENT)
     }
   }

@@ -43,6 +43,7 @@ import { WdkCliError, ErrorCode } from '../errors/index.js'
  * @property {'swap' | 'bridge'} kind - The quote kind.
  * @property {string} network - The source network name.
  * @property {string} [toNetwork] - The destination network, when cross-network.
+ * @property {string} from - The account that pays.
  * @property {string} protocol - The protocol that produced the winning quote.
  * @property {string} fromToken - Source token symbol.
  * @property {string} toToken - Destination token symbol.
@@ -62,6 +63,7 @@ import { WdkCliError, ErrorCode } from '../errors/index.js'
  * @property {'swap' | 'bridge'} kind - The transaction kind.
  * @property {string} network - The source network name.
  * @property {string} [toNetwork] - The destination network, when cross-network.
+ * @property {string} from - The account that paid.
  * @property {string} protocol - The protocol that executed the transaction.
  * @property {string} txHash - The transaction hash (or swidge execution id).
  * @property {string} fromToken - Source token symbol.
@@ -168,6 +170,7 @@ export async function previewSwap (input) {
     kind: input.kind,
     network: input.network,
     toNetwork: crossNetwork ? destNetwork : undefined,
+    from: quote.from,
     protocol: quote.protocol,
     fromToken: from.symbol,
     toToken: to.symbol,
@@ -273,7 +276,7 @@ function formatSwidgeFees (tokens, fees) {
  */
 export async function executeSwap (input) {
   const { wallet, request, from, to, destNetwork, crossNetwork, amountIn } = await prepareRequest(input)
-  const { protocol, result, skipped } = await daemonClient.execute(input.kind, input.network, input.index, request, input.protocol, wallet)
+  const { protocol, from: payer, result, skipped } = await daemonClient.execute(input.kind, input.network, input.index, request, input.protocol, wallet)
 
   const r = /** @type {Record<string, string | undefined>} */ (result || {})
   const inBase = r.tokenInAmount ?? r.fromTokenAmount ?? amountIn
@@ -283,6 +286,7 @@ export async function executeSwap (input) {
     kind: input.kind,
     network: input.network,
     toNetwork: crossNetwork ? destNetwork : undefined,
+    from: payer,
     protocol,
     txHash: r.hash ?? r.id ?? '',
     fromToken: from.symbol,

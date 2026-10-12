@@ -14,7 +14,7 @@
 
 import { daemonClient } from '../daemon/client.js'
 import { validateNetwork, getAllNetworkNames, isTestnet } from '../config/networks.js'
-import { convertToUsd } from '../services/price-service.js'
+import { convertToUsd, convertManyNativeToUsd } from '../services/price-service.js'
 import { formatAmount } from '../ui/formatters.js'
 
 /**
@@ -34,6 +34,7 @@ import { formatAmount } from '../ui/formatters.js'
  * @property {number} decimals - Token decimal places.
  * @property {string} formatted - Human-readable formatted balance with symbol.
  * @property {number} usd - Approximate USD value (0 if price unavailable).
+ * @property {string} address - The account address the balance belongs to.
  * @property {string} [token] - Token contract address, present when a token was queried.
  */
 
@@ -65,6 +66,7 @@ export async function getBalance (input) {
     decimals: r.decimals,
     formatted: formatAmount(balanceBigInt, r.decimals, r.symbol),
     usd,
+    address: r.address,
     ...(input.token ? { token: input.token } : {})
   }
 }
@@ -109,32 +111,37 @@ export async function getAllBalances (input) {
 
   const tasks = names.map(async (network) => {
     try {
-      const address = await daemonClient.getAddress(network, input.index, wallet)
       const r = await daemonClient.getBalance(network, input.index, undefined, wallet)
       const balanceBigInt = BigInt(r.balance)
-      let usd = 0
-      if (balanceBigInt > 0n) {
-        try {
-          usd = await convertToUsd(network, balanceBigInt)
-        } catch {
-          /* no price */
-        }
-      }
       return {
         network,
-        address,
+        address: r.address,
         balance: r.balance,
         symbol: r.symbol,
         decimals: r.decimals,
         formatted: formatAmount(balanceBigInt, r.decimals, r.symbol),
-        usd
+        balanceBigInt
       }
     } catch {
       return null
     }
   })
 
-  const rows = (await Promise.all(tasks)).filter((r) => r !== null)
+  const fetched = (await Promise.all(tasks)).filter((r) => r !== null)
+
+  let usdByNetwork = new Map()
+  try {
+    usdByNetwork = await convertManyNativeToUsd(
+      fetched.filter((r) => r.balanceBigInt > 0n).map((r) => ({ network: r.network, amount: r.balanceBigInt }))
+    )
+  } catch {
+    /* no price */
+  }
+
+  const rows = fetched.map(({ balanceBigInt: _b, ...row }) => ({
+    ...row,
+    usd: usdByNetwork.get(row.network) ?? 0
+  }))
   const totalUsd = rows.reduce((sum, r) => sum + r.usd, 0)
   return {
     index: input.index,

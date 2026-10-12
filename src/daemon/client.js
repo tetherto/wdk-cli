@@ -38,6 +38,7 @@ import { WalletKeyring } from '../security/keyring.js'
 /** @typedef {import('./protocol.js').GetAddressResult} GetAddressResult */
 /** @typedef {import('./protocol.js').GetBalanceResult} GetBalanceResult */
 /** @typedef {import('./protocol.js').EstimateFeeResult} EstimateFeeResult */
+/** @typedef {import('./protocol.js').CallMethodResult} CallMethodResult */
 /** @typedef {import('./protocol.js').SendResult} SendResult */
 /** @typedef {import('./protocol.js').SignMessageResult} SignMessageResult */
 /** @typedef {import('./protocol.js').VerifyMessageResult} VerifyMessageResult */
@@ -324,7 +325,7 @@ export class DaemonClient {
    * @param {Record<string, string>} args - Raw method argument strings keyed by parameter name.
    * @param {number} [index] - The BIP-44 account index.
    * @param {string} [wallet] - The wallet name.
-   * @returns {Promise<unknown>} The method result (BigInt values serialized as strings, undefined as null).
+   * @returns {Promise<CallMethodResult>} The method result (BigInt values serialized as strings, undefined as null) and the account it acted as.
    */
   async callMethod (network, method, args, index = 0, wallet) {
     const resp = await this.request(
@@ -332,8 +333,7 @@ export class DaemonClient {
       IPC_WRITE_TIMEOUT_MS
     )
     this.#assertOk(resp, `Failed to call ${method}`)
-    const data = /** @type {{ result: unknown }} */ (resp.data)
-    return data.result
+    return /** @type {CallMethodResult} */ (resp.data)
   }
 
   /**
@@ -362,7 +362,7 @@ export class DaemonClient {
    * @param {string} signature - The signature to check.
    * @param {number} [index] - The BIP-44 account index (default: 0).
    * @param {string} [wallet] - The wallet name.
-   * @returns {Promise<boolean>} True when the signature is valid.
+   * @returns {Promise<VerifyMessageResult>} Whether the signature is valid, and the account it was checked against.
    */
   async verifyMessage (network, message, signature, index = 0, wallet) {
     const resp = await this.request(
@@ -370,8 +370,7 @@ export class DaemonClient {
       IPC_READ_TIMEOUT_MS
     )
     this.#assertOk(resp, 'Failed to verify message')
-    const data = /** @type {VerifyMessageResult} */ (resp.data)
-    return data.valid
+    return /** @type {VerifyMessageResult} */ (resp.data)
   }
 
   /**

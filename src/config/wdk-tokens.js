@@ -17,13 +17,22 @@ import { createRequire } from 'node:module'
 const tokensFileRaw = createRequire(import.meta.url)('../../wdk.tokens.json')
 
 /**
- * Provider-specific external mappings for a token. Each field is optional and
- * may be absent when the token is not supported by that provider.
+ * How one external system names this token. A plain string is the slug on its
+ * own; the object form carries the slug plus the extra fields that system's
+ * API takes alongside it (e.g. Transak's `network`), forwarded verbatim.
+ *
+ * @typedef {string | TokenSlugEntry} TokenSlug
+ */
+
+/** @typedef {{ slug: string } & Record<string, unknown>} TokenSlugEntry */
+
+/**
+ * External mappings for a token.
  *
  * @typedef {Object} TokenMetadata
- * @property {string} [indexerSlug] - The token slug used by the indexer API (e.g. "usdt").
- * @property {string} [moonpaySlug] - The asset slug used by MoonPay (e.g. "usdt_polygon").
- * @property {string} [bitfinexSlug] - The Bitfinex pair slug for USD price (e.g. "tUSTUSD").
+ * @property {Record<string, TokenSlug>} [slugs] - The slug each external system
+ *   uses for this token, keyed by system name (e.g. `indexer`, `moonpay`,
+ *   `bitfinex`). Absent keys mean the system does not carry the token.
  */
 
 /**

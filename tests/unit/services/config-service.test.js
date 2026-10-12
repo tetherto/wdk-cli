@@ -31,7 +31,6 @@ const PRISTINE_CONFIG = await readFile(CONFIG_PATH, 'utf8')
 
 describe('ConfigService', () => {
   afterEach(async () => {
-    delete process.env.WDK_INDEXER_API_KEY
     await writeFile(CONFIG_PATH, PRISTINE_CONFIG)
   })
 
@@ -77,11 +76,5 @@ describe('ConfigService', () => {
     const config = configService.list()
 
     expect(config.defaultIndex).toBe(3)
-  })
-
-  it('prefers the env var for the indexer apiKey', () => {
-    process.env.WDK_INDEXER_API_KEY = 'test-api-key-123'
-
-    expect(configService.get('indexer.apiKey')).toBe('test-api-key-123')
   })
 })

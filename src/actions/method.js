@@ -104,6 +104,7 @@ export function listAllMethods () {
  * @typedef {Object} CallMethodResult
  * @property {string} network - The blockchain network name.
  * @property {string} method - The invoked method name.
+ * @property {string} address - The account the method acted as.
  * @property {unknown} result - The method result (BigInt values serialized as strings, undefined as null).
  */
 
@@ -118,6 +119,6 @@ export async function callMethod (input) {
   const args = input.args || {}
   validateMethodArgs(method, args)
   const wallet = await daemonClient.requireUnlocked(input.wallet)
-  const result = await daemonClient.callMethod(input.network, input.name, args, input.index, wallet)
-  return { network: input.network, method: input.name, result }
+  const { result, address } = await daemonClient.callMethod(input.network, input.name, args, input.index, wallet)
+  return { network: input.network, method: input.name, address, result }
 }

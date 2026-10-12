@@ -31,7 +31,7 @@ import { createRampUrl } from '../actions/ramp.js'
  * @property {string} [fiatCurrency] - Fiat currency code.
  * @property {string} [fiatAmount] - Fiat amount string.
  * @property {string} [cryptoAmount] - Crypto amount string.
- * @property {string} [module] - Fiat provider module name.
+ * @property {string} [provider] - Fiat provider short name.
  * @property {string} [wallet] - Wallet name.
  */
 
@@ -55,7 +55,7 @@ async function handleRampAction (direction, options, program) {
       network,
       index,
       token: options.token,
-      module: options.module,
+      provider: options.provider,
       fiatCurrency: options.fiatCurrency,
       fiatAmount: options.fiatAmount,
       cryptoAmount: options.cryptoAmount,
@@ -76,7 +76,7 @@ async function handleRampAction (direction, options, program) {
     console.log(`  Network:  ${formatNetworkLabel(result.network)}`)
     console.log(`  Address:  ${result.address}`)
     console.log(`  Token:    ${result.token.toUpperCase()}`)
-    console.log(`  Module:   ${result.module}`)
+    console.log(`  Provider: ${result.provider}`)
     console.log(`  Pay:      ${result.payAmount}`)
     if (result.receiveAmount) console.log(`  Receive:  ~${result.receiveAmount}`)
     if (result.fee) console.log(`  Fee:      ${result.fee}`)
@@ -84,6 +84,9 @@ async function handleRampAction (direction, options, program) {
       console.log(
         `  Rate:     1 ${result.token.toUpperCase()} ≈ ${result.rate} ${result.fiatCurrency.toUpperCase()}`
       )
+    }
+    if (result.quoteUnavailable) {
+      console.log(`  Quote:    ${chalk.dim(`unavailable — ${result.quoteUnavailable}`)}`)
     }
     console.log()
     console.log(`  ${chalk.cyan(result.url)}`)
@@ -108,7 +111,7 @@ export function registerRampCommands (program) {
     .option('--fiat-currency <currency>', 'Fiat currency code', 'usd')
     .option('--fiat-amount <value>', 'Fiat amount (e.g. 100 for $100)')
     .option('--crypto-amount <value>', 'Crypto amount (e.g. 0.05)')
-    .option('--module <module>', 'Fiat provider module', 'moonpay')
+    .option('--provider <name>', 'Fiat provider (default: the only enabled one)')
 
   configureHelp(buy, {
     params: [
@@ -127,7 +130,7 @@ export function registerRampCommands (program) {
         flags: '--crypto-amount <value>',
         description: 'Amount in crypto to buy (e.g. 0.05), mutually exclusive with --fiat-amount'
       },
-      { flags: '--module <module>', description: 'Fiat provider module (default: moonpay)' }
+      { flags: '--provider <name>', description: 'Fiat provider short name (default: the only enabled one)' }
     ],
     options: [
       { flags: '--wallet <name>', description: 'Wallet name (default: default wallet)' },
@@ -153,7 +156,7 @@ export function registerRampCommands (program) {
     .option('--fiat-currency <currency>', 'Fiat currency code', 'usd')
     .option('--fiat-amount <value>', 'Fiat amount (e.g. 200 for $200)')
     .option('--crypto-amount <value>', 'Crypto amount (e.g. 50)')
-    .option('--module <module>', 'Fiat provider module', 'moonpay')
+    .option('--provider <name>', 'Fiat provider (default: the only enabled one)')
 
   configureHelp(sell, {
     params: [
@@ -172,7 +175,7 @@ export function registerRampCommands (program) {
         flags: '--crypto-amount <value>',
         description: 'Amount in crypto to sell (e.g. 50), mutually exclusive with --fiat-amount'
       },
-      { flags: '--module <module>', description: 'Fiat provider module (default: moonpay)' }
+      { flags: '--provider <name>', description: 'Fiat provider short name (default: the only enabled one)' }
     ],
     options: [
       { flags: '--wallet <name>', description: 'Wallet name (default: default wallet)' },

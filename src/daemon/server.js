@@ -39,6 +39,17 @@ import { formatAmount } from '../ui/formatters.js'
 /** @typedef {import('./protocol.js').WalletStatus} WalletStatus */
 /** @typedef {import('node:net').Server} Server */
 /** @typedef {import('node:net').Socket} Socket */
+/** @typedef {import('@tetherto/wdk').WdkAccount} WalletAccount */
+/** @typedef {import('../services/protocol-adapter.js').SwapRequest} SwapRequest */
+/** @typedef {import('../services/swap-orchestrator.js').RouteRequestContext} RouteRequestContext */
+
+/**
+ * @typedef {Object} QuoteInputs
+ * @property {WalletAccount} account - The source-network account that pays.
+ * @property {string} from - The paying account's address, reported back to the caller.
+ * @property {SwapRequest} request - The normalized request with BigInt amounts and a resolved recipient.
+ * @property {RouteRequestContext} context - Display context for the no-route message.
+ */
 
 /**
  * @typedef {Object} WalletState
@@ -382,7 +393,7 @@ export class WalletDaemon {
           const safe = result === undefined
             ? null
             : JSON.parse(JSON.stringify({ v: result }, bigintReplacer)).v
-          return { ok: true, data: { result: safe } }
+          return { ok: true, data: { result: safe, address: await account.getAddress() } }
         } catch (e) {
           return errorResponse(e)
         }
@@ -396,6 +407,7 @@ export class WalletDaemon {
           const wdk = this.#requireWallet(wallet)
           const networkConfig = getNetworkConfig(req.network)
           const account = await wdk.getAccount(req.network, req.index ?? 0)
+          const address = await account.getAddress()
 
           if (req.token) {
             const balance = await account.getTokenBalance(req.token)
@@ -405,7 +417,8 @@ export class WalletDaemon {
               data: {
                 balance: balance.toString(),
                 symbol: tokenInfo?.symbol || 'tokens',
-                decimals: tokenInfo?.decimals || 0
+                decimals: tokenInfo?.decimals || 0,
+                address
               }
             }
           }
@@ -416,7 +429,8 @@ export class WalletDaemon {
             data: {
               balance: balance.toString(),
               symbol: networkConfig.nativeSymbol,
-              decimals: networkConfig.decimals
+              decimals: networkConfig.decimals,
+              address
             }
           }
         } catch (e) {
@@ -451,7 +465,7 @@ export class WalletDaemon {
 
           const feeFormatted = formatAmount(fee, networkConfig.decimals, networkConfig.nativeSymbol)
 
-          return { ok: true, data: { fee: fee.toString(), feeFormatted } }
+          return { ok: true, data: { fee: fee.toString(), feeFormatted, from: await account.getAddress() } }
         } catch (e) {
           return errorResponse(e)
         }
@@ -466,38 +480,19 @@ export class WalletDaemon {
           const account = await wdk.getAccount(req.network, req.index ?? 0)
           const sendAmount = BigInt(req.amount)
 
-          let txHash
-          let from
-          let fee
-
-          if (req.token) {
-            const result = await account.transfer({
-              token: req.token,
-              recipient: req.to,
-              amount: sendAmount
-            })
-            txHash = result.hash
-            from = await account.getAddress()
-            fee = result.fee?.toString()
-          } else {
-            const result = await account.sendTransaction({
-              to: req.to,
-              value: sendAmount
-            })
-            txHash = result.hash
-            from = await account.getAddress()
-            fee = result.fee?.toString()
-          }
+          const result = req.token
+            ? await account.transfer({ token: req.token, recipient: req.to, amount: sendAmount })
+            : await account.sendTransaction({ to: req.to, value: sendAmount })
 
           return {
             ok: true,
             data: {
-              txHash,
+              txHash: result.hash,
               network: req.network,
-              from,
+              from: await account.getAddress(),
               to: req.to,
               amount: req.amount,
-              fee
+              fee: result.fee?.toString()
             }
           }
         } catch (e) {
@@ -534,7 +529,7 @@ export class WalletDaemon {
           const wdk = this.#requireWallet(wallet)
           const account = await wdk.getAccount(req.network, req.index ?? 0)
           const valid = await account.verify(req.message, req.signature)
-          return { ok: true, data: { valid } }
+          return { ok: true, data: { valid, address: await account.getAddress() } }
         } catch (e) {
           return errorResponse(e)
         }
@@ -618,7 +613,7 @@ export class WalletDaemon {
       return { ok: false, error: 'Missing required field: request' }
     }
     try {
-      const { account, request, context } = await this.#resolveQuoteInputs(req, wallet)
+      const { account, from, request, context } = await this.#resolveQuoteInputs(req, wallet)
       const { quote: best, failures } = await quoteBest({
         account,
         requestKind,
@@ -632,6 +627,7 @@ export class WalletDaemon {
         ok: true,
         data: {
           protocol: best.protocol,
+          from,
           inputAmount: best.inputAmount !== undefined ? best.inputAmount.toString() : undefined,
           outputAmount: best.outputAmount.toString(),
           fees: JSON.parse(JSON.stringify({ v: best.fees }, bigintReplacer)).v,
@@ -661,7 +657,7 @@ export class WalletDaemon {
       return { ok: false, error: 'Missing required field: request' }
     }
     try {
-      const { account, request, context } = await this.#resolveQuoteInputs(req, wallet)
+      const { account, from, request, context } = await this.#resolveQuoteInputs(req, wallet)
       const { protocol, result, failures } = await executeBest({
         account,
         requestKind,
@@ -675,6 +671,7 @@ export class WalletDaemon {
         ok: true,
         data: {
           protocol,
+          from,
           result: JSON.parse(JSON.stringify({ v: result }, bigintReplacer)).v,
           skipped: failures
         }
@@ -694,35 +691,51 @@ export class WalletDaemon {
    *
    * @param {DaemonRequest} req - The parsed request object (with `req.request` set).
    * @param {string} wallet - The resolved wallet name.
-   * @returns {Promise<{ account: any, request: object, context: object }>}
+   * @returns {Promise<QuoteInputs>} The inputs shared by the quote and execute handlers.
    */
   async #resolveQuoteInputs (req, wallet) {
     const wdk = this.#requireWallet(wallet)
     const account = await wdk.getAccount(req.network, req.index ?? 0)
 
+    const from = await account.getAddress()
+
     const r = /** @type {import('./protocol.js').QuoteRequest} */ (req.request)
     const destAccount = r.toNetwork && r.toNetwork !== req.network
       ? await wdk.getAccount(r.toNetwork, req.index ?? 0)
       : account
-    const recipient = r.recipient || await destAccount.getAddress()
-    const request = {
+    const recipient = r.recipient || (destAccount === account ? from : await destAccount.getAddress())
+    const request = /** @type {SwapRequest} */ ({
       fromToken: r.fromToken,
       toToken: r.toToken,
       toChain: r.toChain,
       amountIn: r.amountIn !== undefined ? BigInt(r.amountIn) : undefined,
       amountOut: r.amountOut !== undefined ? BigInt(r.amountOut) : undefined,
       recipient
-    }
+    })
     const context = { fromToken: r.fromSymbol, toToken: r.toSymbol, toNetwork: r.toNetwork }
-    return { account, request, context }
+    return { account, from, request, context }
   }
 
   /**
-   * Gracefully shuts down the daemon: disposes all wallets, closes the server, removes socket/PID files, and exits.
+   * Gracefully shuts down the daemon and exits the process. Split from
+   * {@link WalletDaemon#close} so a caller that owns the process — a test, or
+   * an embedder — can release the daemon's resources without terminating.
    *
    * @returns {Promise<void>}
    */
   async shutdown () {
+    await this.close()
+    process.exit(0)
+  }
+
+  /**
+   * Releases everything the daemon holds: disposes each unlocked wallet, stops
+   * accepting connections, and removes the socket and PID files. Leaves the
+   * process running.
+   *
+   * @returns {Promise<void>}
+   */
+  async close () {
     for (const [, state] of this.#wallets) {
       if (state.timer) clearTimeout(state.timer)
       state.wdk.dispose()
@@ -747,8 +760,6 @@ export class WalletDaemon {
     } catch {
       /* */
     }
-
-    process.exit(0)
   }
 }
 

@@ -22,6 +22,7 @@ jest.unstable_mockModule('../../../src/daemon/client.js', () => ({
 }))
 
 const { listMethods, listAllMethods, callMethod } = await import('../../../src/actions/method.js')
+const { configService } = await import('../../../src/services/config-service.js')
 
 beforeEach(() => {
   requireUnlocked.mockReset()
@@ -69,12 +70,28 @@ describe('listAllMethods', () => {
       params: { txid: 'string' }
     })
   })
+
+  it('leaves out a disabled module', () => {
+    jest.spyOn(configService, 'get').mockImplementation((key) =>
+      key === 'overrides' ? { modules: { '@tetherto/wdk-wallet-spark': { enabled: false } } } : undefined
+    )
+
+    const result = listAllMethods()
+
+    expect(result.modules.map((m) => m.module)).toEqual([
+      '@tetherto/wdk-wallet-evm',
+      '@tetherto/wdk-wallet-evm-erc-4337'
+    ])
+    jest.restoreAllMocks()
+  })
 })
 
 describe('callMethod', () => {
+  const DUMMY_ADDRESS = 'sprt1dummyaddress0000000000000000000000000000000000000000000000'
+
   it('dispatches a valid call through the daemon client', async () => {
     requireUnlocked.mockResolvedValue('dummy-wallet')
-    daemonCallMethod.mockResolvedValue({ transferId: 'dummy-transfer-id' })
+    daemonCallMethod.mockResolvedValue({ result: { transferId: 'dummy-transfer-id' }, address: DUMMY_ADDRESS })
 
     const result = await callMethod({
       network: 'spark-regtest',
@@ -94,6 +111,7 @@ describe('callMethod', () => {
     expect(result).toEqual({
       network: 'spark-regtest',
       method: 'claimStaticDeposit',
+      address: DUMMY_ADDRESS,
       result: { transferId: 'dummy-transfer-id' }
     })
   })

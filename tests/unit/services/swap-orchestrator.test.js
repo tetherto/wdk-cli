@@ -12,7 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { quoteCandidates, executeCandidates, normalizeQuote } from '../../../src/services/swap-orchestrator.js'
+import { jest } from '@jest/globals'
+
+// Mocked, not spied on: the real service reads the developer's own config file.
+jest.unstable_mockModule('../../../src/services/config-service.js', () => ({
+  configService: { get: jest.fn(), set: jest.fn(), delete: jest.fn() }
+}))
+
+const { quoteCandidates, executeCandidates, normalizeQuote } =
+  await import('../../../src/services/swap-orchestrator.js')
 
 const FROM = { address: '0xUSDT', decimals: 6 }
 const TO = { address: '0xETH', decimals: 18 }

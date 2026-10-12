@@ -17,10 +17,12 @@ import WdkBaseAssetRegistry, { TokenAssetSchema } from '@tetherto/wdk-asset-regi
 import { tokensFile } from '../config/wdk-tokens.js'
 import { walletsFile } from '../config/wdk-config.js'
 import { configService } from './config-service.js'
+import { getOverrides, isDisabled, setEnabled, clearOverride, getOwn } from './override-service.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 import { humanToBaseUnits } from '../ui/parsers.js'
 
 /** @typedef {import('../config/wdk-tokens.js').TokenMetadata} TokenMetadata */
+/** @typedef {import('../config/wdk-tokens.js').TokenSlug} TokenSlug */
 /** @typedef {import('../config/wdk-tokens.js').CliTokenAsset} CliTokenAsset */
 
 /**
@@ -105,7 +107,57 @@ function customEntryToAsset (network, slug, entry) {
     ...(entry.nativeId !== undefined && { nativeId: entry.nativeId }),
     ...(entry.address !== undefined && { address: entry.address }),
     testnet: walletsFile.networks[network]?.testnet ?? false,
-    ...(entry.metadata !== undefined && { metadata: entry.metadata })
+    ...(entry.metadata !== undefined && { metadata: normalizeMetadata(entry.metadata) })
+  }
+}
+
+/** Pre-v3 metadata fields, mapped to the system key they moved to. */
+const LEGACY_SLUG_FIELDS = { indexerSlug: 'indexer', moonpaySlug: 'moonpay', bitfinexSlug: 'bitfinex' }
+
+/**
+ * Upgrades a stored custom token's metadata to the `slugs` block. Entries
+ * written before the block existed keep working without a config migration;
+ * a value already under `slugs` wins over its legacy field.
+ *
+ * @param {TokenMetadata} metadata - Metadata as stored in user config.
+ * @returns {TokenMetadata} Metadata with legacy fields folded into `slugs`.
+ */
+function normalizeMetadata (metadata) {
+  const legacy = Object.entries(LEGACY_SLUG_FIELDS)
+    .filter(([field]) => typeof metadata[field] === 'string')
+  if (legacy.length === 0) return metadata
+  const rest = Object.fromEntries(
+    Object.entries(metadata).filter(([key]) => key !== 'slugs' && !(key in LEGACY_SLUG_FIELDS))
+  )
+  return {
+    ...rest,
+    slugs: {
+      ...Object.fromEntries(legacy.map(([field, system]) => [system, metadata[field]])),
+      ...metadata.slugs
+    }
+  }
+}
+
+/**
+ * Applies the user's `overrides.tokens.<id>.metadata.slugs` deltas to an asset.
+ * Each system is merged individually, so adding a mapping for one provider
+ * leaves the packaged mappings for the others in place. These deltas are
+ * written with `wdk config set`, which does not validate them, so an entry
+ * carrying no slug is dropped rather than shadowing the packaged mapping.
+ *
+ * @param {CliTokenAsset} asset - The asset as the catalog or user config defines it.
+ * @returns {CliTokenAsset} The asset with any slug deltas applied.
+ */
+function withSlugOverrides (asset) {
+  const slugs = getOwn(getOverrides().tokens, asset.id)?.metadata?.slugs
+  if (!slugs || typeof slugs !== 'object') return asset
+  const usable = Object.fromEntries(
+    Object.entries(slugs).filter(([, entry]) => slugValue(entry) !== undefined)
+  )
+  if (Object.keys(usable).length === 0) return asset
+  return {
+    ...asset,
+    metadata: { ...asset.metadata, slugs: { ...asset.metadata?.slugs, ...usable } }
   }
 }
 
@@ -131,6 +183,10 @@ function toTokenEntry (asset) {
 let cachedRegistry
 /** @type {string | undefined} */
 let cachedCustomSnapshot
+/** @type {CliTokenAssetRegistry | undefined} */
+let cachedFullRegistry
+/** @type {string | undefined} */
+let cachedFullSnapshot
 
 /**
  * Returns the token registry with built-in assets plus the user's custom
@@ -140,21 +196,31 @@ let cachedCustomSnapshot
  * Custom entries that fail schema validation are skipped with a warning on
  * stderr, so one malformed entry cannot break every command.
  *
+ * @param {boolean} [includeDisabled] - Include entries the user disabled, for
+ *   inspection; cached separately from the usable-only registry (default: false).
  * @returns {CliTokenAssetRegistry}
  */
-function getRegistry () {
+function getRegistry (includeDisabled = false) {
   const custom = /** @type {Record<string, Record<string, TokenEntry>> | undefined} */ (
     configService.get('customTokens')
   )
-  const snapshot = custom === undefined ? '' : JSON.stringify(custom)
-  if (cachedRegistry && snapshot === cachedCustomSnapshot) return cachedRegistry
+  const snapshot = JSON.stringify([custom ?? null, getOverrides().tokens ?? null])
+  if (includeDisabled) {
+    if (cachedFullRegistry && snapshot === cachedFullSnapshot) return cachedFullRegistry
+  } else if (cachedRegistry && snapshot === cachedCustomSnapshot) {
+    return cachedRegistry
+  }
 
-  const registry = new CliTokenAssetRegistry(tokensFile.assets)
+  const keep = (id) => includeDisabled || !isDisabled('tokens', id)
+  const registry = new CliTokenAssetRegistry(
+    tokensFile.assets.filter((a) => keep(a.id)).map(withSlugOverrides)
+  )
   if (custom) {
     for (const [network, entries] of Object.entries(custom)) {
       for (const [slug, entry] of Object.entries(entries)) {
+        if (!keep(`${network}/${slug}`)) continue
         try {
-          registry.registerAsset(customEntryToAsset(network, slug, entry), true)
+          registry.registerAsset(withSlugOverrides(customEntryToAsset(network, slug, entry)), true)
         } catch (error) {
           const issue = error.issues?.[0]
           const detail = issue ? `${issue.path.join('.') || 'entry'}: ${issue.message}` : error.message
@@ -166,6 +232,11 @@ function getRegistry () {
       }
     }
   }
+  if (includeDisabled) {
+    cachedFullRegistry = registry
+    cachedFullSnapshot = snapshot
+    return registry
+  }
   cachedRegistry = registry
   cachedCustomSnapshot = snapshot
   return registry
@@ -174,22 +245,29 @@ function getRegistry () {
 /**
  * Returns all assets registered for a network, built-in and custom merged.
  *
- * @param {string} network
+ * @param {string} network - The network name.
+ * @param {boolean} [includeDisabled] - Include entries the user disabled (default: false).
  * @returns {CliTokenAsset[]}
  */
-function assetsForNetwork (network) {
-  return getRegistry().getAsset([{ network }])
+function assetsForNetwork (network, includeDisabled = false) {
+  return getRegistry(includeDisabled).getAsset([{ network }])
 }
+
+/**
+ * @typedef {Object} TokenLookupOptions
+ * @property {boolean} [includeDisabled] - Resolve entries the user disabled, for inspection (default: false).
+ */
 
 /**
  * Resolves a token by its registry token (case-insensitive).
  *
  * @param {string} network - The network name.
  * @param {string} token - The token (e.g. "usdt").
+ * @param {TokenLookupOptions} [options] - Resolution options.
  * @returns {TokenEntry | undefined} The token entry, or undefined if not registered.
  */
-export function getTokenByName (network, token) {
-  const asset = getRegistry().getAssetById(`${network}/${token.toLowerCase()}`)
+export function getTokenByName (network, token, options = {}) {
+  const asset = getRegistry(options.includeDisabled).getAssetById(`${network}/${token.toLowerCase()}`)
   return asset ? toTokenEntry(asset) : undefined
 }
 
@@ -211,59 +289,64 @@ export function getTokenByAddress (network, address) {
  * Returns all tokens (built-in + custom merged) for the given network.
  *
  * @param {string} network - The network name.
+ * @param {TokenLookupOptions} [options] - Resolution options.
  * @returns {Record<string, TokenEntry>} Token entries keyed by token.
  */
-export function getTokensForNetwork (network) {
-  return Object.fromEntries(assetsForNetwork(network).map((a) => [a.slug, toTokenEntry(a)]))
+export function getTokensForNetwork (network, options = {}) {
+  return Object.fromEntries(
+    assetsForNetwork(network, options.includeDisabled).map((a) => [a.slug, toTokenEntry(a)])
+  )
 }
 
 /**
- * Returns the indexer slug (`metadata.indexerSlug`) for the given token, or
- * undefined when the token isn't registered or has no indexer mapping.
+ * Returns the slug string from either slug form, or undefined when the entry
+ * is absent or malformed.
  *
- * @param {string} network
- * @param {string} token
- * @returns {string | undefined}
+ * @param {TokenSlug | undefined} entry - The stored mapping.
+ * @returns {string | undefined} The slug string.
  */
-export function getIndexerCode (network, token) {
-  return getTokenByName(network, token)?.metadata?.indexerSlug
+function slugValue (entry) {
+  if (typeof entry === 'string') return entry || undefined
+  if (entry && typeof entry === 'object' && typeof entry.slug === 'string') return entry.slug || undefined
+  return undefined
 }
 
 /**
- * Returns the MoonPay asset slug (`metadata.moonpaySlug`) for the given token,
- * or undefined when the token isn't registered or has no MoonPay mapping.
+ * Returns how an external system names a token: the plain slug, or the object
+ * form when that system takes extra fields alongside it.
  *
- * @param {string} network
- * @param {string} token
- * @returns {string | undefined}
+ * @param {string} network - The network name.
+ * @param {string} token - The token name.
+ * @param {string} system - The external system key (e.g. "indexer", "moonpay").
+ * @returns {TokenSlug | undefined} The mapping, or undefined when the token is
+ *   not registered or that system does not carry it.
  */
-export function getMoonpayCode (network, token) {
-  return getTokenByName(network, token)?.metadata?.moonpaySlug
+export function getTokenSlug (network, token, system) {
+  return getOwn(getTokenByName(network, token)?.metadata?.slugs, system)
 }
 
 /**
- * Returns the Bitfinex pair slug (`metadata.bitfinexSlug`) for the given token,
- * or undefined when the token isn't registered or has no Bitfinex mapping.
+ * Returns the slug string an external system uses for an already-resolved
+ * token entry, discarding the extra fields of the object form.
  *
- * @param {string} network
- * @param {string} token
- * @returns {string | undefined}
+ * @param {{ metadata?: TokenMetadata } | undefined} entry - The token entry.
+ * @param {string} system - The external system key (e.g. "indexer", "moonpay").
+ * @returns {string | undefined} The slug, or undefined when unmapped.
  */
-export function getBitfinexCode (network, token) {
-  return getTokenByName(network, token)?.metadata?.bitfinexSlug
+export function tokenSlugValue (entry, system) {
+  return slugValue(getOwn(entry?.metadata?.slugs, system))
 }
 
 /**
- * Returns the list of token names on a network that have a mapping for the
- * given provider in their `metadata` block.
+ * Returns the token names on a network that the given external system carries.
  *
- * @param {string} network
- * @param {'indexerSlug' | 'moonpaySlug' | 'bitfinexSlug'} provider
+ * @param {string} network - The network name.
+ * @param {string} system - The external system key (e.g. "indexer", "moonpay").
  * @returns {string[]} Token names (lowercase keys from the registry).
  */
-export function getTokensSupportedBy (network, provider) {
+export function getTokensSupportedBy (network, system) {
   return assetsForNetwork(network)
-    .filter((a) => a.metadata && typeof a.metadata[provider] === 'string')
+    .filter((a) => slugValue(getOwn(a.metadata?.slugs, system)) !== undefined)
     .map((a) => a.slug)
 }
 
@@ -284,18 +367,18 @@ export function getNativeToken (network) {
  *
  * @returns {Record<string, Record<string, TokenEntry>>}
  */
-export function getAllTokens () {
+export function getAllTokens (options = {}) {
   /** @type {Record<string, Record<string, TokenEntry>>} */
   const result = {}
   for (const network of BUILTIN_NETWORKS) {
-    result[network] = getTokensForNetwork(network)
+    result[network] = getTokensForNetwork(network, options)
   }
   const customAll = /** @type {Record<string, Record<string, TokenEntry>> | undefined} */ (
     configService.get('customTokens')
   )
   if (customAll) {
     for (const network of Object.keys(customAll)) {
-      if (!result[network]) result[network] = getTokensForNetwork(network)
+      if (!result[network]) result[network] = getTokensForNetwork(network, options)
     }
   }
   return result
@@ -346,16 +429,19 @@ export function getTokenSource (network, token) {
  * @param {string} network
  * @param {string} token - The user-supplied token name (e.g. "usdt", "eth").
  * @returns {ResolvedTokenIdentifier}
- * @throws {WdkCliError} When the token is not registered, or when a non-native
- *   token entry has no contract address (e.g. indexer-only entry).
+ * @throws {WdkCliError} When the token is not registered or is disabled, or
+ *   when a non-native token entry has no contract address (e.g. indexer-only entry).
  */
 export function resolveTokenIdentifier (network, token) {
   const hit = getTokenByName(network, token)
   if (!hit) {
+    const disabled = isDisabled('tokens', `${network}/${token.toLowerCase()}`)
     throw new WdkCliError(
-      `Token '${token}' is not registered on '${network}'.`,
+      `Token '${token}' is ${disabled ? 'disabled' : 'not registered'} on '${network}'.`,
       ErrorCode.TOKEN_NOT_SUPPORTED,
-      `Run \`wdk token list --network ${network}\` to see the available tokens.`
+      disabled
+        ? `Enable it with: wdk token enable --network ${network} --token ${token}`
+        : `Run \`wdk token list --network ${network}\` to see the available tokens.`
     )
   }
   if (!hit.isNative && !hit.address) {
@@ -391,6 +477,7 @@ export function deleteCustomToken (network, token) {
   const key = `customTokens.${network}.${token.toLowerCase()}`
   if (configService.get(key) === undefined) return false
   configService.delete(key)
+  clearOverride('tokens', `${network}/${token.toLowerCase()}`)
   return true
 }
 
@@ -424,4 +511,50 @@ export function toBaseUnits (network, token, decimalAmount) {
     )
   }
   return humanToBaseUnits(decimalAmount, decimals, label)
+}
+
+/**
+ * Returns the ids (`<network>/<slug>`) of built-in tokens the user disabled.
+ *
+ * @param {string} [network] - Restrict the result to one network.
+ * @returns {string[]} The disabled token ids.
+ */
+export function getDisabledTokens (network) {
+  return Object.entries(getOverrides().tokens || {})
+    .filter(([id, o]) => o.enabled === false && (network === undefined || id.startsWith(`${network}/`)))
+    .map(([id]) => id)
+}
+
+/**
+ * Enables or disables a token, built-in or custom. Enabling a token that only
+ * exists in overrides clears the stale entry instead.
+ *
+ * @param {string} network - The network name.
+ * @param {string} token - The token key (e.g. "usdt").
+ * @param {boolean} enabled - The desired state.
+ * @returns {boolean} True when a stale override was cleared instead.
+ * @throws {WdkCliError} When the token is not registered, is the network's
+ *   native token, or is already in the desired state.
+ */
+export function setTokenEnabled (network, token, enabled) {
+  const id = `${network}/${token.toLowerCase()}`
+  const entry = getTokenByName(network, token, { includeDisabled: true })
+  if (!enabled && entry?.isNative) {
+    throw new WdkCliError(
+      `'${token}' is the native token of '${network}'.`,
+      ErrorCode.INVALID_ARGUMENT,
+      `Disable the whole network instead: wdk network disable --name ${network}`
+    )
+  }
+  return setEnabled(
+    'tokens',
+    id,
+    enabled,
+    Boolean(entry),
+    new WdkCliError(
+      `'${token}' is not registered on '${network}'.`,
+      ErrorCode.TOKEN_NOT_SUPPORTED,
+      `See registered tokens with: wdk token list --network ${network}`
+    )
+  )
 }

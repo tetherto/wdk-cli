@@ -88,6 +88,7 @@ export async function signMessage (input) {
  * @property {number} index - The BIP-44 account index.
  * @property {string} message - The checked message.
  * @property {string} signature - The checked signature.
+ * @property {string} address - The account whose key the signature was checked against.
  * @property {boolean} valid - Whether the signature is valid for the account's key.
  */
 
@@ -106,7 +107,7 @@ export async function verifyMessage (input) {
   if (typeof input.signature !== 'string' || input.signature === '') {
     throw new WdkCliError('Signature must be a non-empty string.', ErrorCode.INVALID_ARGUMENT)
   }
-  const valid = await daemonClient.verifyMessage(
+  const { valid, address } = await daemonClient.verifyMessage(
     input.network,
     input.message,
     input.signature,
@@ -118,6 +119,7 @@ export async function verifyMessage (input) {
     index: input.index,
     message: input.message,
     signature: input.signature,
+    address,
     valid
   }
 }

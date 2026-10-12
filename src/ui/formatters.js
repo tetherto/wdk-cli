@@ -69,17 +69,6 @@ export function formatNetworkLabel (network) {
 }
 
 /**
- * Formats an ISO 8601 date string into a locale-appropriate date/time string.
- *
- * @param {string} dateStr - ISO 8601 date string.
- * @returns {string} Locale-formatted date string.
- */
-export function formatDate (dateStr) {
-  const date = new Date(dateStr)
-  return date.toLocaleString()
-}
-
-/**
  * Formats a token or native asset amount for display.
  *
  * @param {bigint} amount - Amount in base units.

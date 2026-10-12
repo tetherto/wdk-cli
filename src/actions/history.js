@@ -16,6 +16,7 @@ import { daemonClient } from '../daemon/client.js'
 import { validateNetwork } from '../config/networks.js'
 import {
   isIndexerSupported,
+  assertIndexerAvailable,
   getIndexerSlug,
   getIndexerTokens,
   getTokenTransfers,
@@ -94,6 +95,7 @@ function enrichTransfer (network, t) {
  * @returns {Promise<HistoryResult>} The history result.
  */
 export async function getHistory (input) {
+  assertIndexerAvailable()
   const wallet = await daemonClient.requireUnlocked(input.wallet)
   validateNetwork(input.network)
   if (!isIndexerSupported(input.network)) {
@@ -114,8 +116,8 @@ export async function getHistory (input) {
   }
 
   const limit = input.limit ?? 30
-  const fromTs = input.fromDate ? Math.floor(new Date(input.fromDate).getTime() / 1000) : undefined
-  const toTs = input.toDate ? Math.floor(new Date(input.toDate).getTime() / 1000) : undefined
+  const fromTs = input.fromDate ? new Date(input.fromDate).getTime() : undefined
+  const toTs = input.toDate ? new Date(input.toDate).getTime() : undefined
 
   const address = await daemonClient.getAddress(input.network, input.index, wallet)
 

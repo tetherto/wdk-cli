@@ -93,7 +93,7 @@ describe('signMessage', () => {
 describe('verifyMessage', () => {
   it('returns the verification outcome from the daemon', async () => {
     requireUnlocked.mockResolvedValue('main')
-    daemonVerifyMessage.mockResolvedValue(true)
+    daemonVerifyMessage.mockResolvedValue({ valid: true, address: DUMMY_ADDRESS })
 
     const result = await verifyMessage({
       network: 'ethereum',
@@ -107,6 +107,7 @@ describe('verifyMessage', () => {
       index: 0,
       message: 'hello',
       signature: DUMMY_SIGNATURE,
+      address: DUMMY_ADDRESS,
       valid: true
     })
     expect(daemonVerifyMessage).toHaveBeenCalledWith('ethereum', 'hello', DUMMY_SIGNATURE, 0, 'main')
@@ -114,7 +115,7 @@ describe('verifyMessage', () => {
 
   it('reports an invalid signature as valid: false', async () => {
     requireUnlocked.mockResolvedValue('main')
-    daemonVerifyMessage.mockResolvedValue(false)
+    daemonVerifyMessage.mockResolvedValue({ valid: false, address: DUMMY_ADDRESS })
 
     const result = await verifyMessage({
       network: 'ethereum',
@@ -128,6 +129,7 @@ describe('verifyMessage', () => {
       index: 0,
       message: 'hello',
       signature: WRONG_SIGNATURE,
+      address: DUMMY_ADDRESS,
       valid: false
     })
     expect(daemonVerifyMessage).toHaveBeenCalledWith('ethereum', 'hello', WRONG_SIGNATURE, 0, 'main')

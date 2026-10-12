@@ -12,14 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { getAllNetworks, getAllNetworkNames, isTestnet, getValidWalletTypes } from '../config/networks.js'
+import {
+  getAllNetworks,
+  getAllNetworksIncludingDisabled,
+  isTestnet,
+  isBuiltinNetwork,
+  isCustomNetwork,
+  getValidWalletTypes
+} from '../config/networks.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
+
+/** @typedef {import('../config/wdk-tokens.js').TokenMetadata} TokenMetadata */
 import { validateTokenEntry, validateTokenName } from './token.js'
 
 /**
  * @typedef {Object} ListNetworksInput
  * @property {boolean} [testnet] - When true, return only testnet networks.
  * @property {boolean} [mainnet] - When true, return only mainnet networks.
+ * @property {boolean} [includeDisabled] - When true, also return networks the user disabled (default: false).
  */
 
 /**
@@ -32,6 +42,7 @@ import { validateTokenEntry, validateTokenName } from './token.js'
  * @property {number} [decimals] - Native token decimals (undefined when no native token is registered).
  * @property {boolean} testnet - True when the network is a testnet.
  * @property {boolean} custom - True when the network was added by the user via `wdk network create`.
+ * @property {boolean} enabled - False when the user disabled the network or its wallet module.
  */
 
 /**
@@ -47,8 +58,9 @@ import { validateTokenEntry, validateTokenName } from './token.js'
  * @returns {ListNetworksResult}
  */
 export function listNetworks (input = {}) {
-  const allNetworks = getAllNetworks()
-  let names = getAllNetworkNames()
+  const enabled = getAllNetworks()
+  const allNetworks = input.includeDisabled ? getAllNetworksIncludingDisabled() : enabled
+  let names = Object.keys(allNetworks)
 
   if (input.testnet) names = names.filter((n) => isTestnet(n))
   else if (input.mainnet) names = names.filter((n) => !isTestnet(n))
@@ -63,7 +75,8 @@ export function listNetworks (input = {}) {
       symbol: config.nativeSymbol,
       decimals: config.decimals,
       testnet: isTestnet(name),
-      custom: !!config.custom
+      custom: !!config.custom,
+      enabled: name in enabled
     }
   })
 
@@ -77,7 +90,7 @@ export function listNetworks (input = {}) {
  * @property {number} decimals - Number of decimal places, integer 0–24.
  * @property {boolean} isNative - True for the network's native asset; false for ERC-20 / SPL / etc.
  * @property {string} [address] - Contract / mint address. Required for non-native tokens.
- * @property {{ indexerSlug?: string, moonpaySlug?: string, bitfinexSlug?: string }} [metadata] - Provider-specific identifiers.
+ * @property {TokenMetadata} [metadata] - External mappings for the token, under `slugs`.
  */
 
 /**
@@ -130,6 +143,8 @@ function validateTokenInSpec (item, idx) {
  * @param {unknown} data - The raw spec value (parsed JSON, untrusted input).
  * @returns {NetworkSpec} The validated and normalized spec.
  * @throws {WdkCliError} INVALID_ARGUMENT on any malformed field.
+ * @throws {WdkCliError} WALLET_EXISTS when a network of that name is already registered,
+ *   built-in or custom, whether or not it is currently enabled.
  * @throws {WdkCliError} UNSUPPORTED_MODULE when `module` isn't a known wallet module.
  */
 export function validateNetworkSpec (data) {
@@ -144,6 +159,9 @@ export function validateNetworkSpec (data) {
       'Network spec "network" must be lowercase alphanumeric with hyphens.',
       ErrorCode.INVALID_ARGUMENT
     )
+  }
+  if (isBuiltinNetwork(network) || isCustomNetwork(network)) {
+    throw new WdkCliError(`Network '${network}' already exists.`, ErrorCode.WALLET_EXISTS)
   }
 
   const moduleName = obj.module

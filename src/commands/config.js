@@ -16,22 +16,25 @@ import chalk from 'chalk'
 import { configService } from '../services/config-service.js'
 import { CONFIG_DEFAULTS } from '../config/constants.js'
 import { validateNetwork } from '../config/networks.js'
+import { hasOwn } from '../services/override-service.js'
 import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
 import { configureHelp } from '../ui/help.js'
 import { requirePassphraseConfirmation } from '../ui/auth.js'
-import { daemonClient } from '../daemon/client.js'
+import { lockWalletsAfterChange } from '../ui/session.js'
 
 /** @typedef {import('commander').Command} Command */
 
 /**
- * Returns true when the given config path affects the SDK's per-network wallet registration.
- * Changes under `networks.*` require the daemon to be locked so stale wallet managers are dropped.
+ * Returns true when the given config path affects what the daemon holds in
+ * memory: `networks.*` feeds the per-network wallet registration, and
+ * `providers.*` the protocol instances it caches per account. Both require the
+ * daemon to be locked so the stale ones are dropped.
  *
  * @param {string} fullKey - The dot-separated config key being written.
- * @returns {boolean} True when the path falls under `networks.`.
+ * @returns {boolean} True when the path falls under `networks` or `providers`.
  */
 function affectsSdkRegistration (fullKey) {
-  return fullKey === 'networks' || fullKey.startsWith('networks.')
+  return ['networks', 'providers'].some((root) => fullKey === root || fullKey.startsWith(`${root}.`))
 }
 
 /**
@@ -45,7 +48,7 @@ function getNestedValue (obj, path) {
   /** @type {unknown} */
   let cur = obj
   for (const key of path.split('.')) {
-    if (cur === null || typeof cur !== 'object') return undefined
+    if (!hasOwn(cur, key)) return undefined
     cur = /** @type {Record<string, unknown>} */ (cur)[key]
   }
   return cur
@@ -237,8 +240,12 @@ export function registerConfigCommand (program) {
 
       configService.set(fullKey, parsed)
 
+      const walletsLocked = affectsSdkRegistration(fullKey) && program.opts().json
+        ? await lockWalletsAfterChange(true)
+        : false
+
       if (program.opts().json) {
-        console.log(JSON.stringify({ key: fullKey, value: parsed, success: true }))
+        console.log(JSON.stringify({ key: fullKey, value: parsed, success: true, walletsLocked }))
       } else if (network && !key) {
         console.log(chalk.green(`Updated config for ${network}`))
       } else if (network && key) {
@@ -247,15 +254,8 @@ export function registerConfigCommand (program) {
         console.log(chalk.green(`Set ${key} = ${value}`))
       }
 
-      if (affectsSdkRegistration(fullKey)) {
-        await daemonClient.lock()
-        if (!program.opts().json) {
-          console.log(
-            chalk.yellow(
-              'Note: all wallets have been locked so the new network config takes effect. Run `wdk wallet unlock` to continue.'
-            )
-          )
-        }
+      if (affectsSdkRegistration(fullKey) && !program.opts().json) {
+        await lockWalletsAfterChange(false)
       }
     } catch (error) {
       handleError(error, program.opts().verbose, program.opts().json)
@@ -304,29 +304,26 @@ export function registerConfigCommand (program) {
 
       if (all) {
         // Preserve user-identity data across the reset — these are user-chosen
-        // records, not configuration values: which wallet is the default,
-        // user-added networks, and user-added tokens.
+        // records, not configuration values: which wallet is the default, and
+        // user-added networks, tokens, and providers.
         const preservedDefaultWallet = configService.getDefaultWallet()
         const preservedCustomNetworks = configService.get('customNetworks')
         const preservedCustomTokens = configService.get('customTokens')
+        const preservedCustomProviders = configService.get('customProviders')
 
         configService.clear()
 
         if (preservedDefaultWallet) configService.setDefaultWallet(preservedDefaultWallet)
         if (preservedCustomNetworks) configService.set('customNetworks', preservedCustomNetworks)
         if (preservedCustomTokens) configService.set('customTokens', preservedCustomTokens)
-
-        await daemonClient.lock()
+        if (preservedCustomProviders) configService.set('customProviders', preservedCustomProviders)
 
         if (program.opts().json) {
-          console.log(JSON.stringify({ reset: true, all: true }))
+          const walletsLocked = await lockWalletsAfterChange(true)
+          console.log(JSON.stringify({ reset: true, all: true, walletsLocked }))
         } else {
           console.log(chalk.green('All config has been reset to factory defaults.'))
-          console.log(
-            chalk.yellow(
-              'Note: all wallets have been locked so the new config takes effect. Run `wdk wallet unlock` to continue.'
-            )
-          )
+          await lockWalletsAfterChange(false)
         }
         return
       }
@@ -345,23 +342,20 @@ export function registerConfigCommand (program) {
         configService.delete(fullKey)
       }
 
+      const locksWallets = affectsSdkRegistration(fullKey)
+
       if (program.opts().json) {
-        console.log(JSON.stringify({ key: fullKey, reset: true, value: defaultValue ?? null }))
-      } else if (network) {
+        const walletsLocked = locksWallets ? await lockWalletsAfterChange(true) : false
+        console.log(JSON.stringify({ key: fullKey, reset: true, value: defaultValue ?? null, walletsLocked }))
+        return
+      }
+      if (network) {
         console.log(chalk.green(`Reset ${key} to default (${network}).`))
       } else {
         console.log(chalk.green(`Reset ${key} to default.`))
       }
-
-      if (affectsSdkRegistration(fullKey)) {
-        await daemonClient.lock()
-        if (!program.opts().json) {
-          console.log(
-            chalk.yellow(
-              'Note: all wallets have been locked so the new network config takes effect. Run `wdk wallet unlock` to continue.'
-            )
-          )
-        }
+      if (locksWallets) {
+        await lockWalletsAfterChange(false)
       }
     } catch (error) {
       handleError(error, program.opts().verbose, program.opts().json)

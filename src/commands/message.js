@@ -139,6 +139,7 @@ export function registerMessageCommand (program) {
       console.log()
       console.log(`  Network: ${formatNetworkLabel(result.network)}`)
       console.log(`  Index:   ${result.index}`)
+      console.log(`  Address: ${result.address}`)
       console.log(
         `  Valid:   ${result.valid ? chalk.green('yes') : chalk.red('no')}`
       )

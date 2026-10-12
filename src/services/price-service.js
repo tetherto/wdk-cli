@@ -14,72 +14,58 @@
 
 import BigNumber from 'bignumber.js'
 import {
-  getAllTokens,
   getNativeToken,
-  getTokensForNetwork,
-  getTokenByAddress
+  getTokenByAddress,
+  tokenSlugValue
 } from './token-service.js'
+import { resolvePricingProvider } from './pricing/index.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 
-/**
- * @typedef {Object} PriceCache
- * @property {Map<string, number>} prices - Map of Bitfinex symbol to USD price.
- * @property {number} timestamp - The Unix timestamp (ms) when the cache was populated.
- */
+/** @typedef {import('./token-service.js').TokenEntry} TokenEntry */
 
-const CACHE_TTL_MS = 5 * 60 * 1000
-/** @type {PriceCache | null} */
-let cache = null
+/** The quote currency every price is expressed in. */
+const QUOTE = 'USD'
 
 /**
- * Collects every unique `metadata.bitfinexSlug` value from the token registry, so
- * a single Bitfinex API call covers all known networks and tokens.
+ * A network's native balance awaiting valuation.
  *
- * @returns {string[]} Array of Bitfinex symbol strings.
+ * @typedef {Object} NativeAmount
+ * @property {string} network - The network name.
+ * @property {bigint} amount - The native balance in base units.
  */
-function getAllBitfinexSymbols () {
-  const symbols = new Set()
-  for (const network of Object.keys(getAllTokens())) {
-    for (const token of Object.values(getTokensForNetwork(network))) {
-      const sym = token.metadata?.bitfinexSlug
-      if (sym) symbols.add(sym)
-    }
-  }
-  return [...symbols]
+
+/**
+ * Returns the symbol a price feed knows a token by: its registered slug, or the
+ * token's own symbol when the feed uses the same name. The registry records
+ * only the disagreements — `usdt` is `UST` to Bitfinex, while `BTC` and `ETH`
+ * need no entry.
+ *
+ * @param {TokenEntry} token - The token entry.
+ * @param {string} feed - The provider short name, which is its `metadata.slugs` key.
+ * @returns {string} The feed's symbol for the token.
+ */
+function feedSymbol (token, feed) {
+  return tokenSlugValue(token, feed) ?? token.symbol
 }
 
 /**
- * Fetches current USD prices from Bitfinex for all tracked symbols, with 5-minute cache.
+ * Asks the price feed for a token's USD price.
  *
- * @returns {Promise<Map<string, number>>} Map of Bitfinex symbol to USD price.
+ * @param {TokenEntry} token - The token entry.
+ * @param {string} network - The network name, for the error message.
+ * @returns {Promise<number>} The USD price.
+ * @throws {WdkCliError} TOKEN_NOT_SUPPORTED when the feed does not carry the token.
  */
-async function fetchPrices () {
-  if (cache && Date.now() - cache.timestamp < CACHE_TTL_MS) {
-    return cache.prices
-  }
-
-  const symbols = getAllBitfinexSymbols()
-  const url = `https://api-pub.bitfinex.com/v2/tickers?symbols=${symbols.join(',')}`
-
-  const response = await fetch(url, { signal: AbortSignal.timeout(5000) })
-  if (!response.ok) {
+async function priceOf (token, network) {
+  const { name, provider } = await resolvePricingProvider()
+  const price = await provider.getLastPrice(feedSymbol(token, name), QUOTE)
+  if (typeof price !== 'number' || !Number.isFinite(price)) {
     throw new WdkCliError(
-      `Bitfinex API error: ${response.status} ${response.statusText}`,
-      ErrorCode.NETWORK_ERROR
+      `No USD price available for ${token.symbol} on ${network}.`,
+      ErrorCode.TOKEN_NOT_SUPPORTED
     )
   }
-
-  const data = await response.json()
-  const prices = new Map()
-
-  for (const ticker of data) {
-    const symbol = ticker[0]
-    const lastPrice = ticker[7]
-    prices.set(symbol, lastPrice)
-  }
-
-  cache = { prices, timestamp: Date.now() }
-  return prices
+  return price
 }
 
 /**
@@ -96,23 +82,7 @@ export async function getNativeUsdPrice (network) {
       ErrorCode.NETWORK_NOT_SUPPORTED
     )
   }
-  const bitfinexSymbol = native.metadata?.bitfinexSlug
-  if (!bitfinexSymbol) {
-    throw new WdkCliError(
-      `No USD price available for ${native.symbol} on ${network}.`,
-      ErrorCode.TOKEN_NOT_SUPPORTED
-    )
-  }
-
-  const prices = await fetchPrices()
-  const price = prices.get(bitfinexSymbol)
-  if (!price) {
-    throw new WdkCliError(
-      `Failed to fetch USD price for ${native.symbol}.`,
-      ErrorCode.NETWORK_ERROR
-    )
-  }
-  return price
+  return priceOf(native, network)
 }
 
 /**
@@ -127,23 +97,50 @@ export async function getTokenUsdPrice (network, tokenAddress) {
   if (!tokenInfo) {
     throw new WdkCliError(`Unknown token ${tokenAddress} on ${network}.`, ErrorCode.INVALID_TOKEN)
   }
-  const bitfinexSymbol = tokenInfo.metadata?.bitfinexSlug
-  if (!bitfinexSymbol) {
-    throw new WdkCliError(
-      `No USD price available for ${tokenInfo.symbol} on ${network}.`,
-      ErrorCode.TOKEN_NOT_SUPPORTED
+  return priceOf(tokenInfo, network)
+}
+
+/**
+ * Converts several networks' native balances to USD in one call to the feed.
+ * Networks it does not price are left out rather than reported as zero.
+ *
+ * @param {NativeAmount[]} items - The per-network native amounts to value.
+ * @returns {Promise<Map<string, number>>} USD value keyed by network, to 2 decimals.
+ * @throws {WdkCliError} MISSING_CONFIG when no price feed is available.
+ * @throws {WdkCliError} INVALID_ARGUMENT when several price feeds are enabled.
+ */
+export async function convertManyNativeToUsd (items) {
+  if (items.length === 0) return new Map()
+
+  const priced = items.flatMap(({ network, amount }) => {
+    const token = getNativeToken(network)
+    return token ? [{ network, amount, token }] : []
+  })
+  if (priced.length === 0) return new Map()
+
+  const { name, provider } = await resolvePricingProvider()
+  const pairs = priced.map(({ token }) => ({ from: feedSymbol(token, name), to: QUOTE }))
+
+  /** @type {(number | undefined)[]} */
+  let prices
+  try {
+    const data = await provider.getMultiLastPriceData(pairs)
+    prices = data.map((entry) => entry?.lastPrice)
+  } catch {
+    // Some feeds reject the whole batch over one symbol they do not carry.
+    prices = await Promise.all(
+      pairs.map(({ from, to }) => provider.getLastPrice(from, to).catch(() => undefined))
     )
   }
 
-  const prices = await fetchPrices()
-  const price = prices.get(bitfinexSymbol)
-  if (!price) {
-    throw new WdkCliError(
-      `Failed to fetch USD price for ${tokenInfo.symbol}.`,
-      ErrorCode.NETWORK_ERROR
-    )
-  }
-  return price
+  const usdByNetwork = new Map()
+  priced.forEach(({ network, amount, token }, i) => {
+    const price = prices[i]
+    if (typeof price !== 'number' || !Number.isFinite(price)) return
+    const value = new BigNumber(amount.toString()).shiftedBy(-token.decimals)
+    usdByNetwork.set(network, Math.round(value.multipliedBy(price).toNumber() * 100) / 100)
+  })
+  return usdByNetwork
 }
 
 /**

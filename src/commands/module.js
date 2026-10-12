@@ -20,13 +20,16 @@ import {
   getModuleStatuses,
   getInstalledVersion,
   resolveAddTarget,
-  assertRemovable,
+  resolveRemoveTarget,
   saveCustomModule,
-  removeCustomModule
+  removeCustomModule,
+  setModuleEnabled
 } from '../services/module-service.js'
+import { setOverride } from '../services/override-service.js'
+import { applyToggle } from '../ui/toggle.js'
 import { parseModuleName } from '../config/networks.js'
 import { requirePassphraseConfirmation } from '../ui/auth.js'
-import { daemonClient } from '../daemon/client.js'
+import { lockWalletsAfterChange } from '../ui/session.js'
 import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
 import { configureHelp } from '../ui/help.js'
 import { createTable } from '../ui/tables.js'
@@ -68,11 +71,38 @@ function runNpm (args, { capture = false, quiet = false } = {}) {
 }
 
 /**
- * Registers the `module` command group (list, add, remove) on the root program.
+ * Colors a module's status: dim when it is an inactive state the user chose,
+ * yellow when it needs attention, plain otherwise.
+ *
+ * @param {string} status - The raw status value.
+ * @param {string} label - The status text to render (may carry a default-version suffix).
+ * @returns {string} The status text, colored by how much attention it needs.
+ */
+function statusCell (status, label) {
+  if (status === 'disabled') return chalk.dim(label)
+  if (status === 'stale override') return chalk.yellow(label)
+  return label
+}
+
+/**
+ * Registers the `module` command group (list, add, remove, enable, disable) on the root program.
  *
  * @param {Command} program - The root Commander program instance.
  * @returns {void}
  */
+/**
+ * Renders a pinned version for the table. A git spec is abbreviated to its
+ * short commit, since the full URL is far wider than the column; `--json`
+ * still carries it in full.
+ *
+ * @param {string} pinned - The version or spec the catalog pins.
+ * @returns {string} The value to show.
+ */
+function pinnedCell (pinned) {
+  const hash = pinned.includes(':') ? pinned.split('#')[1] : undefined
+  return hash ? `git#${hash.slice(0, 7)}` : pinned
+}
+
 export function registerModuleCommand (program) {
   const module = program
     .command('module')
@@ -92,7 +122,14 @@ export function registerModuleCommand (program) {
       console.log()
       const table = createTable(['Module', 'Pinned', 'Installed', 'Status', 'Source'])
       for (const s of modules) {
-        table.push([s.module, s.pinned, s.installed ?? '-', s.status, s.source])
+        const status = s.defaultVersion ? `${s.status} (default: ${s.defaultVersion})` : s.status
+        table.push([
+          chalk.bold(s.module),
+          pinnedCell(s.pinned),
+          s.installed ?? '-',
+          statusCell(s.status, status),
+          s.source
+        ])
       }
       console.log(table.toString())
       console.log()
@@ -131,14 +168,22 @@ export function registerModuleCommand (program) {
       }
       await requirePassphraseConfirmation()
 
-      if (await daemonClient.isRunning()) {
-        await daemonClient.lock()
-      }
+      const walletsLocked = await lockWalletsAfterChange(program.opts().json)
       runNpm(['install', '--no-save', `${name}@${version}`], { quiet: program.opts().json })
-      saveCustomModule(name, version)
+      if (target.builtinPin) {
+        setOverride('modules', name, { version: version === target.defaultVersion ? undefined : version })
+      } else {
+        saveCustomModule(name, version)
+      }
 
       if (program.opts().json) {
-        console.log(JSON.stringify({ module: name, version, installed: getInstalledVersion(name) }))
+        console.log(JSON.stringify({ module: name, version, installed: getInstalledVersion(name), walletsLocked }))
+        return
+      }
+      if (target.builtinPin) {
+        console.log(`\nModule '${name}' ${version === target.defaultVersion
+          ? `restored to default ${version}`
+          : `pinned to ${version} (default: ${target.defaultVersion})`}.`)
         return
       }
       console.log(`\nModule '${name}@${version}' ${target.repair ? 'reinstalled' : 'added'}.`)
@@ -161,21 +206,53 @@ export function registerModuleCommand (program) {
   remove.action(async (options) => {
     try {
       const name = options.name
-      assertRemovable(name)
+      const target = resolveRemoveTarget(name)
       await requirePassphraseConfirmation()
-      if (await daemonClient.isRunning()) {
-        await daemonClient.lock()
+      const walletsLocked = await lockWalletsAfterChange(program.opts().json)
+      if (target.builtinPin) {
+        setOverride('modules', name, { version: undefined })
+        runNpm(['install', '--no-save', `${name}@${target.defaultVersion}`], { quiet: program.opts().json })
+      } else {
+        removeCustomModule(name)
+        runNpm(['uninstall', '--no-save', name], { quiet: program.opts().json })
       }
-      removeCustomModule(name)
-      runNpm(['uninstall', '--no-save', name], { quiet: program.opts().json })
 
       if (program.opts().json) {
-        console.log(JSON.stringify({ module: name, removed: true }))
+        console.log(JSON.stringify({ module: name, removed: true, walletsLocked }))
         return
       }
-      console.log(`Module '${name}' removed.`)
+      console.log(target.builtinPin
+        ? `Module '${name}' restored to default ${target.defaultVersion}.`
+        : `Module '${name}' removed.`)
     } catch (error) {
       handleError(error, program.opts().verbose, program.opts().json)
     }
   })
+
+  for (const enabled of [false, true]) {
+    const verb = enabled ? 'enable' : 'disable'
+    const cmd = module
+      .command(verb)
+      .description(`${enabled ? 'Enable' : 'Disable'} a module package`)
+      .requiredOption('--name <package>', 'npm package name')
+
+    configureHelp(cmd, {
+      params: [
+        { flags: '--name <package>', description: 'npm package name', required: true }
+      ]
+    })
+
+    cmd.action(async (options) => {
+      try {
+        await applyToggle(program, {
+          apply: () => setModuleEnabled(options.name, enabled),
+          enabled,
+          label: `Module '${options.name}'`,
+          result: { module: options.name }
+        })
+      } catch (error) {
+        handleError(error, program.opts().verbose, program.opts().json)
+      }
+    })
+  }
 }

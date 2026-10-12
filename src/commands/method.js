@@ -165,6 +165,7 @@ export function registerMethodCommand (program) {
         console.log(JSON.stringify(result))
         return
       }
+      console.log(`  Address: ${result.address}`)
       if (result.result === null) {
         console.log('Done.')
       } else if (typeof result.result === 'object') {

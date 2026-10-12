@@ -540,13 +540,17 @@ export async function startMcpServer () {
       .string()
       .optional()
       .describe('Crypto amount (e.g. 0.05). Mutually exclusive with fiatAmount.'),
+    provider: z
+      .string()
+      .optional()
+      .describe('Fiat provider short name; required when more than one is enabled (see list_providers)'),
     index: z.number().optional().default(0).describe('Account index (default: 0)'),
     wallet: z.string().optional().describe('Wallet name (uses default wallet if omitted)')
   }
 
   async function handleRamp (
     direction,
-    { network, token, fiatCurrency, fiatAmount, cryptoAmount, index, wallet }
+    { network, token, fiatCurrency, fiatAmount, cryptoAmount, provider, index, wallet }
   ) {
     try {
       const result = await createRampUrl({
@@ -557,6 +561,7 @@ export async function startMcpServer () {
         fiatCurrency,
         fiatAmount,
         cryptoAmount,
+        provider,
         wallet
       })
       const action = direction === 'buy' ? 'Buy' : 'Sell'

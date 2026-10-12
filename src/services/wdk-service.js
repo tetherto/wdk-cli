@@ -16,7 +16,7 @@ import WDK from '@tetherto/wdk'
 import chalk from 'chalk'
 import { getNetworkConfig, parseModuleName } from '../config/networks.js'
 import { walletsFile } from '../config/wdk-config.js'
-import { getAllModules, getInstalledVersion } from './module-service.js'
+import { getAllModules, getInstalledVersion, isRegisteredModule } from './module-service.js'
 import { configService } from './config-service.js'
 import { CONFIG_DEFAULTS } from '../config/constants.js'
 import { WdkCliError, ErrorCode, isNetworkError } from '../errors/index.js'
@@ -32,6 +32,8 @@ const walletManagerCache = new Map()
  *
  * @param {string} moduleSpec - The npm module specifier, e.g. `@tetherto/wdk-wallet` or `@scope/pkg@1.2.3`.
  * @returns {Promise<WalletManagerCtor>} The default export of the wallet manager module.
+ * @throws {WdkCliError} UNSUPPORTED_MODULE when the package is not registered.
+ * @throws {WdkCliError} UNSUPPORTED_MODULE when the package is registered but not installed.
  */
 async function loadWalletManager (moduleSpec) {
   const cached = walletManagerCache.get(moduleSpec)
@@ -40,6 +42,14 @@ async function loadWalletManager (moduleSpec) {
   const parsed = parseModuleName(moduleSpec)
   const name = parsed.name
   const version = parsed.version || getAllModules()[name]?.version
+
+  if (!isRegisteredModule(name)) {
+    throw new WdkCliError(
+      `Wallet module '${name}' is not registered.`,
+      ErrorCode.UNSUPPORTED_MODULE,
+      `Add it first with: wdk module add --name ${name}`
+    )
+  }
 
   try {
     const mod = await import(name)

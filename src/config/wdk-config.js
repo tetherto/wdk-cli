@@ -23,11 +23,9 @@ const walletsFileRaw = createRequire(import.meta.url)('../../wdk.config.json')
  * @property {boolean} [testnet] - True when the network is a testnet.
  * @property {string} [indexerSlug] - Optional override for the indexer chain slug.
  *   Defaults to the network name. Set only when they differ (e.g. `smart-account-ethereum` → `ethereum`).
- *   Per-token indexer slugs live in `wdk.tokens.json` under `metadata.indexerSlug`.
+ *   Per-token indexer slugs live in `wdk.tokens.json` under `metadata.slugs.indexer`.
  * @property {string} [chainId] - The CAIP-2 chain id (e.g. "eip155:1", "tron:mainnet").
  * @property {Record<string, unknown>} [config] - The per-network module configuration (RPC URL, chainId, etc.).
- * @property {Record<string, Record<string, unknown>>} [protocols] - Per-network protocol config overrides,
- *   keyed by protocol short name; shallow-merged over the protocol's general `config`.
  */
 
 /**
@@ -53,10 +51,25 @@ const walletsFileRaw = createRequire(import.meta.url)('../../wdk.config.json')
  */
 
 /**
+ * What a provider does: `swap` serves same-network swaps, `bridge` moves one
+ * token across networks, `swidge` serves both, `fiat` is an on/off ramp,
+ * `pricing` is a USD price feed, and `indexer` is a transfer-history API.
+ *
+ * @typedef {'swap' | 'bridge' | 'swidge' | 'fiat' | 'pricing' | 'indexer'} ProtocolKind
+ */
+
+/**
  * @typedef {Object} WdkProtocolEntry
- * @property {string} module - The protocol module package name; its version is pinned in `modules`.
+ * @property {ProtocolKind} kind - What the provider does; see {@link ProtocolKind} for each value.
+ * @property {string} [module] - The protocol module package name; its version is pinned in
+ *   `modules`. Absent for a provider the CLI calls directly rather than through a module.
  * @property {Record<string, unknown>} [config] - General protocol config applied on every network
- *   (e.g. API keys); shallow-merged under any per-network override in `networks.<n>.protocols.<name>`.
+ *   (e.g. API keys); shallow-merged under any per-network override in `networks`.
+ * @property {Record<string, Record<string, unknown>>} [networks] - Per-network config overrides keyed by
+ *   network name, shallow-merged over `config`. Everything a provider needs lives under the provider,
+ *   so removing it takes its configuration with it.
+ * @property {string[]} [endpointKeys] - Config keys the module takes as a callback rather than a
+ *   value. The CLI stores a URL for each and POSTs to it when the module calls back.
  */
 
 /**
@@ -64,7 +77,7 @@ const walletsFileRaw = createRequire(import.meta.url)('../../wdk.config.json')
  * @property {number} version - The config file format version.
  * @property {Record<string, unknown>} defaults - The default global configuration.
  * @property {Record<string, WdkModuleEntry>} modules - The WDK module registry keyed by package name.
- * @property {Record<string, WdkProtocolEntry>} [protocols] - Swap/bridge/swidge protocols keyed by short name.
+ * @property {Record<string, WdkProtocolEntry>} [providers] - The service providers keyed by short name.
  * @property {Record<string, WdkNetworkEntry>} networks - The network definitions keyed by network name.
  */
 

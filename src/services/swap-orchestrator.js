@@ -13,10 +13,9 @@
 // limitations under the License.
 
 import {
-  getProtocols,
+  getProtocolsByKind,
   getProtocol,
   resolveProtocolConfig,
-  detectKind,
   servesRequest,
   loadProtocolClass
 } from './protocol-service.js'
@@ -25,7 +24,13 @@ import { resolveRequestIdentifiers } from './protocol-identifier-resolver.js'
 import { pickBest, buildNoRouteError } from './routing.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 
-/** @typedef {import('./protocol-service.js').ProtocolKind} ProtocolKind */
+/** @typedef {import('../config/wdk-config.js').ProtocolKind} ProtocolKind */
+/**
+ * The kinds `wdk swap` and `wdk bridge` route between. The registry also holds
+ * kinds this orchestrator never sees, such as `fiat`.
+ *
+ * @typedef {'swap' | 'bridge' | 'swidge'} RoutedKind
+ */
 /** @typedef {import('./routing.js').ProtocolQuote} ProtocolQuote */
 /** @typedef {import('./protocol-adapter.js').SwapRequest} SwapRequest */
 /** @typedef {import('@tetherto/wdk').WdkAccount} WalletAccount */
@@ -44,9 +49,9 @@ import { WdkCliError, ErrorCode } from '../errors/index.js'
  */
 
 /**
- * The quote method exposed by each protocol kind.
+ * The quote method exposed by each kind this orchestrator routes.
  *
- * @type {Record<ProtocolKind, 'quoteSwap' | 'quoteBridge' | 'quoteSwidge'>}
+ * @type {Record<RoutedKind, 'quoteSwap' | 'quoteBridge' | 'quoteSwidge'>}
  */
 const QUOTE_METHOD = {
   swap: 'quoteSwap',
@@ -55,9 +60,9 @@ const QUOTE_METHOD = {
 }
 
 /**
- * The execute method exposed by each protocol kind.
+ * The execute method exposed by each kind this orchestrator routes.
  *
- * @type {Record<ProtocolKind, 'swap' | 'bridge' | 'swidge'>}
+ * @type {Record<RoutedKind, 'swap' | 'bridge' | 'swidge'>}
  */
 const EXECUTE_METHOD = {
   swap: 'swap',
@@ -84,7 +89,7 @@ const instancesByAccount = new WeakMap()
  * @typedef {Object} CapableProtocol
  * @property {string} name - The protocol short name.
  * @property {ProtocolConstructor} ProtocolClass - The protocol's class (default export).
- * @property {ProtocolKind} kind - The protocol's own detected kind.
+ * @property {RoutedKind} kind - The protocol's declared kind, from the registry.
  */
 
 /**
@@ -114,11 +119,14 @@ const instancesByAccount = new WeakMap()
  */
 
 /**
- * Resolves the set of protocols to quote for a request. With an explicit
- * `protocol` override the named protocol must exist, be installed, and be able
- * to serve the request — any of those failing throws. Without an override,
- * every configured protocol that is installed and capable is returned;
- * uninstalled protocols are skipped (lazy install), and an empty result throws.
+ * Resolves the set of protocols to quote for a request. Which protocols are
+ * capable is decided from the kind each one declares in the registry, before
+ * any module is imported. With an explicit `protocol` override the named
+ * protocol must exist, be declared for a kind that serves the request, and be
+ * installed — any of those failing throws. Without an override, every
+ * registered protocol declared for the request kind that is installed is
+ * returned; uninstalled protocols are skipped (lazy install), and an empty
+ * result throws.
  *
  * @param {'swap' | 'bridge'} requestKind - The kind of request being served.
  * @param {string} [protocol] - Optional protocol short name to force.
@@ -128,34 +136,27 @@ const instancesByAccount = new WeakMap()
 export async function resolveCandidates (requestKind, protocol) {
   if (protocol) {
     const entry = getProtocol(protocol)
-    const ProtocolClass = await loadProtocolClass(entry.module)
-    const kind = detectKind(ProtocolClass)
-    if (!kind || !servesRequest(kind, requestKind)) {
+    if (!servesRequest(entry.kind, requestKind)) {
       throw new WdkCliError(
         `Protocol '${protocol}' cannot ${requestKind}.`,
         ErrorCode.INVALID_ARGUMENT,
-        kind ? `It is a ${kind} protocol.` : 'It exposes no swap, bridge, or swidge quote method.'
+        `It is a ${entry.kind} protocol.`
       )
     }
-    const ctor = /** @type {ProtocolConstructor} */ (ProtocolClass)
-    return [{ name: protocol, ProtocolClass: ctor, kind }]
+    const ProtocolClass = /** @type {ProtocolConstructor} */ (await loadProtocolClass(entry.module))
+    return [{ name: protocol, ProtocolClass, kind: /** @type {RoutedKind} */ (entry.kind) }]
   }
 
-  const protocols = getProtocols()
   const resolved = await Promise.all(
-    Object.entries(protocols).map(async ([name, entry]) => {
-      let ProtocolClass
+    Object.entries(getProtocolsByKind(requestKind)).map(async ([name, entry]) => {
       try {
-        ProtocolClass = await loadProtocolClass(entry.module)
+        const ProtocolClass = /** @type {ProtocolConstructor} */ (await loadProtocolClass(entry.module))
+        return { name, ProtocolClass, kind: entry.kind }
       } catch (err) {
         // An uninstalled protocol is simply not a candidate (lazy install).
         if (err instanceof WdkCliError && err.code === ErrorCode.UNSUPPORTED_MODULE) return null
         throw err
       }
-      const kind = detectKind(ProtocolClass)
-      if (!kind || !servesRequest(kind, requestKind)) return null
-      const ctor = /** @type {ProtocolConstructor} */ (ProtocolClass)
-      return { name, ProtocolClass: ctor, kind }
     })
   )
 
@@ -223,7 +224,7 @@ function getProtocolInstance (account, capable, network) {
  * same-token so the received amount equals the input and providers differ only
  * on fees.
  *
- * @param {ProtocolKind} kind - The protocol's kind.
+ * @param {RoutedKind} kind - The protocol's kind.
  * @param {string} name - The protocol short name.
  * @param {Record<string, unknown>} raw - The provider's raw quote.
  * @param {SwapRequest} request - The request, for the bridge input amount.

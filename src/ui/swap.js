@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import chalk from 'chalk'
-import { formatNetworkLabel } from './formatters.js'
+import { formatNetworkLabel, formatAddress } from './formatters.js'
 
 /** @typedef {import('../actions/swap.js').SwapPreview} SwapPreview */
 /** @typedef {import('../actions/swap.js').SwapResult} SwapResult */
@@ -58,6 +58,7 @@ export function printSwapPreview (preview) {
   console.log()
   console.log(chalk.bold(`Best-route ${label} (dry run):`))
   console.log(`  Route:     ${route}`)
+  console.log(`  From:      ${formatAddress(preview.from)}`)
   console.log(`  Protocol:  ${chalk.cyan(preview.protocol)}`)
   console.log(`  You pay:   ${pay}`)
   console.log(`  You get:   ${receive}`)
@@ -87,6 +88,7 @@ export function printSwapResult (result) {
   console.log()
   console.log(chalk.bold(`${label} submitted:`))
   console.log(`  Route:     ${route}`)
+  console.log(`  From:      ${formatAddress(result.from)}`)
   console.log(`  Protocol:  ${chalk.cyan(result.protocol)}`)
   if (result.payFormatted) console.log(`  You paid:  ${result.payFormatted}`)
   if (result.receiveFormatted) console.log(`  You got:   ${result.receiveFormatted}`)

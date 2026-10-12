@@ -17,6 +17,7 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { walletsFile } from '../config/wdk-config.js'
 import { configService } from './config-service.js'
+import { getOverrides, getOverride, isDisabled, setEnabled, clearOverride, hasOwn, getOwn } from './override-service.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 
 /** @typedef {import('../config/wdk-config.js').WdkModuleEntry} WdkModuleEntry */
@@ -28,22 +29,31 @@ const CLI_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
  * @property {string} module - The module package name.
  * @property {string} pinned - The version pinned in the catalog or user config.
  * @property {string | null} installed - The installed version, or null when not installed.
- * @property {'ok' | 'not installed' | 'version mismatch'} status - How the installed state compares to the pin.
- * @property {'built-in' | 'custom'} source - Whether the module ships with the CLI or was added by the user.
+ * @property {'ok' | 'not installed' | 'version mismatch' | 'disabled' | 'stale override'} status - How the installed state compares to the pin.
+ * @property {'built-in' | 'custom' | 'override'} source - Whether the module ships with the CLI, was added by the user, or only exists as an override.
+ * @property {string} [defaultVersion] - The catalog version, present when a version override shadows it.
  */
 
 /**
- * Returns whether a package name is a WDK wallet or protocol module
- * (`wdk-wallet-*` or `wdk-protocol-*`, any scope). These are the packages the
- * catalog manages as dependencies; core packages (`@tetherto/wdk`, `-utils`,
- * `-wallet`, `-asset-registry`) and unrelated deps do not match.
+ * WDK packages the CLI depends on directly. They match the module naming
+ * pattern but are contracts and helpers rather than swappable implementations,
+ * so the catalog must not manage them.
+ */
+const CORE_PACKAGES = new Set(['wdk-pricing-provider'])
+
+/**
+ * Returns whether a package name is a WDK module the catalog manages
+ * (`wdk-wallet-*`, `wdk-protocol-*`, `wdk-pricing-*` or `wdk-indexer-*`, any scope). These are
+ * swappable implementations; core packages (`@tetherto/wdk`, `-utils`,
+ * `-wallet`, `-asset-registry`, `-pricing-provider`) are ordinary dependencies
+ * and do not match.
  *
  * @param {string} name - The npm package name (optionally scoped).
  * @returns {boolean} True when the name is a WDK module package.
  */
 export function isWdkModulePackage (name) {
   const bare = name.includes('/') ? name.slice(name.indexOf('/') + 1) : name
-  return /^wdk-wallet-.+/.test(bare) || /^wdk-protocol-.+/.test(bare)
+  return !CORE_PACKAGES.has(bare) && /^wdk-(wallet|protocol|pricing|indexer)-.+/.test(bare)
 }
 
 /**
@@ -75,13 +85,59 @@ export function getCustomModules () {
 }
 
 /**
- * Returns all modules, merging built-in catalog modules and user-added ones.
- * Built-in entries win on name collision.
+ * Returns the names of every module package the CLI knows about: the catalog
+ * modules plus any added with `wdk module add`, disabled ones included. Every
+ * `import()` of module code must check a specifier against this list first.
+ *
+ * @returns {string[]} The registered package names.
+ */
+export function getRegisteredModuleNames () {
+  return [...new Set([...Object.keys(walletsFile.modules || {}), ...Object.keys(getCustomModules())])]
+}
+
+/**
+ * Returns whether a module specifier names a registered package.
+ *
+ * @param {string} name - The package name to check.
+ * @returns {boolean} True when the package is in the catalog or was added by the user.
+ */
+export function isRegisteredModule (name) {
+  return getRegisteredModuleNames().includes(name)
+}
+
+/**
+ * Returns all enabled modules, merging built-in catalog modules and user-added
+ * ones. Built-in entries win on name collision, disabled entries are dropped,
+ * and version overrides applied.
  *
  * @returns {Record<string, WdkModuleEntry>} Module entries keyed by package name.
  */
 export function getAllModules () {
-  return { ...getCustomModules(), ...(walletsFile.modules || {}) }
+  /** @type {Record<string, WdkModuleEntry>} */
+  const modules = {}
+  for (const [name, entry] of Object.entries(getCustomModules())) {
+    if (!isDisabled('modules', name)) modules[name] = entry
+  }
+  for (const [name, entry] of Object.entries(walletsFile.modules || {})) {
+    if (isDisabled('modules', name)) continue
+    const version = getOverride('modules', name)?.version
+    modules[name] = version ? { ...entry, version } : entry
+  }
+  return modules
+}
+
+/**
+ * Whether an installed version meets what the catalog pinned. A pin is normally
+ * an exact version, but may be a git spec (`github:owner/repo#<sha>`), which the
+ * package's own version never equals — the commit is the pin, and npm verifies
+ * it against the lockfile's integrity hash on install.
+ *
+ * @param {string} installed - The version found in the installed package.
+ * @param {string} pinned - The version or spec the catalog pins.
+ * @returns {boolean} True when the installed package satisfies the pin.
+ */
+function satisfies (installed, pinned) {
+  return pinned.includes(':') ? true : installed === pinned
 }
 
 /**
@@ -92,47 +148,83 @@ export function getAllModules () {
 export function getModuleStatuses () {
   const builtIn = walletsFile.modules || {}
   const custom = getCustomModules()
-  const entries = [
-    ...Object.entries(builtIn).map(([name, e]) => ({ name, pinned: e.version, source: /** @type {const} */ ('built-in') })),
-    ...Object.entries(custom)
-      .filter(([name]) => !(name in builtIn))
-      .map(([name, e]) => ({ name, pinned: e.version, source: /** @type {const} */ ('custom') }))
-  ]
-  return entries.map(({ name, pinned, source }) => {
+  const overrides = getOverrides().modules || {}
+  /** @type {ModuleStatus[]} */
+  const statuses = []
+  for (const [name, e] of Object.entries(builtIn)) {
+    const override = getOwn(overrides, name)
+    const pinned = override?.version ?? e.version
     const installed = getInstalledVersion(name)
-    const status = installed === null
-      ? 'not installed'
-      : installed === pinned ? 'ok' : 'version mismatch'
-    return { module: name, pinned, installed, status, source }
-  })
+    const status = override?.enabled === false
+      ? 'disabled'
+      : installed === null ? 'not installed' : satisfies(installed, pinned) ? 'ok' : 'version mismatch'
+    statuses.push({
+      module: name,
+      pinned,
+      installed,
+      status,
+      source: 'built-in',
+      ...(override?.version ? { defaultVersion: e.version } : {})
+    })
+  }
+  for (const [name, e] of Object.entries(custom)) {
+    if (hasOwn(builtIn, name)) continue
+    const installed = getInstalledVersion(name)
+    const status = getOwn(overrides, name)?.enabled === false
+      ? 'disabled'
+      : installed === null ? 'not installed' : satisfies(installed, e.version) ? 'ok' : 'version mismatch'
+    statuses.push({ module: name, pinned: e.version, installed, status, source: 'custom' })
+  }
+  for (const [name, o] of Object.entries(overrides)) {
+    if (hasOwn(builtIn, name) || hasOwn(custom, name)) continue
+    statuses.push({
+      module: name,
+      pinned: o.version ?? '-',
+      installed: getInstalledVersion(name),
+      status: 'stale override',
+      source: 'override'
+    })
+  }
+  return statuses
 }
 
 /**
  * @typedef {Object} AddTarget
  * @property {boolean} repair - True when the package is already registered and only needs reinstalling.
  * @property {string} [version] - The version to install: the requested one, or the registered pin when repairing.
+ * @property {boolean} [builtinPin] - True when the add pins a built-in module to another version.
+ * @property {string} [defaultVersion] - The catalog version, set when pinning a built-in.
  */
 
 /**
- * Resolves what `module add` should do for a package: a fresh add, or a
- * reinstall of a registered module whose files are missing or mismatched
- * (e.g. pruned by a plain `npm install`).
+ * Resolves what `module add` should do for a package: a fresh add, a version
+ * pin overriding a built-in, or a reinstall of a registered module whose files
+ * are missing or mismatched (e.g. pruned by a plain `npm install`).
  *
  * @param {string} name - The package name.
  * @param {string} [version] - The requested version, when given.
  * @returns {AddTarget} The add target.
- * @throws {WdkCliError} When the package is a built-in module, already installed
- *   at its pin, or registered at a different version than requested.
+ * @throws {WdkCliError} When the package is already at the requested version,
+ *   a built-in without an explicit version, or registered at a different
+ *   version than requested.
  */
 export function resolveAddTarget (name, version) {
-  if (walletsFile.modules?.[name]) {
-    throw new WdkCliError(
-      `'${name}' is a built-in module.`,
-      ErrorCode.INVALID_ARGUMENT,
-      'Built-in modules ship with the CLI and are managed by its releases.'
-    )
+  const builtin = getOwn(walletsFile.modules, name)
+  if (builtin) {
+    if (!version) {
+      throw new WdkCliError(
+        `'${name}' is a built-in module.`,
+        ErrorCode.INVALID_ARGUMENT,
+        `To replace its version, pass one explicitly: wdk module add --name ${name}@<version>`
+      )
+    }
+    const current = getOverride('modules', name)?.version ?? builtin.version
+    if (version === current) {
+      throw new WdkCliError(`Module '${name}' is already at ${version}.`, ErrorCode.INVALID_ARGUMENT)
+    }
+    return { repair: false, builtinPin: true, version, defaultVersion: builtin.version }
   }
-  const entry = getCustomModules()[name]
+  const entry = getOwn(getCustomModules(), name)
   if (!entry) return { repair: false, version }
 
   if (version && version !== entry.version) {
@@ -171,7 +263,7 @@ export function saveCustomModule (name, version) {
  * @throws {WdkCliError} When the package is a built-in module or not added.
  */
 export function assertRemovable (name) {
-  if (walletsFile.modules?.[name]) {
+  if (hasOwn(walletsFile.modules, name)) {
     throw new WdkCliError(
       `'${name}' is a built-in module and cannot be removed.`,
       ErrorCode.INVALID_ARGUMENT,
@@ -179,7 +271,7 @@ export function assertRemovable (name) {
     )
   }
   const custom = getCustomModules()
-  if (!custom[name]) {
+  if (!hasOwn(custom, name)) {
     const names = Object.keys(custom)
     throw new WdkCliError(
       `Module '${name}' is not a custom module.`,
@@ -202,4 +294,62 @@ export function removeCustomModule (name) {
   const next = { ...custom }
   delete next[name]
   configService.set('customModules', next)
+  clearOverride('modules', name)
+}
+
+/**
+ * @typedef {Object} RemoveTarget
+ * @property {boolean} builtinPin - True when the remove lifts a version pin on a built-in.
+ * @property {string} [defaultVersion] - The catalog version to restore, set when lifting a pin.
+ */
+
+/**
+ * Resolves what `module remove` should do for a package: remove a custom
+ * module, or lift a version pin on a built-in and restore its catalog version.
+ *
+ * @param {string} name - The package name.
+ * @returns {RemoveTarget} The remove target.
+ * @throws {WdkCliError} When the package is an unpinned built-in or not added.
+ */
+export function resolveRemoveTarget (name) {
+  const builtin = getOwn(walletsFile.modules, name)
+  if (builtin) {
+    if (getOverride('modules', name)?.version) {
+      return { builtinPin: true, defaultVersion: builtin.version }
+    }
+    throw new WdkCliError(
+      `'${name}' is a built-in module and cannot be removed.`,
+      ErrorCode.INVALID_ARGUMENT,
+      'Built-in modules ship with the CLI and are managed by its releases.'
+    )
+  }
+  assertRemovable(name)
+  return { builtinPin: false }
+}
+
+/**
+ * Enables or disables a module package, built-in or custom. Enabling a name
+ * that only exists in overrides clears the stale entry instead.
+ *
+ * @param {string} name - The module package name.
+ * @param {boolean} enabled - The desired state.
+ * @returns {boolean} True when a stale override was cleared instead.
+ * @throws {WdkCliError} When the package is unknown or already in the desired state.
+ */
+export function setModuleEnabled (name, enabled) {
+  const verb = enabled ? 'enable' : 'disable'
+  const protocol = getOwn(walletsFile.providers, name)
+  let suggestion = 'See package names with: wdk module list'
+  if (hasOwn(walletsFile.networks, name)) {
+    suggestion = `'${name}' is a network. Use: wdk network ${verb} --name ${name}`
+  } else if (protocol) {
+    suggestion = `'${name}' is a provider. Use: wdk provider ${verb} --name ${name}`
+  }
+  return setEnabled(
+    'modules',
+    name,
+    enabled,
+    hasOwn(walletsFile.modules, name) || hasOwn(getCustomModules(), name),
+    new WdkCliError(`'${name}' is not a module.`, ErrorCode.INVALID_ARGUMENT, suggestion)
+  )
 }

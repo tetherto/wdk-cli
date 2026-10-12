@@ -33,6 +33,7 @@ import { WdkCliError, ErrorCode } from '../errors/index.js'
  * @typedef {Object} SendPreview
  * @property {string} network - The blockchain network name.
  * @property {string} networkName - Human-readable network display name.
+ * @property {string} from - Sender address.
  * @property {string} to - Recipient address.
  * @property {string} amount - Amount in base units.
  * @property {string} amountFormatted - Human-readable formatted amount with symbol.
@@ -118,6 +119,7 @@ export async function previewSend (input) {
   return {
     network: input.network,
     networkName: networkConfig.displayName,
+    from: feeQuote.from,
     to: input.to,
     amount: input.amount,
     amountFormatted,
