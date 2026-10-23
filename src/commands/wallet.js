@@ -19,13 +19,13 @@ import { KeyService } from '../services/key-service.js'
 import { WalletKeyring } from '../security/keyring.js'
 import { daemonClient } from '../daemon/client.js'
 import { configService } from '../services/config-service.js'
-import { SESSION_TTL_MINUTES, getWalletDir } from '../config/constants.js'
+import { SESSION_TTL_MINUTES, MAX_SESSION_TTL_MINUTES, getWalletDir } from '../config/constants.js'
 import { WdkCliError, ErrorCode, handleError } from '../errors/index.js'
 import { promptPassphrase, promptSeedPhrase, readLineFromStdin } from '../ui/prompts.js'
 import { requirePassphraseConfirmation } from '../ui/auth.js'
 import { configureHelp } from '../ui/help.js'
 import { createTable } from '../ui/tables.js'
-import { nonNegativeInt } from '../ui/parsers.js'
+import { sessionTtlMinutes } from '../ui/parsers.js'
 
 /** @typedef {import('commander').Command} Command */
 
@@ -383,8 +383,8 @@ export function registerWalletCommand (program) {
     .requiredOption('--name <name>', 'Wallet name')
     .option(
       '--ttl <minutes>',
-      'Session duration in minutes (0 = unlimited)',
-      nonNegativeInt,
+      `Session duration in minutes, up to ${MAX_SESSION_TTL_MINUTES} (0 = unlimited)`,
+      sessionTtlMinutes,
       SESSION_TTL_MINUTES
     )
 
@@ -393,7 +393,7 @@ export function registerWalletCommand (program) {
     options: [
       {
         flags: '--ttl <minutes>',
-        description: `Session duration in minutes, 0 = unlimited (default: ${SESSION_TTL_MINUTES})`
+        description: `Session duration in minutes, up to ${MAX_SESSION_TTL_MINUTES}, 0 = unlimited (default: ${SESSION_TTL_MINUTES})`
       }
     ]
   })

@@ -49,6 +49,7 @@ export function getConfigDir () {
 }
 
 export const SESSION_TTL_MINUTES = 5
+export const MAX_SESSION_TTL_MINUTES = 7 * 24 * 60
 export const DAEMON_SOCKET = 'daemon.sock'
 export const DAEMON_PID = 'daemon.pid'
 export const DAEMON_MAX_REQUEST_BYTES = 64 * 1024

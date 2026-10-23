@@ -452,7 +452,7 @@ export class DaemonClient {
    *
    * @param {string} name - The wallet name.
    * @param {string} passphrase - The wallet passphrase.
-   * @param {number} [ttlMinutes] - Session TTL in minutes (0 = no expiry).
+   * @param {number} [ttlMinutes] - Session TTL in minutes, from 0 to `MAX_SESSION_TTL_MINUTES` (0 = no expiry).
    * @returns {Promise<void>}
    */
   async unlockWallet (name, passphrase, ttlMinutes = 5) {

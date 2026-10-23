@@ -180,7 +180,7 @@ describe('wallet unlock and the session it opens', () => {
 
   // The ttl decides how long a decrypted seed stays in memory, so a value that
   // cannot be honoured has to be rejected rather than rounded into something.
-  it.each(['-5', 'abc'])('refuses a ttl of %p', async (ttl) => {
+  it.each(['-5', 'abc', '10081', '', ' ', '0x10', '1e3', '5.0'])('refuses a ttl of %p', async (ttl) => {
     await cli.json(['wallet', 'create', '--name', 'w1'], { unlocked: true })
 
     const result = await cli.run(
@@ -189,9 +189,11 @@ describe('wallet unlock and the session it opens', () => {
 
     expect(result.code).toBe(1)
     expect(result.output).toContain(
-      `option '--ttl <minutes>' argument '${ttl}' is invalid. Must be a non-negative integer.`
+      `option '--ttl <minutes>' argument '${ttl}' is invalid. ` +
+      'Must be a whole number of minutes from 0 to 10080 (0 = unlimited).'
     )
   })
+
 
   it('reports a wallet that was already unlocked, rather than failing', async () => {
     await importAndUnlock()

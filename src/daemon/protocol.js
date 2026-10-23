@@ -50,7 +50,7 @@
  * @property {DaemonAction} action - The action to perform.
  * @property {string} [wallet] - The wallet name.
  * @property {string} [passphrase] - The wallet passphrase (only for unlock).
- * @property {number} [ttl] - The unlock TTL in minutes (only for unlock).
+ * @property {number} [ttl] - The unlock TTL in minutes, from 0 to `MAX_SESSION_TTL_MINUTES` (only for unlock; 0 = no expiry).
  * @property {string} [network] - The blockchain network name.
  * @property {number} [index] - The BIP-44 account index.
  * @property {string} [token] - The token symbol.

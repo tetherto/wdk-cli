@@ -14,22 +14,48 @@
 
 import { jest } from '@jest/globals'
 import { connect } from 'node:net'
-import { mkdtempSync, rmSync, statSync } from 'node:fs'
+import { mkdtempSync, rmSync, statSync, writeFileSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { encrypt } from '@tetherto/wdk-utils'
 
 const tempDir = mkdtempSync(join(tmpdir(), 'wdk-daemon-test-'))
 const SOCKET_PATH = join(tempDir, 'daemon.sock')
 const PID_PATH = join(tempDir, 'daemon.pid')
 
+const PASSPHRASE = 'correct-horse-battery-staple'
+const SEED = 'cook voyage document eight skate token alien guide drink uncle term abuse'
+
+/**
+ * Writes a real encrypted seed file, so the daemon's own `deriveKey` and
+ * `decryptWithKey` decide whether a passphrase is accepted.
+ *
+ * @param {string} name - The wallet name.
+ * @returns {void}
+ */
+function writeWallet (name) {
+  const dir = join(tempDir, 'wallets', name)
+  mkdirSync(dir, { recursive: true })
+  writeFileSync(join(dir, 'seed.enc'), JSON.stringify(encrypt(SEED, PASSPHRASE)), 'utf8')
+}
+
 const constants = await import('../../../src/config/constants.js')
 jest.unstable_mockModule('../../../src/config/constants.js', () => ({
   ...constants,
   getDaemonSocketPath: () => SOCKET_PATH,
-  getDaemonPidPath: () => PID_PATH
+  getDaemonPidPath: () => PID_PATH,
+  getWalletPath: (name) => join(tempDir, 'wallets', name, 'seed.enc')
+}))
+
+jest.unstable_mockModule('../../../src/services/wdk-service.js', () => ({
+  WdkService: class {
+    createInstance () {}
+    dispose () {}
+  }
 }))
 
 const { WalletDaemon } = await import('../../../src/daemon/server.js')
+const { MAX_SESSION_TTL_MINUTES } = constants
 
 /** @type {WalletDaemon} */
 let daemon
@@ -118,6 +144,83 @@ describe('the daemon IPC endpoint', () => {
     const reply = await send({ action: 'get_transaction', network: 'ethereum' })
 
     expect(reply).toEqual({ ok: false, error: 'Missing required field: hash' })
+  })
+
+  it('refuses an unlock_wallet whose ttl it could not honour', async () => {
+    writeWallet('ttl')
+
+    const replies = await Promise.all(
+      [-1, 1.5, MAX_SESSION_TTL_MINUTES + 1, '5'].map((ttl) =>
+        send({ action: 'unlock_wallet', wallet: 'ttl', passphrase: PASSPHRASE, ttl })
+      )
+    )
+
+    for (const reply of replies) {
+      expect(reply.ok).toBe(false)
+      expect(reply.error).toContain(`from 0 to ${MAX_SESSION_TTL_MINUTES}`)
+    }
+  })
+
+  it('opens a session for the right passphrase', async () => {
+    writeWallet('cold')
+
+    const reply = await send({ action: 'unlock_wallet', wallet: 'cold', passphrase: PASSPHRASE, ttl: 1 })
+
+    expect(reply).toEqual({
+      ok: true,
+      data: { message: "Wallet 'cold' unlocked", wallet: 'cold' }
+    })
+  })
+
+  // A ttl past setTimeout's 32-bit range fires after 1ms, locking the wallet
+  // at once. Raising MAX_SESSION_TTL_MINUTES beyond that must fail here.
+  it('keeps a session open at the longest ttl it accepts', async () => {
+    writeWallet('max')
+    await send({
+      action: 'unlock_wallet', wallet: 'max', passphrase: PASSPHRASE, ttl: MAX_SESSION_TTL_MINUTES
+    })
+
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    const { wallets } = (await send({ action: 'status' })).data
+
+    expect(wallets.find((w) => w.name === 'max').ttlMs).toBe(MAX_SESSION_TTL_MINUTES * 60_000)
+  })
+
+  it('refuses the wrong passphrase on a locked wallet', async () => {
+    writeWallet('locked')
+
+    const reply = await send({ action: 'unlock_wallet', wallet: 'locked', passphrase: 'nope', ttl: 1 })
+
+    expect(reply).toMatchObject({ ok: false, code: 'WRONG_PASSPHRASE' })
+  })
+
+  it('refuses the wrong passphrase on a wallet that is already unlocked', async () => {
+    writeWallet('live')
+    await send({ action: 'unlock_wallet', wallet: 'live', passphrase: PASSPHRASE, ttl: 1 })
+
+    const reply = await send({ action: 'unlock_wallet', wallet: 'live', passphrase: 'nope', ttl: 2 })
+
+    expect(reply).toMatchObject({ ok: false, code: 'WRONG_PASSPHRASE' })
+  })
+
+  it('leaves the session length alone when it refuses the passphrase', async () => {
+    writeWallet('keep')
+    await send({ action: 'unlock_wallet', wallet: 'keep', passphrase: PASSPHRASE, ttl: 1 })
+
+    await send({ action: 'unlock_wallet', wallet: 'keep', passphrase: 'nope', ttl: 0 })
+    const { wallets } = (await send({ action: 'status' })).data
+
+    expect(wallets.find((w) => w.name === 'keep').ttlMs).toBe(60_000)
+  })
+
+  it('extends the session for the right passphrase', async () => {
+    writeWallet('extend')
+    await send({ action: 'unlock_wallet', wallet: 'extend', passphrase: PASSPHRASE, ttl: 1 })
+
+    await send({ action: 'unlock_wallet', wallet: 'extend', passphrase: PASSPHRASE, ttl: 2 })
+    const { wallets } = (await send({ action: 'status' })).data
+
+    expect(wallets.find((w) => w.name === 'extend').ttlMs).toBe(120_000)
   })
 
   it('rejects a line that is not JSON instead of closing the connection', async () => {

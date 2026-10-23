@@ -22,6 +22,7 @@ import {
   getDaemonPidPath,
   getWalletPath,
   SESSION_TTL_MINUTES,
+  MAX_SESSION_TTL_MINUTES,
   DAEMON_MAX_REQUEST_BYTES
 } from '../config/constants.js'
 import { configService } from '../services/config-service.js'
@@ -61,6 +62,20 @@ import { formatAmount } from '../ui/formatters.js'
 
 /** Max length of a summarized third-party error message before truncation. */
 const MAX_ERROR_LEN = 200
+
+/**
+ * Reports whether a requested session TTL is one the daemon will honour: whole
+ * minutes, from 0 (no expiry) to `MAX_SESSION_TTL_MINUTES`.
+ *
+ * @param {unknown} ttl - The TTL the caller asked for, in minutes.
+ * @returns {boolean} True when the TTL is in range.
+ */
+function isValidTtl (ttl) {
+  return typeof ttl === 'number' &&
+    Number.isInteger(ttl) &&
+    ttl >= 0 &&
+    ttl <= MAX_SESSION_TTL_MINUTES
+}
 
 /**
  * Builds a failure DaemonResponse that preserves the error code across IPC.
@@ -152,21 +167,19 @@ export class WalletDaemon {
   }
 
   /**
-   * Synchronously decrypts and loads a wallet into the in-memory session map.
+   * Synchronously decrypts and loads a wallet into the in-memory session map,
+   * or extends the session when that wallet is already unlocked. The
+   * passphrase is verified either way.
    *
    * @param {string} name - The wallet name.
    * @param {string} passphrase - The wallet passphrase.
    * @param {number} ttlMinutes - The session TTL in minutes (0 = no expiry).
    * @returns {void}
+   * @throws {WdkCliError} WRONG_PASSPHRASE when the passphrase does not decrypt the seed.
+   * @throws {WdkCliError} INVALID_ARGUMENT when the wallet name is not a valid one.
+   * @throws {Error} When the wallet's seed file cannot be read or parsed.
    */
   #unlockWalletSync (name, passphrase, ttlMinutes) {
-    // If already unlocked, just reset the timer
-    const existing = this.#wallets.get(name)
-    if (existing) {
-      this.#resetTimer(name, ttlMinutes)
-      return
-    }
-
     const walletPath = getWalletPath(name)
     const data = readFileSync(walletPath, 'utf8')
     const payload = JSON.parse(data)
@@ -179,6 +192,12 @@ export class WalletDaemon {
       } catch {
         throw new WdkCliError('Incorrect passphrase.', ErrorCode.WRONG_PASSPHRASE)
       }
+
+      if (this.#wallets.has(name)) {
+        this.#resetTimer(name, ttlMinutes)
+        return
+      }
+
       // Buffer (not the immutable mnemonic string) so the seed can be zeroed on lock.
       const seedBuffer = mnemonicToSeedSync(seedPhrase)
       const wdk = new WdkService()
@@ -340,6 +359,12 @@ export class WalletDaemon {
         }
         if (req.passphrase == null) {
           return { ok: false, error: 'Missing passphrase' }
+        }
+        if (req.ttl != null && !isValidTtl(req.ttl)) {
+          return {
+            ok: false,
+            error: `Invalid ttl: ${req.ttl}. Give whole minutes from 0 to ${MAX_SESSION_TTL_MINUTES} (0 = unlimited).`
+          }
         }
         try {
           const ttl = req.ttl ?? SESSION_TTL_MINUTES
