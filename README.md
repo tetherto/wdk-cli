@@ -36,7 +36,7 @@ See the [WDK CLI documentation](https://docs.wdk.tether.io/cli/).
 **wdk-daemon** (Wallet Daemon):
 - Starts empty — wallets unlocked individually via socket requests
 - Holds WDK instances in memory — owns all cryptographic operations
-- Listens on a Unix socket (`daemon.sock`, 0600 permissions)
+- Listens on a Unix socket (`daemon.sock`, 0700 permissions)
 - Exposes: `unlock_wallet`, `lock_wallet`, `get_address`, `get_balance`, `estimate_fee`, `send`, `call_method`, `list_wallets`, `status`, `lock`
 - Per-wallet TTL — each wallet has its own timeout (default: 5 min, `--ttl 0` for unlimited)
 - Auto-exits when last wallet is locked
@@ -678,8 +678,28 @@ wdk get balance --network ethereum --json | jq '.balance'
 - Seed phrases encrypted at rest (AES-256-GCM + scrypt), per-wallet passphrases with unique salt per wallet
 - Seeds and passphrases never accepted as CLI arguments
 - Private keys and seeds never leave the daemon process
-- Unix socket with 0600 permissions (same-user access only, like ssh-agent)
+- Unix socket with 0700 permissions (same-user access only, like ssh-agent)
 - No telemetry, no analytics, no external data collection
+
+### Trust model
+
+The daemon's trust boundary is the user account. The socket and the config
+directory are mode 0700, so another user cannot reach the daemon — but any
+process running as you can. While a wallet is unlocked, such a process can sign
+and send with it without knowing the passphrase. This is by design.
+
+Everything local is inside that boundary, so a check made against a file on disk
+can be forged by anyone able to rewrite that file. The passphrase prompts on
+commands that change configuration confirm intent; they do not authorize.
+
+The daemon grants use of a key, never the key: no action returns seed material,
+and `wdk wallet export` requires the passphrase even while the wallet is
+unlocked.
+
+Some effects outlive a lock. A token allowance stays on-chain until it is used
+up or revoked (approve 0), whether it came from `call_method approve` or a swap
+or bridge's approval step. A signature from `sign_message` stays valid even
+after the wallet is locked or deleted; the wallet can't revoke it.
 
 ### Data flow
 
