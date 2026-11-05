@@ -744,6 +744,7 @@ Setup auto-detects the Node.js path, validates the MCP server, and writes the co
 | `get_networks` | `testnet?`, `mainnet?` | List all supported blockchain networks |
 | `list_tokens` | `network?` | List registered tokens (omit network for every network) |
 | `get_token` | `network`, `token` | Get a single registered token entry (symbol, decimals, address, provider mappings) |
+| `list_wallets` | none | List wallets with their default flag, lock state and session time |
 | `get_address` | `network?`, `index?`, `testnet?`, `wallet?` | Get wallet address (omit network for all) |
 | `get_balance` | `network?`, `token?`, `index?`, `testnet?`, `wallet?` | Get balance with USD values (omit network for all). `token` is a registered ticker. |
 | `get_history` | `network`, `token?`, `limit?`, `index?`, `fromDate?`, `toDate?`, `wallet?` | Transaction history (requires indexer API) |
