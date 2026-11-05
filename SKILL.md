@@ -30,7 +30,7 @@ Operate a self-custody multi-chain wallet through the `wdk` CLI. For AI agents w
 The user must complete these steps before the AI agent can operate the wallet:
 
 1. **Create wallet**: `wdk wallet create --name trading --words 24` (each wallet has its own passphrase)
-2. **Unlock wallet**: `wdk wallet unlock --name trading --ttl 0` (unlimited session, or `--ttl 480` for 8 hours; default: 5 min)
+2. **Unlock wallet**: `wdk wallet unlock --name trading --ttl 30` (30 min session; default: 5 min, max: 10080). Avoid `--ttl 0`, which never expires
 
 Each wallet is unlocked individually with its own passphrase and TTL. These require interactive passphrase input — the AI agent cannot perform them unless `WDK_PASSPHRASE` env var is set.
 
