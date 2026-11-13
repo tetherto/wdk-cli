@@ -72,7 +72,7 @@
     "@tetherto/wdk-protocol-swap-velora-evm": "1.0.0-beta.6",
     "@tetherto/wdk-utils": "1.0.0-beta.11",
     "@tetherto/wdk-wallet": "1.0.0-beta.19",
-    "@tetherto/wdk-wallet-btc": "1.0.0-beta.15",
+    "@tetherto/wdk-wallet-btc": "1.0.0-beta.18",
     "@tetherto/wdk-wallet-evm": "1.0.0-beta.18",
     "@tetherto/wdk-wallet-evm-erc-4337": "1.0.0-beta.18",
     "@tetherto/wdk-wallet-solana": "1.0.0-beta.14",
@@ -86,7 +86,7 @@
     "commander": "14.0.3",
     "conf": "15.1.0",
     "ora": "9.3.0",
-    "zod": "4.6.6"
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@types/node": "22.19.19",
