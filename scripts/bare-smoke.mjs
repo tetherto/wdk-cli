@@ -97,7 +97,7 @@ try {
   console.log('\nshutdown:')
   await daemonClient.lock()
   const deadline = Date.now() + 5000
-  while (Date.now() < deadline && existsSync(getDaemonSocketPath())) {
+  while (Date.now() < deadline && (existsSync(getDaemonSocketPath()) || existsSync(getDaemonPidPath()))) {
     await new Promise((resolve) => setTimeout(resolve, 100))
   }
   ok(!existsSync(getDaemonSocketPath()), 'socket removed after lock')

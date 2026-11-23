@@ -18,9 +18,8 @@ import bareSpawn from 'bare-runtime/spawn'
 import {
   getDaemonSocketPath,
   getDaemonPidPath,
-  DAEMON_START_RETRIES,
-  DAEMON_START_RETRY_INTERVAL_MS,
-  DAEMON_SPAWN_TIMEOUT_MS,
+  DAEMON_START_TIMEOUT_MS,
+  DAEMON_START_POLL_INTERVAL_MS,
   IPC_CONTROL_TIMEOUT_MS,
   IPC_READ_TIMEOUT_MS,
   IPC_WRITE_TIMEOUT_MS,
@@ -33,6 +32,7 @@ import { KeyService } from '../services/key-service.js'
 import { WalletKeyring } from '../security/keyring.js'
 import { writeBareLaunchFiles } from './bare/imports.js'
 
+/** @typedef {import('node:child_process').ChildProcess} ChildProcess */
 /** @typedef {import('./protocol.js').DaemonRequest} DaemonRequest */
 /** @typedef {import('./protocol.js').DaemonResponse} DaemonResponse */
 /** @typedef {import('./protocol.js').GetAddressResult} GetAddressResult */
@@ -52,44 +52,20 @@ import { writeBareLaunchFiles } from './bare/imports.js'
 /** @typedef {import('../errors/index.js').ErrorCodeType} ErrorCodeType */
 
 /**
- * Spawns the daemon under the Bare runtime in detached mode and waits for it
- * to start. `bare-runtime` resolves the prebuilt binary for this platform;
- * the entry point and import map come from {@link writeBareLaunchFiles}.
+ * Spawns the daemon under the Bare runtime in detached mode, with its stderr
+ * piped so a startup failure can be reported. `bare-runtime` resolves the
+ * prebuilt binary for this platform; the entry point and import map come from
+ * {@link writeBareLaunchFiles}.
  *
- * @returns {Promise<void>}
+ * @returns {Promise<ChildProcess>} The spawned daemon process.
  */
 async function spawnDaemon () {
   const entry = await writeBareLaunchFiles()
-  return new Promise((resolve, reject) => {
-    const child = bareSpawn('bare', {
-      args: [entry],
-      stdio: ['ignore', 'ignore', 'pipe'],
-      detached: true, // Daemon must outlive the parent process on all platforms
-      windowsHide: true // Prevents a new console window on Windows when detached
-    })
-
-    let stderr = ''
-    child.stderr.on('data', (chunk) => {
-      stderr += chunk.toString()
-    })
-
-    const timeout = setTimeout(() => {
-      child.stderr.destroy()
-      child.unref()
-      resolve()
-    }, DAEMON_SPAWN_TIMEOUT_MS)
-
-    child.on('error', (err) => {
-      clearTimeout(timeout)
-      reject(new Error(`Failed to start daemon: ${err.message}`))
-    })
-
-    child.on('exit', (code) => {
-      clearTimeout(timeout)
-      if (code !== 0 && code !== null) {
-        reject(new Error(`Daemon exited with code ${code}: ${stderr.trim()}`))
-      }
-    })
+  return bareSpawn('bare', {
+    args: [entry],
+    stdio: ['ignore', 'ignore', 'pipe'],
+    detached: true, // Daemon must outlive the parent process on all platforms
+    windowsHide: true // Prevents a new console window on Windows when detached
   })
 }
 
@@ -141,29 +117,65 @@ export class DaemonClient {
   }
 
   /**
-   * Ensures the daemon is running, spawning it if necessary.
+   * Ensures the daemon is running, spawning it if necessary and waiting until
+   * it answers a status request. A daemon that does not answer within
+   * `DAEMON_START_TIMEOUT_MS` is killed, so no orphan outlives the failure.
    *
    * @returns {Promise<void>}
+   * @throws {Error} If the daemon cannot be spawned, exits before answering, or does not answer in time.
    */
   async ensureRunning () {
     if (await this.isRunning()) return
 
-    await spawnDaemon()
+    const child = await spawnDaemon()
 
-    let retries = DAEMON_START_RETRIES
-    while (retries > 0) {
-      if (await this.isRunning()) {
-        try {
-          await this.status()
-          return
-        } catch {
-          /* not ready yet */
+    let stderr = ''
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk.toString()
+    })
+    /** @type {Error | null} */
+    let spawnError = null
+    child.once('error', (err) => {
+      spawnError = err
+    })
+    /** @type {number | null | undefined} */
+    let exitCode
+    child.once('exit', (code) => {
+      exitCode = code
+    })
+
+    try {
+      const deadline = Date.now() + DAEMON_START_TIMEOUT_MS
+      while (Date.now() < deadline) {
+        if (await this.#answers()) return
+        if (spawnError) {
+          throw new Error(`Failed to start wallet daemon: ${spawnError.message}`)
         }
+        if (exitCode !== undefined) {
+          throw new Error(`Failed to start wallet daemon: it exited with code ${exitCode}: ${stderr.trim()}`)
+        }
+        await new Promise((resolve) => setTimeout(resolve, DAEMON_START_POLL_INTERVAL_MS))
       }
-      await new Promise((resolve) => setTimeout(resolve, DAEMON_START_RETRY_INTERVAL_MS))
-      retries--
+      child.kill()
+      throw new Error(`Failed to start wallet daemon: no answer within ${DAEMON_START_TIMEOUT_MS / 1000}s. ${stderr.trim()}`.trim())
+    } finally {
+      child.stderr.destroy()
+      child.unref()
     }
-    throw new Error('Failed to start wallet daemon')
+  }
+
+  /**
+   * Whether a running daemon answers a status request.
+   *
+   * @returns {Promise<boolean>} True if the daemon answered.
+   */
+  async #answers () {
+    try {
+      await this.status()
+      return true
+    } catch {
+      return false
+    }
   }
 
   /**

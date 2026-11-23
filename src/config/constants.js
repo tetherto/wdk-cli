@@ -53,9 +53,10 @@ export const MAX_SESSION_TTL_MINUTES = 7 * 24 * 60
 export const DAEMON_SOCKET = 'daemon.sock'
 export const DAEMON_PID = 'daemon.pid'
 export const DAEMON_MAX_REQUEST_BYTES = 64 * 1024
-export const DAEMON_START_RETRIES = 5
-export const DAEMON_START_RETRY_INTERVAL_MS = 500
-export const DAEMON_SPAWN_TIMEOUT_MS = 2000
+/** How long the client waits for a freshly spawned daemon to answer; a cold first start loads the whole WDK stack. */
+export const DAEMON_START_TIMEOUT_MS = 15000
+/** How often the client checks whether a freshly spawned daemon answers. */
+export const DAEMON_START_POLL_INTERVAL_MS = 100
 /** Socket timeout for daemon control requests served from memory (status, lock). */
 export const IPC_CONTROL_TIMEOUT_MS = 5000
 /** Socket timeout for single-operation requests (one RPC round trip or local key work). */
