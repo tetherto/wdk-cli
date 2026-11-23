@@ -33,12 +33,14 @@ const PASSPHRASE = 'correct-horse-battery-staple'
 const ETHEREUM_0 = '0x405005C7c4422390F4B334F64Cf20E0b767131d0'
 const BITCOIN_0 = 'bc1qxn0te9ecv864wtu53cccjhuuy5dphvem6ykeyr'
 const TRON_0 = 'TXngH8bVadn9ZWtKBgjKQcqN1GsZ7A1jcb'
+const SOLANA_0 = '8fjz5DTqBYENAUfsWLpSF2DBb46DXFcmztNJGLVrFPit'
 
 /** The wallet modules this host was built with. */
 const MODULES = {
   '@tetherto/wdk-wallet-evm': () => import('@tetherto/wdk-wallet-evm'),
   '@tetherto/wdk-wallet-btc': () => import('@tetherto/wdk-wallet-btc'),
-  '@tetherto/wdk-wallet-tron': () => import('@tetherto/wdk-wallet-tron')
+  '@tetherto/wdk-wallet-tron': () => import('@tetherto/wdk-wallet-tron'),
+  '@tetherto/wdk-wallet-solana': () => import('@tetherto/wdk-wallet-solana')
 }
 
 let values = structuredClone(CONFIG_DEFAULTS)
@@ -99,9 +101,17 @@ try {
   const unlock = await core.handleRequest({ action: 'unlock_wallet', wallet: 'main', passphrase: PASSPHRASE, ttl: 5 })
   ok(unlock.ok, `unlocks with the right passphrase${unlock.ok ? '' : ` (${unlock.error})`}`)
 
-  for (const [network, expected] of [['ethereum', ETHEREUM_0], ['bitcoin', BITCOIN_0], ['tron', TRON_0]]) {
+  for (const [network, expected] of [['ethereum', ETHEREUM_0], ['bitcoin', BITCOIN_0], ['tron', TRON_0], ['solana', SOLANA_0]]) {
     const res = await core.handleRequest({ action: 'get_address', wallet: 'main', network, index: 0 })
     ok(res.ok && res.data.address === expected, `derives the ${network} address${res.ok ? ` (${res.data.address})` : ` (${res.error})`}`)
+  }
+
+  for (const network of ['ethereum', 'solana']) {
+    const signed = await core.handleRequest({ action: 'sign_message', wallet: 'main', network, index: 0, message: 'hello' })
+    const verified = signed.ok && await core.handleRequest({ action: 'verify_message', wallet: 'main', network, index: 0, message: 'hello', signature: signed.data.signature })
+    const tampered = signed.ok && await core.handleRequest({ action: 'verify_message', wallet: 'main', network, index: 0, message: 'hellO', signature: signed.data.signature })
+    ok(signed.ok && verified.ok && verified.data.valid === true, `signs and verifies a ${network} message${verified?.ok === false ? ` (${verified.error})` : ''}`)
+    ok(tampered.ok && tampered.data.valid === false, `rejects a ${network} signature over another message`)
   }
 
   const lock = await core.handleRequest({ action: 'lock_wallet', wallet: 'main' })
