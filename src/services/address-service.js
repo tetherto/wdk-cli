@@ -15,7 +15,7 @@
 import { validateAddress } from '@tetherto/wdk-utils'
 
 import { getChainId } from '../config/networks.js'
-import { WdkCliError, ErrorCode } from '../errors/index.js'
+import { WdkCliError, ErrorCode } from '../errors/wdk-cli-error.js'
 
 /**
  * Validates a recipient address against the network's address format, so

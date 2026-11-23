@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import { jest } from '@jest/globals'
+import '../../../src/services/install-node-host.js'
 import { validateRecipient } from '../../../src/services/address-service.js'
 import { configService } from '../../../src/services/config-service.js'
 import { walletsFile } from '../../../src/config/wdk-config.js'

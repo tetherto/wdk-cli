@@ -16,11 +16,12 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 
-// The config path is resolved when the service singleton is created, so the
-// isolated config home must be set before the module is imported.
+// The config path is resolved when the file-backed store is created, so the
+// isolated config home must be set before the store is installed.
 const tempDir = await mkdtemp(join(tmpdir(), 'wdk-test-'))
 process.env.XDG_CONFIG_HOME = tempDir
 
+await import('../../../src/services/install-node-host.js')
 const { configService } = await import('../../../src/services/config-service.js')
 
 const CONFIG_PATH = join(tempDir, 'wdk-cli', 'config.json')

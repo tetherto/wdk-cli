@@ -26,7 +26,7 @@ import {
 } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { encrypt, decrypt } from '@tetherto/wdk-utils'
-import { getWalletsDir, getWalletPath, getWalletDir } from '../config/constants.js'
+import { getWalletsDir, getWalletPath, getWalletDir } from '../config/paths.js'
 
 /** @typedef {import('@tetherto/wdk-utils').EncryptedPayload} EncryptedPayload */
 

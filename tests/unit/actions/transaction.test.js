@@ -24,6 +24,7 @@ jest.unstable_mockModule('../../../src/daemon/client.js', () => ({
   }
 }))
 
+await import('../../../src/services/install-node-host.js')
 const { getTransaction, FINALITY_TARGETS } = await import('../../../src/actions/transaction.js')
 
 const HASH = '0x9e2c084b21f5b6a3f2d1c74e6a9d7b8f5a4c3e2d1b0a99887766554433221100'

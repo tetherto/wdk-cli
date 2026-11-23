@@ -30,7 +30,7 @@ const configHome = mkdtempSync(join(tmpdir(), 'wdk-bare-'))
 process.env.XDG_CONFIG_HOME = configHome
 
 const { daemonClient } = await import('../src/daemon/client.js')
-const { getDaemonSocketPath, getDaemonPidPath } = await import('../src/config/constants.js')
+const { getDaemonSocketPath, getDaemonPidPath } = await import('../src/config/paths.js')
 const { BARE_DIR, BARE_IMPORTS_FILE, BARE_ENTRY_FILE } = await import('../src/daemon/bare/imports.js')
 
 let pass = 0

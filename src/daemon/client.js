@@ -15,9 +15,8 @@
 import { connect } from 'node:net'
 import { readFile, access, unlink } from 'node:fs/promises'
 import bareSpawn from 'bare-runtime/spawn'
+import { getDaemonSocketPath, getDaemonPidPath } from '../config/paths.js'
 import {
-  getDaemonSocketPath,
-  getDaemonPidPath,
   DAEMON_START_TIMEOUT_MS,
   DAEMON_START_POLL_INTERVAL_MS,
   IPC_CONTROL_TIMEOUT_MS,
@@ -26,7 +25,7 @@ import {
   DEFAULT_FINALITY_TIMEOUT_MS,
   IPC_WAIT_BUFFER_MS
 } from '../config/constants.js'
-import { WdkCliError, ErrorCode } from '../errors/index.js'
+import { WdkCliError, ErrorCode } from '../errors/wdk-cli-error.js'
 import { configService } from '../services/config-service.js'
 import { KeyService } from '../services/key-service.js'
 import { WalletKeyring } from '../security/keyring.js'
@@ -49,7 +48,7 @@ import { writeBareLaunchFiles } from './bare/imports.js'
 /** @typedef {import('./protocol.js').WalletStatus} WalletStatus */
 /** @typedef {import('./protocol.js').ListWalletsResult} ListWalletsResult */
 /** @typedef {import('./protocol.js').StatusResult} StatusResult */
-/** @typedef {import('../errors/index.js').ErrorCodeType} ErrorCodeType */
+/** @typedef {import('../errors/wdk-cli-error.js').ErrorCodeType} ErrorCodeType */
 
 /**
  * Spawns the daemon under the Bare runtime in detached mode, with its stderr

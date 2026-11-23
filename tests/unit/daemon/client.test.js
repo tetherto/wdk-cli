@@ -22,10 +22,13 @@ const tempDir = mkdtempSync(join(tmpdir(), 'wdk-client-test-'))
 const DUMMY_SOCKET_PATH = join(tempDir, 'daemon.sock')
 const DUMMY_PID_PATH = join(tempDir, 'daemon.pid')
 
-jest.unstable_mockModule('../../../src/config/constants.js', () => ({
+jest.unstable_mockModule('../../../src/config/paths.js', () => ({
   getDaemonSocketPath: () => DUMMY_SOCKET_PATH,
   getDaemonPidPath: () => DUMMY_PID_PATH,
-  getConfigDir: () => tempDir,
+  getConfigDir: () => tempDir
+}))
+
+jest.unstable_mockModule('../../../src/config/constants.js', () => ({
   DAEMON_START_TIMEOUT_MS: 100,
   DAEMON_START_POLL_INTERVAL_MS: 1,
   IPC_CONTROL_TIMEOUT_MS: 5000,

@@ -15,7 +15,7 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
-import { getConfigDir } from '../../config/constants.js'
+import { getConfigDir } from '../../config/paths.js'
 
 /** @typedef {{ bare: string, default: string }} ImportMapEntry */
 /** @typedef {Record<string, ImportMapEntry>} ImportMap */

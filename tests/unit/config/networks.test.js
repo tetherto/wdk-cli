@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import { jest } from '@jest/globals'
+import '../../../src/services/install-node-host.js'
 import {
   NETWORKS,
   NETWORK_NAMES,

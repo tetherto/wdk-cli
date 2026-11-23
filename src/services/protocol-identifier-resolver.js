@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { walletsFile } from '../config/wdk-config.js'
-import { WdkCliError, ErrorCode } from '../errors/index.js'
+import { WdkCliError, ErrorCode } from '../errors/wdk-cli-error.js'
 
 /** @typedef {import('./protocol-adapter.js').SwapRequest} SwapRequest */
 /** @typedef {{ id: string | number, name?: string, type?: string, nativeToken?: Record<string, unknown> }} ProviderChain */

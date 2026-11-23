@@ -38,7 +38,8 @@
     "test:integration": "cross-env NODE_OPTIONS=--experimental-vm-modules jest tests/integration --maxWorkers=4 --testTimeout=60000",
     "test:coverage": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --coverage --testPathIgnorePatterns tests/integration",
     "test:integration:coverage": "cross-env NODE_OPTIONS=--experimental-vm-modules jest tests/integration --coverage --maxWorkers=4 --testTimeout=60000",
-    "test:bare": "node scripts/bare-smoke.mjs"
+    "test:bare": "node scripts/bare-smoke.mjs",
+    "test:bare-core": "node scripts/run-bare.mjs scripts/bare-core-smoke.mjs"
   },
   "jest": {
     "setupFiles": [
@@ -53,7 +54,9 @@
   "standard": {
     "ignore": [
       "tests/**",
-      "src/daemon/bare/main.template.mjs"
+      "src/daemon/bare/main.template.mjs",
+      "src/config/bundled-json.js",
+      "scripts/bare-core-smoke.mjs"
     ]
   },
   "engines": {

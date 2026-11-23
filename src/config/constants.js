@@ -12,13 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { join } from 'node:path'
-import { homedir } from 'node:os'
-import { readFileSync } from 'node:fs'
+import { packageJson } from './bundled-json.js'
 import { walletsFile } from './wdk-config.js'
-import { WdkCliError, ErrorCode } from '../errors/index.js'
+import { WdkCliError, ErrorCode } from '../errors/wdk-cli-error.js'
 
-const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'))
+const pkg = packageJson
 
 const networkDefaults = {}
 for (const [name, entry] of Object.entries(walletsFile.networks)) {
@@ -35,18 +33,6 @@ export const PACKAGE_NAME = pkg.name
 export const APP_NAME = 'wdk-cli'
 export const APP_VERSION = pkg.version
 export const CONFIG_DIR = APP_NAME
-const WALLETS_DIR = 'wallets'
-
-/**
- * Returns the path to the application configuration directory.
- *
- * @returns {string} Absolute path to the config directory.
- */
-export function getConfigDir () {
-  const xdgConfig = process.env.XDG_CONFIG_HOME
-  const base = xdgConfig || join(homedir(), '.config')
-  return join(base, CONFIG_DIR)
-}
 
 export const SESSION_TTL_MINUTES = 5
 export const MAX_SESSION_TTL_MINUTES = 7 * 24 * 60
@@ -69,36 +55,6 @@ export const DEFAULT_FINALITY_TIMEOUT_MS = 150000
 export const IPC_WAIT_BUFFER_MS = 30000
 
 /**
- * Returns the platform-appropriate daemon socket path.
- *
- * @returns {string} Absolute socket path or Windows named pipe.
- */
-export function getDaemonSocketPath () {
-  if (process.platform === 'win32') {
-    return '\\\\.\\pipe\\wdk-cli-daemon'
-  }
-  return join(getConfigDir(), DAEMON_SOCKET)
-}
-
-/**
- * Returns the path to the daemon PID file.
- *
- * @returns {string} Absolute path to the daemon PID file.
- */
-export function getDaemonPidPath () {
-  return join(getConfigDir(), DAEMON_PID)
-}
-
-/**
- * Returns the path to the wallets storage directory.
- *
- * @returns {string} Absolute path to the wallets directory.
- */
-export function getWalletsDir () {
-  return join(getConfigDir(), WALLETS_DIR)
-}
-
-/**
  * Validates a wallet name and returns the sanitized version.
  *
  * @param {string} name - The wallet name to validate.
@@ -114,24 +70,4 @@ export function validateWalletName (name) {
     )
   }
   return sanitized
-}
-
-/**
- * Returns the directory path for a named wallet.
- *
- * @param {string} name - The wallet name.
- * @returns {string} Absolute path to the wallet directory.
- */
-export function getWalletDir (name) {
-  return join(getWalletsDir(), validateWalletName(name))
-}
-
-/**
- * Returns the path to the encrypted seed file for a named wallet.
- *
- * @param {string} name - The wallet name.
- * @returns {string} Absolute path to the seed.enc file.
- */
-export function getWalletPath (name) {
-  return join(getWalletDir(name), 'seed.enc')
 }

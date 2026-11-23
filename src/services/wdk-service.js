@@ -13,13 +13,13 @@
 // limitations under the License.
 
 import WDK from '@tetherto/wdk'
-import chalk from 'chalk'
 import { getNetworkConfig, parseModuleName } from '../config/networks.js'
 import { walletsFile } from '../config/wdk-config.js'
 import { getAllModules, getInstalledVersion, isRegisteredModule } from './module-service.js'
 import { configService } from './config-service.js'
 import { CONFIG_DEFAULTS } from '../config/constants.js'
-import { WdkCliError, ErrorCode, isNetworkError } from '../errors/index.js'
+import { WdkCliError, ErrorCode, isNetworkError } from '../errors/wdk-cli-error.js'
+import { getModuleHost } from './module-host.js'
 
 /** @typedef {typeof import('@tetherto/wdk-wallet').default} WalletManagerCtor */
 /** @typedef {import('@tetherto/wdk').WdkAccount} WalletAccount */
@@ -52,7 +52,7 @@ async function loadWalletManager (moduleSpec) {
   }
 
   try {
-    const mod = await import(name)
+    const mod = await getModuleHost().load(name)
     /** @type {WalletManagerCtor} */
     const Manager = mod.default || mod
 
@@ -62,11 +62,7 @@ async function loadWalletManager (moduleSpec) {
         const repair = walletsFile.modules?.[name]
           ? 'npm install'
           : `wdk module add --name ${name}`
-        console.error(
-          chalk.yellow(
-            `Warning: ${name} installed ${installed}, config expects ${version}. Run: ${repair}`
-          )
-        )
+        console.error(`Warning: ${name} installed ${installed}, config expects ${version}. Run: ${repair}`)
       }
     }
 

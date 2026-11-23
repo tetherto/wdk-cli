@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { readFileSync } from 'node:fs'
+import { wdkConfigJson } from './bundled-json.js'
 
-const walletsFileRaw = JSON.parse(readFileSync(new URL('../../wdk.config.json', import.meta.url), 'utf8'))
+const walletsFileRaw = wdkConfigJson
 
 /**
  * @typedef {Object} WdkNetworkEntry

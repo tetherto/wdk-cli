@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { readFileSync } from 'node:fs'
+import { wdkTokensJson } from './bundled-json.js'
 
-const tokensFileRaw = JSON.parse(readFileSync(new URL('../../wdk.tokens.json', import.meta.url), 'utf8'))
+const tokensFileRaw = wdkTokensJson
 
 /**
  * How one external system names this token. A plain string is the slug on its

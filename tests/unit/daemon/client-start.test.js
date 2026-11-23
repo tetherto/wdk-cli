@@ -33,10 +33,13 @@ jest.unstable_mockModule('../../../src/daemon/bare/imports.js', () => ({
   writeBareLaunchFiles: async () => join(tempDir, 'main.mjs')
 }))
 
-jest.unstable_mockModule('../../../src/config/constants.js', () => ({
+jest.unstable_mockModule('../../../src/config/paths.js', () => ({
   getDaemonSocketPath: () => SOCKET_PATH,
   getDaemonPidPath: () => PID_PATH,
-  getConfigDir: () => tempDir,
+  getConfigDir: () => tempDir
+}))
+
+jest.unstable_mockModule('../../../src/config/constants.js', () => ({
   DAEMON_START_TIMEOUT_MS: START_TIMEOUT_MS,
   DAEMON_START_POLL_INTERVAL_MS: 5,
   IPC_CONTROL_TIMEOUT_MS: 5000,

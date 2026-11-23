@@ -15,8 +15,9 @@
 import { walletsFile } from '../config/wdk-config.js'
 import { configService } from './config-service.js'
 import { isRegisteredModule } from './module-service.js'
+import { getModuleHost } from './module-host.js'
 import { isDisabled, setEnabled, clearOverride, hasOwn, getOwn } from './override-service.js'
-import { WdkCliError, ErrorCode } from '../errors/index.js'
+import { WdkCliError, ErrorCode } from '../errors/wdk-cli-error.js'
 
 /** @typedef {import('../config/wdk-config.js').WdkProtocolEntry} WdkProtocolEntry */
 /** @typedef {import('../config/wdk-config.js').ProtocolKind} ProtocolKind */
@@ -330,7 +331,7 @@ export async function loadProtocolClass (module) {
     )
   }
   try {
-    const mod = await import(module)
+    const mod = await getModuleHost().load(module)
     return mod.default || mod
   } catch (err) {
     if (err?.code === 'ERR_MODULE_NOT_FOUND' || err?.code === 'MODULE_NOT_FOUND') {
