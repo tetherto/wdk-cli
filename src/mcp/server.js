@@ -28,6 +28,7 @@ import { previewSwap, executeSwap } from '../actions/swap.js'
 import { createRampUrl } from '../actions/ramp.js'
 import { listTokens, getToken } from '../actions/token.js'
 import { listMethods, listAllMethods, callMethod } from '../actions/method.js'
+import { listWallets } from '../actions/wallet.js'
 import { resolveTokenIdentifier, toBaseUnits } from '../services/token-service.js'
 
 /** @typedef {{ content: { type: 'text', text: string }[], isError?: boolean }} ToolResult */
@@ -119,6 +120,21 @@ export async function startMcpServer () {
     async ({ network, token }) => {
       try {
         return jsonResult(getToken({ network, token }))
+      } catch (e) {
+        return errorResult(e)
+      }
+    }
+  )
+
+  server.registerTool(
+    'list_wallets',
+    {
+      description:
+        'List wallets with their default flag, lock state and session time. ttlMs and ttlRemaining are in milliseconds and appear only on unlocked wallets; ttlMs 0 means the session does not expire. If a task needs a locked wallet, ask the user to run `wdk wallet unlock --name <name>` in a terminal, and never ask for the passphrase.'
+    },
+    async () => {
+      try {
+        return jsonResult(await listWallets())
       } catch (e) {
         return errorResult(e)
       }

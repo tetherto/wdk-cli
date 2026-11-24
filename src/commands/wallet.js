@@ -15,6 +15,7 @@
 import chalk from 'chalk'
 import ora from 'ora'
 import { rename } from 'node:fs/promises'
+import { listWallets } from '../actions/wallet.js'
 import { KeyService } from '../services/key-service.js'
 import { WalletKeyring } from '../security/keyring.js'
 import { daemonClient } from '../daemon/client.js'
@@ -257,36 +258,14 @@ export function registerWalletCommand (program) {
 
   listCmd.action(async () => {
     try {
-      const keyService = createKeyService()
-
-      const wallets = await keyService.list()
-
-      let unlockedWallets = []
-      try {
-        if (await daemonClient.isRunning()) {
-          unlockedWallets = await daemonClient.listWallets()
-        }
-      } catch {
-        /* daemon not running */
-      }
-
-      const defaultWallet = configService.getDefaultWallet()
+      const result = await listWallets()
 
       if (program.opts().json) {
-        const result = wallets.map((name) => {
-          const unlocked = unlockedWallets.find((w) => w.name === name)
-          return {
-            name,
-            default: name === defaultWallet,
-            unlocked: !!unlocked,
-            ...(unlocked ? { ttlMs: unlocked.ttlMs, ttlRemaining: unlocked.ttlRemaining } : {})
-          }
-        })
-        console.log(JSON.stringify({ wallets: result, count: result.length }))
+        console.log(JSON.stringify(result))
         return
       }
 
-      if (wallets.length === 0) {
+      if (result.count === 0) {
         console.log(
           chalk.dim('  No wallets found. Run `wdk wallet create --name <name>` to get started.')
         )
@@ -295,25 +274,24 @@ export function registerWalletCommand (program) {
 
       console.log()
       const table = createTable(['Name', 'Default', 'Status', 'TTL Remaining'])
-      for (const name of wallets) {
-        const unlocked = unlockedWallets.find((w) => w.name === name)
+      for (const w of result.wallets) {
         let ttlCell
-        if (!unlocked) {
+        if (!w.unlocked) {
           ttlCell = chalk.dim('-')
-        } else if (unlocked.ttlMs === 0) {
+        } else if (w.ttlMs === 0) {
           ttlCell = chalk.dim('unlimited')
         } else {
-          ttlCell = `${Math.ceil(unlocked.ttlRemaining / 60000)} min`
+          ttlCell = `${Math.ceil(w.ttlRemaining / 60000)} min`
         }
         table.push([
-          chalk.bold(name),
-          name === defaultWallet ? chalk.green('✓') : '',
-          unlocked ? chalk.green('unlocked') : chalk.dim('locked'),
+          chalk.bold(w.name),
+          w.default ? chalk.green('✓') : '',
+          w.unlocked ? chalk.green('unlocked') : chalk.dim('locked'),
           ttlCell
         ])
       }
       console.log(table.toString())
-      console.log(chalk.dim(`\n  ${wallets.length} wallet${wallets.length === 1 ? '' : 's'}`))
+      console.log(chalk.dim(`\n  ${result.count} wallet${result.count === 1 ? '' : 's'}`))
       console.log()
     } catch (error) {
       handleError(error, program.opts().verbose, program.opts().json)
