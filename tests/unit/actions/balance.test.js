@@ -28,6 +28,7 @@ jest.unstable_mockModule('../../../src/services/price-service.js', () => ({
   convertManyNativeToUsd
 }))
 
+await import('../../../src/services/install-node-host.js')
 const { getBalance, getAllBalances } = await import('../../../src/actions/balance.js')
 
 const DUMMY_ADDRESS = '0x1111111111111111111111111111111111111111'

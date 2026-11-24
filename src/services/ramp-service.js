@@ -21,7 +21,7 @@ import {
 } from './protocol-service.js'
 import { getInstalledVersion } from './module-service.js'
 import { getTokenSlug, getTokenByName, getTokensSupportedBy } from './token-service.js'
-import { WdkCliError, ErrorCode } from '../errors/index.js'
+import { WdkCliError, ErrorCode } from '../errors/wdk-cli-error.js'
 
 /** @typedef {'buy' | 'sell'} Direction */
 

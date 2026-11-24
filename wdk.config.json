@@ -26,7 +26,7 @@
         "approve": { "kind": "write", "style": "object", "params": { "token": "string", "spender": "string", "amount": "bigint" } }
       }
     },
-    "@tetherto/wdk-wallet-solana": { "version": "1.0.0-beta.14" },
+    "@tetherto/wdk-wallet-solana": { "version": "1.0.0-beta.21" },
     "@tetherto/wdk-wallet-spark": {
       "version": "1.0.0-beta.25",
       "methods": {

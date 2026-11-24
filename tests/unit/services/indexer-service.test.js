@@ -14,6 +14,7 @@
 
 import { jest } from '@jest/globals'
 
+import '../../../src/services/install-node-host.js'
 import {
   getIndexerSlug,
   isIndexerSupported,

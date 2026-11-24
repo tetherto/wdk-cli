@@ -18,8 +18,8 @@ import { tokensFile } from '../config/wdk-tokens.js'
 import { walletsFile } from '../config/wdk-config.js'
 import { configService } from './config-service.js'
 import { getOverrides, isDisabled, setEnabled, clearOverride, getOwn } from './override-service.js'
-import { WdkCliError, ErrorCode } from '../errors/index.js'
-import { humanToBaseUnits } from '../ui/parsers.js'
+import { WdkCliError, ErrorCode } from '../errors/wdk-cli-error.js'
+import { humanToBaseUnits } from './amounts.js'
 
 /** @typedef {import('../config/wdk-tokens.js').TokenMetadata} TokenMetadata */
 /** @typedef {import('../config/wdk-tokens.js').TokenSlug} TokenSlug */

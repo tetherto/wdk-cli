@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { WdkCliError, ErrorCode } from '../errors/index.js'
+import { WdkCliError, ErrorCode } from '../errors/wdk-cli-error.js'
 
 /** @typedef {import('./protocol-service.js').ProtocolKind} ProtocolKind */
 /** @typedef {{ tokenIn: string, tokenOut: string, to?: string, tokenInAmount?: bigint, tokenOutAmount?: bigint }} SwapOptions */

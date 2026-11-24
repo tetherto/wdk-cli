@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { configService } from './config-service.js'
-import { WdkCliError, ErrorCode } from '../errors/index.js'
+import { WdkCliError, ErrorCode } from '../errors/wdk-cli-error.js'
 import { walletsFile } from '../config/wdk-config.js'
 import { getAllTokens, getTokenByName, tokenSlugValue, getTokensSupportedBy } from './token-service.js'
 import { getOwn } from './override-service.js'

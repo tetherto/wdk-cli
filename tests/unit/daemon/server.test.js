@@ -39,9 +39,9 @@ function writeWallet (name) {
   writeFileSync(join(dir, 'seed.enc'), JSON.stringify(encrypt(SEED, PASSPHRASE)), 'utf8')
 }
 
-const constants = await import('../../../src/config/constants.js')
-jest.unstable_mockModule('../../../src/config/constants.js', () => ({
-  ...constants,
+const paths = await import('../../../src/config/paths.js')
+jest.unstable_mockModule('../../../src/config/paths.js', () => ({
+  ...paths,
   getDaemonSocketPath: () => SOCKET_PATH,
   getDaemonPidPath: () => PID_PATH,
   getWalletPath: (name) => join(tempDir, 'wallets', name, 'seed.enc')
@@ -55,7 +55,7 @@ jest.unstable_mockModule('../../../src/services/wdk-service.js', () => ({
 }))
 
 const { WalletDaemon } = await import('../../../src/daemon/server.js')
-const { MAX_SESSION_TTL_MINUTES } = constants
+const { MAX_SESSION_TTL_MINUTES } = await import('../../../src/config/constants.js')
 
 /** @type {WalletDaemon} */
 let daemon

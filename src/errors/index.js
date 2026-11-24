@@ -13,90 +13,21 @@
 // limitations under the License.
 
 import chalk from 'chalk'
+import { ErrorCode, WdkCliError } from './wdk-cli-error.js'
 
-/** @typedef {typeof ErrorCode[keyof typeof ErrorCode]} ErrorCodeType */
+export { ErrorCode, WdkCliError, isNetworkError } from './wdk-cli-error.js'
 
-export const ErrorCode = /** @type {const} */ ({
-  KEY_NOT_FOUND: 'KEY_NOT_FOUND',
-  INVALID_SEED_PHRASE: 'INVALID_SEED_PHRASE',
-  WRONG_PASSPHRASE: 'WRONG_PASSPHRASE',
-  NETWORK_NOT_SUPPORTED: 'NETWORK_NOT_SUPPORTED',
-  INSUFFICIENT_BALANCE: 'INSUFFICIENT_BALANCE',
-  TRANSACTION_FAILED: 'TRANSACTION_FAILED',
-  NETWORK_ERROR: 'NETWORK_ERROR',
-  WALLET_NOT_UNLOCKED: 'WALLET_NOT_UNLOCKED',
-  WALLET_EXISTS: 'WALLET_EXISTS',
-  WALLET_LOCKED: 'WALLET_LOCKED',
-  PASSPHRASE_MISMATCH: 'PASSPHRASE_MISMATCH',
-  INVALID_ARGUMENT: 'INVALID_ARGUMENT',
-  INVALID_INDEX: 'INVALID_INDEX',
-  INVALID_CONFIG: 'INVALID_CONFIG',
-  MISSING_CONFIG: 'MISSING_CONFIG',
-  UNSUPPORTED_MODULE: 'UNSUPPORTED_MODULE',
-  TOKEN_NOT_SUPPORTED: 'TOKEN_NOT_SUPPORTED',
-  ENVIRONMENT_MISMATCH: 'ENVIRONMENT_MISMATCH',
-  SIGN_FAILED: 'SIGN_FAILED',
-  INVALID_AMOUNT: 'INVALID_AMOUNT',
-  INVALID_ADDRESS: 'INVALID_ADDRESS',
-  INVALID_TOKEN: 'INVALID_TOKEN',
-  PROVIDER_UNAVAILABLE: 'PROVIDER_UNAVAILABLE',
-  QUOTE_REJECTED: 'QUOTE_REJECTED',
-  UNKNOWN_ERROR: 'UNKNOWN_ERROR',
-  UNEXPECTED_ERROR: 'UNEXPECTED_ERROR'
-})
-
-const NETWORK_ERROR_PATTERNS = [
-  // Node syscall codes
-  'ECONNREFUSED',
-  'ECONNRESET',
-  'ETIMEDOUT',
-  'ENOTFOUND',
-  'EHOSTUNREACH',
-  'ENETUNREACH',
-  'EAI_AGAIN',
-  // Ethers / RPC library codes
-  'TIMEOUT',
-  'NETWORK_ERROR',
-  // Message fragments
-  'fetch failed',
-  'request timeout'
-]
+/** @typedef {import('./wdk-cli-error.js').ErrorCodeType} ErrorCodeType */
 
 /**
- * Returns true when the error looks like a transient network failure.
+ * Prints a WdkCliError and its optional hint to stderr with color.
  *
- * @param {unknown} error - The error to inspect.
- * @returns {boolean} True when the error matches a known network failure pattern.
+ * @param {WdkCliError} error - The error to print.
  */
-export function isNetworkError (error) {
-  const msg = error instanceof Error ? error.message : String(error)
-  return NETWORK_ERROR_PATTERNS.some((p) => msg.includes(p))
-}
-
-/**
- * The CLI's structured error type. Carries a stable error code and an optional user-facing hint.
- */
-export class WdkCliError extends Error {
-  /**
-   * Creates a new WdkCliError with a stable code and optional user-facing suggestion.
-   *
-   * @param {string} message - The error message.
-   * @param {ErrorCodeType} code - The stable error code.
-   * @param {string} [suggestion] - An optional hint shown to the user.
-   */
-  constructor (message, code, suggestion) {
-    super(message)
-    this.name = 'WdkCliError'
-    this.code = code
-    this.suggestion = suggestion
-  }
-
-  /** Prints the error and optional hint to stderr with color. */
-  display () {
-    console.error(chalk.red(`Error: ${this.message}`))
-    if (this.suggestion) {
-      console.error(chalk.yellow(`Hint: ${this.suggestion}`))
-    }
+export function displayError (error) {
+  console.error(chalk.red(`Error: ${error.message}`))
+  if (error.suggestion) {
+    console.error(chalk.yellow(`Hint: ${error.suggestion}`))
   }
 }
 
@@ -121,7 +52,7 @@ export function handleError (error, verbose = false, json = false) {
         })
       )
     } else {
-      error.display()
+      displayError(error)
       if (verbose && error.stack) console.error(error.stack)
     }
     process.exit(1)

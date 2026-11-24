@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { createRequire } from 'node:module'
+import { wdkConfigJson } from './bundled-json.js'
 
-const walletsFileRaw = createRequire(import.meta.url)('../../wdk.config.json')
+const walletsFileRaw = wdkConfigJson
 
 /**
  * @typedef {Object} WdkNetworkEntry

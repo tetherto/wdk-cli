@@ -12,17 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { readFileSync } from 'node:fs'
-import { join, dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { walletsFile } from '../config/wdk-config.js'
 import { configService } from './config-service.js'
 import { getOverrides, getOverride, isDisabled, setEnabled, clearOverride, hasOwn, getOwn } from './override-service.js'
-import { WdkCliError, ErrorCode } from '../errors/index.js'
+import { WdkCliError, ErrorCode } from '../errors/wdk-cli-error.js'
+import { getModuleHost } from './module-host.js'
 
 /** @typedef {import('../config/wdk-config.js').WdkModuleEntry} WdkModuleEntry */
-
-const CLI_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
 /**
  * @typedef {Object} ModuleStatus
@@ -57,20 +53,13 @@ export function isWdkModulePackage (name) {
 }
 
 /**
- * Reads the installed version of a package from its package.json on disk.
- * Read directly (not via require): packages with an `exports` map do not
- * expose `./package.json` as an importable subpath.
+ * Returns the installed version of a package, as the module host reports it.
  *
  * @param {string} name - The package name.
  * @returns {string | null} The installed version, or null when not installed.
  */
 export function getInstalledVersion (name) {
-  try {
-    const raw = readFileSync(join(CLI_ROOT, 'node_modules', name, 'package.json'), 'utf8')
-    return JSON.parse(raw).version || null
-  } catch {
-    return null
-  }
+  return getModuleHost().installedVersion(name)
 }
 
 /**

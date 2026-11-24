@@ -20,7 +20,7 @@ import {
   resolveSoleProvider
 } from '../protocol-service.js'
 import { getInstalledVersion } from '../module-service.js'
-import { WdkCliError, ErrorCode } from '../../errors/index.js'
+import { WdkCliError, ErrorCode } from '../../errors/wdk-cli-error.js'
 
 /** @typedef {import('@tetherto/wdk-pricing-provider').PricingProvider} Pricing */
 

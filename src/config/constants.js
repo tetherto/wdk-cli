@@ -12,13 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { join } from 'node:path'
-import { homedir } from 'node:os'
-import { createRequire } from 'node:module'
+import { packageJson } from './bundled-json.js'
 import { walletsFile } from './wdk-config.js'
-import { WdkCliError, ErrorCode } from '../errors/index.js'
+import { WdkCliError, ErrorCode } from '../errors/wdk-cli-error.js'
 
-const pkg = createRequire(import.meta.url)('../../package.json')
+const pkg = packageJson
 
 const networkDefaults = {}
 for (const [name, entry] of Object.entries(walletsFile.networks)) {
@@ -35,27 +33,16 @@ export const PACKAGE_NAME = pkg.name
 export const APP_NAME = 'wdk-cli'
 export const APP_VERSION = pkg.version
 export const CONFIG_DIR = APP_NAME
-const WALLETS_DIR = 'wallets'
-
-/**
- * Returns the path to the application configuration directory.
- *
- * @returns {string} Absolute path to the config directory.
- */
-export function getConfigDir () {
-  const xdgConfig = process.env.XDG_CONFIG_HOME
-  const base = xdgConfig || join(homedir(), '.config')
-  return join(base, CONFIG_DIR)
-}
 
 export const SESSION_TTL_MINUTES = 5
 export const MAX_SESSION_TTL_MINUTES = 7 * 24 * 60
 export const DAEMON_SOCKET = 'daemon.sock'
 export const DAEMON_PID = 'daemon.pid'
 export const DAEMON_MAX_REQUEST_BYTES = 64 * 1024
-export const DAEMON_START_RETRIES = 5
-export const DAEMON_START_RETRY_INTERVAL_MS = 500
-export const DAEMON_SPAWN_TIMEOUT_MS = 2000
+/** How long the client waits for a freshly spawned daemon to answer; a cold first start loads the whole WDK stack. */
+export const DAEMON_START_TIMEOUT_MS = 15000
+/** How often the client checks whether a freshly spawned daemon answers. */
+export const DAEMON_START_POLL_INTERVAL_MS = 100
 /** Socket timeout for daemon control requests served from memory (status, lock). */
 export const IPC_CONTROL_TIMEOUT_MS = 5000
 /** Socket timeout for single-operation requests (one RPC round trip or local key work). */
@@ -66,36 +53,6 @@ export const IPC_WRITE_TIMEOUT_MS = 60000
 export const DEFAULT_FINALITY_TIMEOUT_MS = 150000
 /** IPC socket headroom over a daemon-side wait, so the client outlasts the daemon's poll loop. */
 export const IPC_WAIT_BUFFER_MS = 30000
-
-/**
- * Returns the platform-appropriate daemon socket path.
- *
- * @returns {string} Absolute socket path or Windows named pipe.
- */
-export function getDaemonSocketPath () {
-  if (process.platform === 'win32') {
-    return '\\\\.\\pipe\\wdk-cli-daemon'
-  }
-  return join(getConfigDir(), DAEMON_SOCKET)
-}
-
-/**
- * Returns the path to the daemon PID file.
- *
- * @returns {string} Absolute path to the daemon PID file.
- */
-export function getDaemonPidPath () {
-  return join(getConfigDir(), DAEMON_PID)
-}
-
-/**
- * Returns the path to the wallets storage directory.
- *
- * @returns {string} Absolute path to the wallets directory.
- */
-export function getWalletsDir () {
-  return join(getConfigDir(), WALLETS_DIR)
-}
 
 /**
  * Validates a wallet name and returns the sanitized version.
@@ -113,24 +70,4 @@ export function validateWalletName (name) {
     )
   }
   return sanitized
-}
-
-/**
- * Returns the directory path for a named wallet.
- *
- * @param {string} name - The wallet name.
- * @returns {string} Absolute path to the wallet directory.
- */
-export function getWalletDir (name) {
-  return join(getWalletsDir(), validateWalletName(name))
-}
-
-/**
- * Returns the path to the encrypted seed file for a named wallet.
- *
- * @param {string} name - The wallet name.
- * @returns {string} Absolute path to the seed.enc file.
- */
-export function getWalletPath (name) {
-  return join(getWalletDir(name), 'seed.enc')
 }

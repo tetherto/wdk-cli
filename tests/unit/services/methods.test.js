@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import { createRequire } from 'node:module'
+import '../../../src/services/install-node-host.js'
 import {
   getMethod,
   convertMethodArgs,

@@ -23,6 +23,9 @@ jest.unstable_mockModule('../../../src/services/config-service.js', () => ({
   configService: { get: getConfig, set: setConfig, delete: deleteConfig }
 }))
 
+const { useModuleHost } = await import('../../../src/services/module-host.js')
+const { createNodeModuleHost } = await import('../../../src/services/node-module-host.js')
+useModuleHost(createNodeModuleHost())
 const {
   validateProviderSpec,
   verifyProviderKind,

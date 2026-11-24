@@ -19,7 +19,7 @@ import {
   tokenSlugValue
 } from './token-service.js'
 import { resolvePricingProvider } from './pricing/index.js'
-import { WdkCliError, ErrorCode } from '../errors/index.js'
+import { WdkCliError, ErrorCode } from '../errors/wdk-cli-error.js'
 
 /** @typedef {import('./token-service.js').TokenEntry} TokenEntry */
 

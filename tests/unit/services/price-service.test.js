@@ -24,6 +24,7 @@ jest.unstable_mockModule('../../../src/services/pricing/index.js', () => ({
   resolvePricingProvider
 }))
 
+await import('../../../src/services/install-node-host.js')
 const { convertToUsd, getNativeUsdPrice, convertManyNativeToUsd } =
   await import('../../../src/services/price-service.js')
 

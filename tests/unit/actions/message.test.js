@@ -30,6 +30,7 @@ const DUMMY_ADDRESS = '0x8ba1f109551bD432803012645Ac136ddd64DBA72'
 const DUMMY_SIGNATURE = '0x5d99b6f7f6d1f73d1a26497f2b1c89b24c0993913f86e9a2d02cd69887d9c94f3c880358579d811b21dd1b7fd9bb01c1d81d10e69f0384e675c32b39643be89201'
 const WRONG_SIGNATURE = '0x2f61a72dd0dcc8b7c33c8f4f2af4f2f0b1e05f9a37c6c3f2be9f80b5b8c40e621dd23ac6ac47938bc42887d0c3b7f26548b0d0c1e28ffb6d1e94c2a45e4a45f800'
 
+await import('../../../src/services/install-node-host.js')
 const { signMessage, verifyMessage } = await import('../../../src/actions/message.js')
 
 beforeEach(() => {

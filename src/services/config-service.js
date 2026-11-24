@@ -12,39 +12,47 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { chmodSync } from 'node:fs'
-import Conf from 'conf'
-import { APP_NAME, CONFIG_DEFAULTS, getConfigDir } from '../config/constants.js'
-
 /**
- * Narrows the config directory to the owner. The files inside carry provider
- * credentials and wallet names; without this another local account can read
- * them. Windows has no POSIX mode and uses a per-user ACL instead, and a
- * directory on a read-only mount cannot be changed — neither is worth failing
- * a command over.
+ * Where the user config lives. Each host provides one: the CLI, the MCP server
+ * and the desktop daemon use the file-backed store from `./conf-store.js`; an
+ * embedding host such as a mobile worklet can supply its own.
  *
- * @returns {void}
+ * @typedef {Object} ConfigStore
+ * @property {(key: string) => unknown} get - Reads a value by dot-separated key.
+ * @property {(key: string, value: unknown) => void} set - Writes a value by dot-separated key.
+ * @property {(key: string) => void} delete - Removes a value by dot-separated key.
+ * @property {() => void} clear - Restores the factory defaults.
+ * @property {() => Record<string, unknown>} snapshot - Returns a copy of every stored value.
+ * @property {string} path - Where the store keeps its data, for display.
  */
-function restrictConfigDir () {
-  if (process.platform === 'win32') return
-  try {
-    chmodSync(getConfigDir(), 0o700)
-  } catch {
-    // Best effort: the config itself is already written owner-only.
-  }
-}
 
-/** Persistent user-config store backed by `Conf`. */
+/** The user-config facade every service reads and writes through. */
 class ConfigService {
-  constructor () {
-    this.conf = new Conf({
-      projectName: APP_NAME,
-      cwd: getConfigDir(),
-      // Owner-only: this file holds provider API keys in clear text.
-      configFileMode: 0o600,
-      defaults: CONFIG_DEFAULTS
-    })
-    restrictConfigDir()
+  /** @type {ConfigStore | null} */
+  #store = null
+
+  /**
+   * Sets the store this service reads and writes. Every host calls it once at
+   * startup, before any config access.
+   *
+   * @param {ConfigStore} store - The config store.
+   * @returns {void}
+   */
+  useStore (store) {
+    this.#store = store
+  }
+
+  /**
+   * The registered store.
+   *
+   * @type {ConfigStore}
+   * @throws {Error} If no store has been registered.
+   */
+  get #current () {
+    if (!this.#store) {
+      throw new Error('No config store registered: call configService.useStore() at startup.')
+    }
+    return this.#store
   }
 
   /**
@@ -54,7 +62,7 @@ class ConfigService {
    * @returns {unknown} The config value, or undefined if not set.
    */
   get (key) {
-    return this.conf.get(key)
+    return this.#current.get(key)
   }
 
   /**
@@ -65,7 +73,7 @@ class ConfigService {
    * @returns {void}
    */
   set (key, value) {
-    this.conf.set(key, value)
+    this.#current.set(key, value)
   }
 
   /**
@@ -75,16 +83,16 @@ class ConfigService {
    * @returns {void}
    */
   delete (key) {
-    this.conf.delete(key)
+    this.#current.delete(key)
   }
 
   /**
-   * Clears all config values, restoring the factory defaults from `CONFIG_DEFAULTS`.
+   * Clears all config values, restoring the factory defaults.
    *
    * @returns {void}
    */
   clear () {
-    this.conf.clear()
+    this.#current.clear()
   }
 
   /**
@@ -94,7 +102,7 @@ class ConfigService {
    * @returns {Record<string, unknown>} The config object.
    */
   list () {
-    const { customTokens: _ct, ...config } = { ...this.conf.store }
+    const { customTokens: _ct, ...config } = this.#current.snapshot()
     return config
   }
 
@@ -104,7 +112,8 @@ class ConfigService {
    * @returns {string} The default wallet name, or empty string if not set.
    */
   getDefaultWallet () {
-    return /** @type {string | undefined} */ (this.get('defaultWallet')) || ''
+    const name = this.get('defaultWallet')
+    return typeof name === 'string' ? name : ''
   }
 
   /**
@@ -114,7 +123,7 @@ class ConfigService {
    * @returns {void}
    */
   setDefaultWallet (name) {
-    this.conf.set('defaultWallet', name)
+    this.set('defaultWallet', name)
   }
 
   /**
@@ -123,7 +132,8 @@ class ConfigService {
    * @returns {number} The default account index, or 0 if not set.
    */
   getDefaultIndex () {
-    return /** @type {number | undefined} */ (this.get('defaultIndex')) || 0
+    const index = this.get('defaultIndex')
+    return typeof index === 'number' ? index : 0
   }
 
   /**
@@ -133,16 +143,16 @@ class ConfigService {
    * @returns {void}
    */
   setDefaultIndex (index) {
-    this.conf.set('defaultIndex', index)
+    this.set('defaultIndex', index)
   }
 
   /**
-   * The absolute path to the config file on disk.
+   * Where the store keeps its data, for display.
    *
    * @type {string}
    */
   get configPath () {
-    return this.conf.path
+    return this.#current.path
   }
 }
 

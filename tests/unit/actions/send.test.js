@@ -24,6 +24,7 @@ jest.unstable_mockModule('../../../src/daemon/client.js', () => ({
 
 jest.unstable_mockModule('../../../src/services/price-service.js', () => ({ convertToUsd }))
 
+await import('../../../src/services/install-node-host.js')
 const { previewSend } = await import('../../../src/actions/send.js')
 
 const FROM = '0x1111111111111111111111111111111111111111'

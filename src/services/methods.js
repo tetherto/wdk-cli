@@ -14,7 +14,7 @@
 
 import { walletsFile } from '../config/wdk-config.js'
 import { getNetworkConfig, parseModuleName } from '../config/networks.js'
-import { WdkCliError, ErrorCode } from '../errors/index.js'
+import { WdkCliError, ErrorCode } from '../errors/wdk-cli-error.js'
 import { hasOwn, getOwn, isDisabled } from './override-service.js'
 
 /** @typedef {import('../config/wdk-config.js').MethodEntry} MethodEntry */

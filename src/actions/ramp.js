@@ -17,7 +17,7 @@ import { validateNetwork } from '../config/networks.js'
 import { WdkCliError, ErrorCode } from '../errors/index.js'
 import { resolveRampProvider, resolveAssets, quoteRamp, buildRampUrl } from '../services/ramp-service.js'
 import { formatAmount } from '../ui/formatters.js'
-import { humanToBaseUnits } from '../ui/parsers.js'
+import { humanToBaseUnits } from '../services/amounts.js'
 
 /**
  * @typedef {Object} CreateRampUrlInput

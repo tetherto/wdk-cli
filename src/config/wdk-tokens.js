@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { createRequire } from 'node:module'
+import { wdkTokensJson } from './bundled-json.js'
 
-const tokensFileRaw = createRequire(import.meta.url)('../../wdk.tokens.json')
+const tokensFileRaw = wdkTokensJson
 
 /**
  * How one external system names this token. A plain string is the slug on its

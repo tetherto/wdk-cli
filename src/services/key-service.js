@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import WalletManager from '@tetherto/wdk-wallet'
-import { WdkCliError, ErrorCode } from '../errors/index.js'
+import { WdkCliError, ErrorCode } from '../errors/wdk-cli-error.js'
 
 /** @typedef {import('../security/keyring.js').WalletKeyring} WalletKeyring */
 

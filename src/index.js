@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { createRequire } from 'node:module'
+import './services/install-node-host.js'
 import { Command, CommanderError } from 'commander'
 import { ErrorCode } from './errors/index.js'
 import { PACKAGE_NAME, APP_VERSION } from './config/constants.js'
 import { walletsFile } from './config/wdk-config.js'
+import { packageJson } from './config/bundled-json.js'
 import { registerConfigCommand } from './commands/config.js'
 import { registerWalletCommand } from './commands/wallet.js'
 import { registerGetCommand } from './commands/get.js'
@@ -32,7 +33,7 @@ import { registerMethodCommand } from './commands/method.js'
 import { registerModuleCommand } from './commands/module.js'
 import { registerProviderCommand } from './commands/provider.js'
 
-const cliRequire = createRequire(import.meta.url)
+const pkg = packageJson
 
 /**
  * Builds the `--version` output: the CLI version followed by each WDK
@@ -43,7 +44,6 @@ const cliRequire = createRequire(import.meta.url)
  * @returns {string}
  */
 function buildVersionString () {
-  const pkg = cliRequire('../package.json')
   /** @type {Map<string, string>} */
   const versions = new Map()
   // Top-level @tetherto/wdk* deps

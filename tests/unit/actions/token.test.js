@@ -14,6 +14,7 @@
 
 import { jest } from '@jest/globals'
 
+import '../../../src/services/install-node-host.js'
 import { listTokens, validateTokenEntry } from '../../../src/actions/token.js'
 import { configService } from '../../../src/services/config-service.js'
 

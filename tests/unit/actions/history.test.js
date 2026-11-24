@@ -24,6 +24,7 @@ jest.unstable_mockModule('../../../src/daemon/client.js', () => ({
   daemonClient: { requireUnlocked, getAddress }
 }))
 
+await import('../../../src/services/install-node-host.js')
 const indexerService = await import('../../../src/services/indexer-service.js')
 jest.unstable_mockModule('../../../src/services/indexer-service.js', () => ({
   ...indexerService,

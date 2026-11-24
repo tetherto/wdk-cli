@@ -21,6 +21,7 @@ jest.unstable_mockModule('../../../src/daemon/client.js', () => ({
   daemonClient: { requireUnlocked, callMethod: daemonCallMethod }
 }))
 
+await import('../../../src/services/install-node-host.js')
 const { listMethods, listAllMethods, callMethod } = await import('../../../src/actions/method.js')
 const { configService } = await import('../../../src/services/config-service.js')
 

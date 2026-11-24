@@ -15,7 +15,7 @@
 import { configService } from '../services/config-service.js'
 import { getCustomModules } from '../services/module-service.js'
 import { getOverrides, getOverride, isDisabled, setEnabled, clearOverride, hasOwn, getOwn } from '../services/override-service.js'
-import { WdkCliError, ErrorCode } from '../errors/index.js'
+import { WdkCliError, ErrorCode } from '../errors/wdk-cli-error.js'
 import { walletsFile } from './wdk-config.js'
 import { getNativeToken } from '../services/token-service.js'
 

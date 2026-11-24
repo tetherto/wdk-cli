@@ -1,8 +1,20 @@
-#!/usr/bin/env -S node --disable-warning=ExperimentalWarning
+#!/usr/bin/env node
 
-const { startDaemon } = await import('../src/index.js')
+// Foreground launcher for the wallet daemon, for manual runs and debugging:
+//
+//   wdk-daemon
+//
+// The CLI normally starts the daemon itself (see src/daemon/client.js). Both
+// paths run it under the Bare runtime via bare-runtime; this one keeps it in
+// the foreground, forwards its exit code, and leaves Ctrl-C to the daemon.
+import bareSpawn from 'bare-runtime/spawn'
+import { writeBareLaunchFiles } from '../src/daemon/bare/imports.js'
 
-startDaemon().catch((error) => {
-  console.error('Daemon error:', error)
-  process.exit(1)
+const entry = await writeBareLaunchFiles()
+
+bareSpawn('bare', {
+  args: [entry],
+  stdio: 'inherit',
+  forwardExitCode: true,
+  suppressSignals: true
 })

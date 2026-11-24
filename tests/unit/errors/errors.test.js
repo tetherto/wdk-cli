@@ -14,7 +14,7 @@
 
 import { jest } from '@jest/globals'
 import chalk from 'chalk'
-import { WdkCliError, ErrorCode } from '../../../src/errors/index.js'
+import { WdkCliError, ErrorCode, displayError } from '../../../src/errors/index.js'
 
 describe('WdkCliError', () => {
   it('has code and suggestion', () => {
@@ -36,12 +36,12 @@ describe('WdkCliError', () => {
     expect(err.name).toBe('WdkCliError')
   })
 
-  it('display prints the message and hint to stderr', () => {
+  it('displayError prints the message and hint to stderr', () => {
     const spy = jest.spyOn(console, 'error').mockImplementation(() => {})
     const colorLevel = chalk.level
     chalk.level = 0
 
-    new WdkCliError('boom', ErrorCode.UNKNOWN_ERROR, 'try again').display()
+    displayError(new WdkCliError('boom', ErrorCode.UNKNOWN_ERROR, 'try again'))
 
     expect(spy.mock.calls).toEqual([['Error: boom'], ['Hint: try again']])
     chalk.level = colorLevel
