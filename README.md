@@ -18,7 +18,7 @@ See the [WDK CLI documentation](https://docs.wdk.tether.io/cli/).
 │  (CLI)    │        │        (wallet daemon)             │
 └───────────┘        │                                   │
                      │  Holds WDK instances in memory    │
-┌───────────┐        │  Handles all crypto operations:   │
+┌───────────┐        │  Handles wallet operations:       │
 │  wdk-mcp  │──IPC──▶│  derivation, signing, balances    │
 │  (MCP)    │        │  Auto-locks after TTL expires     │
 └───────────┘        │                                   │
@@ -35,14 +35,14 @@ See the [WDK CLI documentation](https://docs.wdk.tether.io/cli/).
 
 **wdk-daemon** (Wallet Daemon):
 - Starts empty — wallets unlocked individually via socket requests
-- Holds WDK instances in memory — owns all cryptographic operations
+- Holds WDK instances in memory — owns all signing
 - Listens on a Unix socket (`daemon.sock`, 0700 permissions)
-- Exposes: `unlock_wallet`, `lock_wallet`, `get_address`, `get_balance`, `estimate_fee`, `send`, `call_method`, `list_wallets`, `status`, `lock`
-- Per-wallet TTL — each wallet has its own timeout (default: 5 min, `--ttl 0` for unlimited)
+- Exposes: `unlock_wallet`, `lock_wallet`, `get_address`, `get_balance`, `estimate_fee`, `send`, `call_method`, `sign_message`, `verify_message`, `get_transaction`, `quote_swap`, `quote_bridge`, `execute_swap`, `execute_bridge`, `list_wallets`, `status`, `lock`
+- Per-wallet TTL — each wallet has its own timeout (default: 5 min, maximum: 10080 min / 7 days, `--ttl 0` for unlimited)
 - Auto-exits when last wallet is locked
 
 **wdk-cli** (CLI):
-- Thin client — no crypto, no keys
+- Commands that take a passphrase handle the seed in the CLI process, e.g. `wallet unlock` and `wallet export` decrypt it
 - Parses user commands, sends requests to daemon, formats and displays results
 - Only interface for passphrase-protected operations: unlock wallet, export seed, delete wallet
 
@@ -148,7 +148,7 @@ wdk wallet create --name <name> [--words 12|24]       # Create a new wallet with
 wdk wallet import --name <name> [--seed-stdin]        # Import a wallet from an existing seed phrase
 wdk wallet export --name <name>                       # Display the seed phrase of an existing wallet
 wdk wallet list                                       # List all wallets with lock/default status
-wdk wallet unlock --name <name> [--ttl <minutes>]     # Unlock a wallet for signing transactions
+wdk wallet unlock --name <name> [--ttl <minutes>]     # Unlock a wallet for signing transactions (max 10080)
 wdk wallet lock --name <name>                         # Lock a single wallet
 wdk wallet lock --all                                 # Lock all wallets (stops daemon)
 wdk wallet delete --name <name>                       # Delete a wallet (requires passphrase)
@@ -161,7 +161,7 @@ Supports **multiple named wallets** with **per-wallet passphrases**. Each wallet
 
 Passphrase is optional (empty for none). If provided, it encrypts the seed phrase with AES-256-GCM + scrypt.
 
-`wdk wallet unlock` unlocks a single wallet and starts the daemon if not running. Each wallet has its own TTL — use `--ttl 0` for unlimited session, ideal for AI agent environments. The daemon auto-exits when the last wallet is locked.
+`wdk wallet unlock` unlocks a single wallet and starts the daemon if not running. Each wallet has its own TTL, up to 10080 minutes (7 days). `--ttl 0` means no expiry, so the wallet stays unlocked until someone locks it, and any process running as you can sign and send until then (see [Trust model](#trust-model)). Give AI agents a bounded session. The daemon auto-exits when the last wallet is locked.
 
 ### Networks
 
@@ -677,7 +677,6 @@ wdk get balance --network ethereum --json | jq '.balance'
 
 - Seed phrases encrypted at rest (AES-256-GCM + scrypt), per-wallet passphrases with unique salt per wallet
 - Seeds and passphrases never accepted as CLI arguments
-- Private keys and seeds never leave the daemon process
 - Unix socket with 0700 permissions (same-user access only, like ssh-agent)
 - No telemetry, no analytics, no external data collection
 
@@ -721,9 +720,9 @@ Per-wallet passphrase with unique random salt → unique derived key per wallet.
 
 AI agents interact with wdk-wallet in two ways, depending on their environment:
 
-### MCP — for sandboxed AI models
+### MCP — structured tools for AI models
 
-For AI models that run as applications with limited system access (Claude Desktop, OpenClaw, etc.). The model can only interact with the wallet through structured MCP tools — it cannot run commands or access the filesystem.
+For AI models in MCP clients (Claude Desktop, Claude Code, OpenClaw, etc.). MCP isn't a sandbox: it only limits an agent when the client gives it no other route, such as a shell.
 
 ```bash
 wdk mcp setup --ai-tool claude-desktop    # Configure for Claude Desktop
@@ -752,17 +751,26 @@ Setup auto-detects the Node.js path, validates the MCP server, and writes the co
 | `sell_crypto` | `network`, `token`, `fiatCurrency?`, `fiatAmount?`, `cryptoAmount?`, `provider?`, `index?`, `wallet?` | Sell crypto for fiat. Returns the provider's URL. `provider` is required while more than one fiat provider is enabled. |
 | `list_methods` | `network?` | List a wallet module's chain-specific methods (omit network for all modules). Each entry includes its kind (read/write) and parameter schema. |
 | `call_method` | `network`, `name`, `args?`, `index?`, `wallet?` | Invoke a declared module method. `args` maps parameter names to string values, using the declared camelCase name — `{"maxFee": "1000"}`, not the CLI flag `--max-fee`. A structured parameter's value is a JSON-encoded string. |
+| `swap_token` | `network`, `fromToken`, `toToken`, `toNetwork?`, `amountIn?`, `amountOut?`, `recipient?`, `protocol?`, `index?`, `dryRun?`, `wallet?` | Swap tokens via the best available protocol, cross-chain when `toNetwork` is set. Give exactly one of `amountIn` and `amountOut`. |
+| `bridge_token` | `network`, `token`, `toNetwork`, `amount`, `recipient?`, `protocol?`, `index?`, `dryRun?`, `wallet?` | Bridge a token to another chain via the best available protocol. |
+| `sign_message` | `network`, `message`, `index?`, `wallet?` | Sign a message with the wallet account's private key |
+| `verify_message` | `network`, `message`, `signature`, `index?`, `wallet?` | Verify a message signature against the wallet account's key |
+| `get_transaction` | `network`, `hash`, `finality?`, `timeout?`, `index?`, `wallet?` | Get a transaction's normalized receipt by hash. Set `finality` to block until it reaches that target, with `timeout` in milliseconds |
 
 All wallet-dependent tools accept an optional `wallet` parameter (uses default wallet if omitted).
 
-**Important: `send_token` requires two calls.** The tool defaults to `dryRun=true` (preview mode). AI agents must:
-1. Call `send_token` first to get a fee/amount preview
+**Important: `send_token`, `swap_token` and `bridge_token` require two calls.** These tools default to `dryRun=true` (preview mode). AI agents must:
+1. Call the tool first to get a preview
 2. Show the preview to the user and wait for confirmation
-3. Call `send_token` again with `dryRun=false` only after the user confirms
+3. Call the tool again with `dryRun=false` only after the user confirms
 
 **Important: `call_method` write methods require user confirmation.** Only methods declared in the catalog are invocable. Methods with kind `write` move funds or mutate on-chain state and have no preview mode — AI agents must show the exact method and args to the user and call `call_method` only after the user explicitly confirms. `read` methods can be called freely.
 
-The AI model interacts exclusively through these structured tools — it cannot run shell commands, access the filesystem, or read private keys. All operations route through the daemon over a Unix socket.
+**Important: `sign_message` requires user confirmation.** Signatures can authorize actions on some chains and there is no preview mode — AI agents must show the exact message to the user and call `sign_message` only after the user explicitly confirms.
+
+These confirmations are instructions to the agent. The server doesn't enforce them.
+
+None of these tools lets the model run shell commands, browse the filesystem or read seed material.
 
 ### CLI — for local AI agents
 
@@ -781,10 +789,10 @@ The `SKILL.md` file contains complete instructions for AI agents — commands, w
 Create and unlock wallets first:
 ```bash
 wdk wallet create --name default --words 24
-wdk wallet unlock --name default --ttl 0
+wdk wallet unlock --name default --ttl 30
 ```
 
-Both MCP and CLI route through the daemon — the agent never has access to keys or seeds.
+Neither mode contains the agent: while a wallet is unlocked, the agent can spend from it and sign with it. See [Trust model](#trust-model).
 
 ## Development
 
